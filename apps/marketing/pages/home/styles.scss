@@ -54,6 +54,30 @@
     gap: 10px;
     margin-top: 20px;
 
+    &__systems {
+      display: inline-flex;
+      gap: 4px;
+      padding: 3px;
+      border-radius: 12px;
+      border: 1px solid var(--rule);
+    }
+
+    &__system {
+      @include type.small;
+      padding: 5px 14px;
+      border: 0;
+      border-radius: 9px;
+      background: none;
+      color: var(--muted);
+      cursor: pointer;
+
+      &[aria-pressed='true'] {
+        background: var(--fg);
+        color: var(--bg);
+        font-weight: 500;
+      }
+    }
+
     &__button {
       @include type.small;
       display: inline-flex;
@@ -83,6 +107,22 @@
       @include type.small;
       margin: 0;
       color: var(--muted);
+    }
+
+    &__more {
+      @include type.small;
+      margin: 6px 0 0;
+      padding: 0;
+      list-style: none;
+      color: var(--muted);
+
+      li {
+        margin-top: 4px;
+      }
+
+      code {
+        white-space: nowrap;
+      }
     }
   }
 

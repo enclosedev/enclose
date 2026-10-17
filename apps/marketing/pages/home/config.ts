@@ -26,7 +26,7 @@ export function meta() {
           url: site.url,
           image: `${site.url}/og.png`,
           applicationCategory: 'DesignApplication',
-          operatingSystem: 'macOS 13 or later',
+          operatingSystem: 'macOS 13 or later, Linux (x86_64)',
           downloadUrl: 'https://github.com/enclosedev/enclose/releases/latest',
           license: 'https://www.gnu.org/licenses/agpl-3.0.html',
           isAccessibleForFree: true,

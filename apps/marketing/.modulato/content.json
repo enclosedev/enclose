@@ -3,7 +3,7 @@
     "title": "Enclose",
     "url": "https://enclose.dev",
     "headline": "Enclose is an open-source workbench for CAD made with agents.",
-    "description": "It works with your Claude, Codex or Grok subscription. Fork it and make it yours.",
-    "summary": "Enclose is an open-source Mac app for CAD made with agents. Click a part, say what should change, and Claude, Codex or Grok edits the code and rebuilds the model."
+    "description": "It works with your Claude, Codex or Grok subscription, or opencode with the models you bring. Fork it and make it yours.",
+    "summary": "Enclose is an open-source app for Mac and Linux for CAD made with agents. Click a part, say what should change, and Claude, Codex, Grok or opencode edits the code and rebuilds the model."
   }
 }
