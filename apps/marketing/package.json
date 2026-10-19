@@ -6,12 +6,13 @@
   "scripts": {
     "dev": "portless run modulato dev",
     "dev:plain": "modulato dev",
-    "build": "modulato build",
+    "build": "modulato build && tsx scripts/agents.ts",
     "preview": "node preview.mjs",
-    "check": "modulato check && tsc --noEmit",
+    "check": "modulato check && tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
     "model": "node scripts/pack-model.mjs",
     "blueprints": "tsx --tsconfig ../desktop/tsconfig.app.json scripts/blueprints.ts",
-    "og": "tsx scripts/og.ts"
+    "og": "tsx scripts/og.ts",
+    "test": "tsx --test agents/*.test.ts"
   },
   "engines": {
     "node": ">=24"
@@ -34,15 +35,19 @@
     "@gltf-transform/core": "^4.5.1",
     "@gltf-transform/extensions": "^4.5.1",
     "@gltf-transform/functions": "^4.5.1",
+    "@types/node": "^24.19.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/three": "^0.186.0",
+    "@types/turndown": "^5.0.6",
     "@vitejs/plugin-react": "^5.0.0",
+    "esbuild": "^0.28.2",
     "meshoptimizer": "^1.3.0",
     "portless": "^0.15.0",
     "puppeteer-core": "^25.13.0",
     "sass": "^1.86.0",
     "tsx": "^4.23.15",
+    "turndown": "^7.2.4",
     "typescript": "^7.0.0",
     "vite": "^7.0.0"
   }

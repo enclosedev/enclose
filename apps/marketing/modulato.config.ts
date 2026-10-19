@@ -41,6 +41,11 @@ export default defineConfig({
       },
     ],
   },
+  // Every page can also be had in Markdown, by asking for text/markdown (agents/middleware.ts),
+  // so the HTML too has to say it is one of two, or a cache could hand either to anyone.
+  response({ headers }) {
+    headers.set('vary', 'Accept')
+  },
   // content/*.json -> typed snapshot. Pull + typegen: npx modulato content
   content: localJson({ dir: 'content' }),
   // Defined once, used everywhere: useViewport(), motion-token overrides

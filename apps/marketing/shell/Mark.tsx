@@ -12,8 +12,12 @@ const SCROLLED = 8
  */
 const TRAVEL = 0.9
 
-/** The pages of terms, where the mark is out of its corner until the page is scrolled. */
-const terms = (page: string) => page === 'terms' || page === 'privacy'
+/**
+ * The pages of terms, and the others set the same way (components/Legal.tsx), where the
+ * mark is out of its corner until the page is scrolled.
+ */
+const TERMS = ['terms', 'privacy', 'about', 'contact']
+const terms = (page: string) => TERMS.includes(page)
 
 const inOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2)
 const out = (t: number) => 1 - (1 - t) ** 3

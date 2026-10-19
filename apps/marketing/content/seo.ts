@@ -1,5 +1,6 @@
 import type { MetaResult } from 'modulato'
 import site from './site.json'
+import { markdownFile } from '../agents/addresses'
 
 /**
  * What a page says of itself to whatever reads it without looking at it: a search
@@ -20,7 +21,11 @@ export function seo({
   return {
     title,
     description,
-    link: [{ rel: 'canonical', href: address }],
+    link: [
+      { rel: 'canonical', href: address },
+      // the same page in Markdown, for an agent (agents/)
+      { rel: 'alternate', type: 'text/markdown', href: `${site.url}${markdownFile(path)}` },
+    ],
     meta: [
       { property: 'og:title', content: title },
       { property: 'og:description', content: description },

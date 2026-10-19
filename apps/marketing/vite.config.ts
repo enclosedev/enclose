@@ -1,6 +1,7 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import modulato from '@modulato/vite'
+import { MARKDOWN_ROUTES } from './agents/routes'
 
 // The ways to the app. A release's disk images are named for the kind of Mac and not
 // for the version (apps/desktop/scripts/dist.mjs), and GitHub answers an address like
@@ -33,11 +34,15 @@ export default defineConfig({
     downloads(),
     modulato({
       vercel: {
-        routes: Object.entries(DOWNLOADS).map(([path, Location]) => ({
-          src: `^${path}/?$`,
-          status: 302,
-          headers: { Location },
-        })),
+        routes: [
+          ...Object.entries(DOWNLOADS).map(([path, Location]) => ({
+            src: `^${path}/?$`,
+            status: 302,
+            headers: { Location },
+          })),
+          // every page in Markdown too, for agents that ask for it (agents/)
+          ...MARKDOWN_ROUTES,
+        ],
       },
     }),
   ],

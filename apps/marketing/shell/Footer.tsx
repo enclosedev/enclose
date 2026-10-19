@@ -21,6 +21,12 @@ export function Footer() {
           </a>
         </li>
         <li>
+          <a href="/about">About</a>
+        </li>
+        <li>
+          <a href="/contact">Contact</a>
+        </li>
+        <li>
           <a href="/terms">Terms</a>
         </li>
         <li>

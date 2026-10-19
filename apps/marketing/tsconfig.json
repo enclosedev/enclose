@@ -29,9 +29,14 @@
     "shell",
     "pages",
     "content",
+    "agents",
     "behaviors",
     "transitions",
     "vite.config.ts",
     "modulato.config.ts"
+  ],
+  // the tests and what builds the Markdown run in Node: tsconfig.node.json
+  "exclude": [
+    "agents/*.test.ts"
   ]
 }

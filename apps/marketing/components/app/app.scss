@@ -469,7 +469,7 @@ $tool-line: oklch(from var(--axis-z) calc(l + 0.066) calc(c - 0.056) calc(h + 2)
       margin: -6px 0;
     }
 
-    h3 {
+    strong {
       margin: 0 auto 0 0;
       @include type.style('ui-head');
     }
@@ -741,7 +741,7 @@ $tool-line: oklch(from var(--axis-z) calc(l + 0.066) calc(c - 0.056) calc(h + 2)
       height: 36px;
     }
 
-    h3 {
+    strong {
       margin: 0;
       @include type.style('ui-head');
     }
@@ -842,7 +842,7 @@ $tool-line: oklch(from var(--axis-z) calc(l + 0.066) calc(c - 0.056) calc(h + 2)
       height: 48px;
       padding: 0 12px 0 32px;
 
-      h3 {
+      strong {
         margin: 0;
         overflow: hidden;
         @include type.style('ui-title');

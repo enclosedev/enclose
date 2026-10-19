@@ -2,7 +2,8 @@ import type { ReactNode } from 'react'
 import { Footer } from '../shell/Footer'
 
 /**
- * A page of terms: its name, when it was last changed, and what it says. Each thing in
+ * A page of terms, or of what the project is: its name, when it was last changed (where
+ * that matters), and what it says. Each thing in
  * its column comes in after the one before when the page is come to
  * (transitions/default.ts).
  */
@@ -15,7 +16,7 @@ export function Legal({
   /** the page's folder, which its root is named for */
   page: string
   title: string
-  updated: string
+  updated?: string
   children: ReactNode
 }) {
   return (
@@ -24,7 +25,7 @@ export function Legal({
         <h1>
           Enclose <span>{title}</span>
         </h1>
-        <p className="legal__updated">Last updated {updated}</p>
+        {updated && <p className="legal__updated">Last updated {updated}</p>}
         {children}
       </article>
       <Footer />

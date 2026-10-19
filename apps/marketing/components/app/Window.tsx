@@ -236,6 +236,8 @@ function Control({
   )
 }
 
+// The window is a picture, to whatever reads the page without looking: so what the app
+// sets as a heading is set in <strong> here, and the page's own headings go h1, h2.
 export function Window() {
   return (
     <div
@@ -253,7 +255,7 @@ export function Window() {
               {SHEETS.map((sheet) => (
                 <section key={sheet.file} className="app__sheet" data-app="sheet">
                   <header>
-                    <h3>{sheet.name} View</h3>
+                    <strong>{sheet.name} View</strong>
                     <span className="app__save">
                       <DownloadIcon />
                     </span>
@@ -342,7 +344,7 @@ export function Window() {
                     data-app={group.id === PICKED ? 'picked' : undefined}
                   >
                     <header>
-                      <h3>{group.label}</h3>
+                      <strong>{group.label}</strong>
                       <span>{group.size}</span>
                       <DownloadIcon strokeWidth={1.25} />
                     </header>
@@ -392,7 +394,7 @@ export function Window() {
 
         <aside className="app__thread" data-app="thread">
           <header>
-            <h3>{TITLE}</h3>
+            <strong>{TITLE}</strong>
             <span>
               <PlusIcon />
               <PanelRightCloseIcon />

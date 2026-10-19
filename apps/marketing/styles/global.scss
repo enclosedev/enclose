@@ -72,7 +72,9 @@ html.lenis, html.lenis body { height: auto; }
   transition: --legal 0.9s cubic-bezier(0.65, 0, 0.35, 1);
 
   &[data-page='terms'],
-  &[data-page='privacy'] {
+  &[data-page='privacy'],
+  &[data-page='about'],
+  &[data-page='contact'] {
     --legal: 1;
   }
 
@@ -240,6 +242,10 @@ html.lenis, html.lenis body { height: auto; }
     }
 
     ul { padding-left: 20px; }
+
+    // where no date is given (about, contact), what it says begins as far down as it
+    // would after one
+    h1 + p { margin-top: 40px; }
 
     a {
       text-decoration: underline;

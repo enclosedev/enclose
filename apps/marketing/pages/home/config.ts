@@ -9,7 +9,7 @@ export function load({ content }: LoadArgs) {
 export function meta() {
   const said = seo({
     path: '/',
-    title: `${site.title}: open-source workbench for CAD made with agents`,
+    title: `${site.title}: AI CAD app for Mac and Linux`,
     description: site.summary,
   })
   return {

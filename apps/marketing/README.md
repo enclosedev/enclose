@@ -7,6 +7,7 @@ The landing page for [enclose.dev](https://enclose.dev), built with
 npm install
 npm run dev        # SSR + HMR on https://enclose.localhost (portless)
 npm run check      # conventions + TypeScript
+npm test           # the Markdown for agents, and llms.txt
 npm run build      # production build (VERCEL=1 for .vercel/output)
 ```
 
@@ -22,8 +23,11 @@ starts the plain Vite server on a port.
 pages/home/        the page: what it says, and the scroll that moves the window
   tour.ts          the scroll, from stop to stop, and what goes on at each
   motion.ts        where the window is at each stop (tokens, editable in ✦ Tweak)
+pages/about/       what Enclose is and who makes it
+pages/contact/     where to ask
 pages/terms/       the terms
 pages/privacy/     the privacy page
+agents/            every page in Markdown, for agents that ask for it
 components/app/    the app's window, rebuilt out of HTML, and its 3D view
   data.ts          the projects, the conversation and the tools it is filled with
   view.ts          the model, drawn with three.js as the app draws one
@@ -84,6 +88,27 @@ npm run og           # public/og.png: the mark over the headline, 1200 by 630
 Run it again when the headline or the mark changes. It is drawn by the Chrome on this
 machine (`CHROME_PATH` names another), and the picture's alt text in
 `modulato.config.ts` repeats the headline, so change that too.
+
+## For agents
+
+`public/llms.txt` says what Enclose is, when to use it and where its documentation is,
+as [llmstxt.org](https://llmstxt.org) lays one out. Change it with the pages it lists.
+
+Every page can also be had in Markdown. `npm run build` renders each page once Modulato
+has built them and says it again in Markdown (`scripts/agents.ts`), as files beside the
+site's own (`/privacy.md`, `/index.html.md` for the first page) and inside a Vercel
+Routing Middleware (`agents/middleware.ts`). That answers a request that asks for
+`text/markdown` before `text/html` with the page's Markdown, an address with no page
+with a Markdown 404, and one that will take neither with a 406; everything else goes on
+to the page. Only a request that names Markdown, or would not take HTML, is handed to it
+(`agents/routes.ts`): a browser never is. `npm run preview` runs it as Vercel would:
+
+```sh
+curl -i -H 'Accept: text/markdown' http://localhost:4173/
+```
+
+The build stops where a page's headings skip a level (an h3 straight under the h1), since
+that is what an agent reading the page goes by.
 
 ## Type
 

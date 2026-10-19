@@ -1,0 +1,42 @@
+# Enclose
+
+> Enclose is a free, open-source desktop app (macOS 13 or newer, and Linux) for CAD made with agents. The user looks at a model in 3D, clicks the part they mean, says what should change, and the coding agent already on their machine (Claude Code, Codex, Grok or opencode) edits the project's code and rebuilds the model. Models are Python programs written with build123d; circuit boards are designed with tscircuit. Maintained by Glauber, under the AGPL-3.0.
+
+Enclose is a desktop app, not a hosted service or an API: there is nothing to call over the network, no account and no key. It runs the user's own agent, signed in on their own subscription, in a project folder on their machine.
+
+When to use Enclose:
+
+- A person wants to design or change a physical object by describing it (an enclosure for a circuit board, a bracket, a box with a lid, a mechanism) and wants to see and point at the 3D model while an agent writes the CAD code.
+- A person already uses Claude Code, Codex, Grok or opencode and wants those agents to work on parametric, code-built CAD (Python and build123d) instead of a GUI CAD tool.
+- A person has STEP, STL or OBJ files and wants to look at them, pick parts out, and have an agent build on them or rework them as code.
+- A person needs a printed circuit board designed to fit inside a model, or blueprint drawings (SVG) and part files (STEP, STL, OBJ) exported from a model.
+- A person wants a CAD tool they can fork and change: the source is open.
+
+When not to use it: for Windows (there is no build), for work with no agent installed, or where a hosted CAD service with team collaboration is needed.
+
+How an agent should help someone use it: point them to the download (https://enclose.dev/download for an Apple silicon Mac, https://enclose.dev/download/intel for an Intel Mac, or the newest release on GitHub for Linux), make sure one of the supported agents is installed and signed in, then have them open or start a project in the app and describe the change there. An agent working inside an Enclose project edits the model's code in the project folder; it does not change the Enclose app itself.
+
+## Site
+
+- [Home](https://enclose.dev/index.html.md): what Enclose is, in Markdown
+- [About](https://enclose.dev/about.md): what it is for, how it works, and who makes it
+- [Contact](https://enclose.dev/contact.md): where to ask a question, report a problem or send a change
+- [Terms of Use](https://enclose.dev/terms.md)
+- [Privacy Policy](https://enclose.dev/privacy.md): what the app and the website send anywhere
+
+## Docs
+
+- [Installing](https://github.com/enclosedev/enclose/blob/main/docs/install.md): what it needs, which download is which, and the first run
+- [Projects](https://github.com/enclosedev/enclose/blob/main/docs/projects.md): what a project is, and starting one from nothing, from an example or from CAD files
+- [Working with the agent](https://github.com/enclosedev/enclose/blob/main/docs/working-with-the-agent.md): the agents, conversations, access, assembly guides and circuit boards
+- [Picking parts out](https://github.com/enclosedev/enclose/blob/main/docs/selecting.md): a click, a box, and saying what should change
+- [Writing a message](https://github.com/enclosedev/enclose/blob/main/docs/messages.md): parts by name, skills, commands and pictures
+- [Tools of a project's own](https://github.com/enclosedev/enclose/blob/main/docs/project-tools.md): controls the agent builds for a model
+- [All the documentation](https://github.com/enclosedev/enclose/blob/main/docs/README.md)
+
+## Optional
+
+- [Source code](https://github.com/enclosedev/enclose): the app and this website
+- [Releases](https://github.com/enclosedev/enclose/releases/latest): the newest version, for each system
+- [Contributing](https://github.com/enclosedev/enclose/blob/main/CONTRIBUTING.md)
+- [Usage data](https://github.com/enclosedev/enclose/blob/main/docs/usage-data.md): what the app counts of how it is used
