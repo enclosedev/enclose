@@ -32,12 +32,15 @@ test('a request that names Markdown, takes neither, or says nothing goes to the 
   assert.ok(!toMiddleware('/llms.txt', 'text/markdown'))
 })
 
-test('the routes run the middleware and go on, and say .md files are Markdown', () => {
-  const [files, ...middleware] = MARKDOWN_ROUTES
-  assert.ok(new RegExp(files.src).test('/index.html.md'))
-  assert.equal(files.headers?.['content-type'], 'text/markdown; charset=utf-8')
-  assert.equal(middleware.length, 2)
-  for (const route of middleware) {
+test('the routes run the middleware and go on, for pages and for their Markdown as files', () => {
+  const [files, ...pages] = MARKDOWN_ROUTES
+  for (const path of ['/index.html.md', '/privacy.md']) assert.ok(new RegExp(files.src).test(path), path)
+  assert.ok(!new RegExp(files.src).test('/'))
+  // whatever the Accept: a file's address is the file
+  assert.equal(files.has, undefined)
+  assert.equal(files.missing, undefined)
+  assert.equal(pages.length, 2)
+  for (const route of MARKDOWN_ROUTES) {
     assert.equal(route.middlewarePath, '_middleware')
     assert.equal(route.continue, true)
   }

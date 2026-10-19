@@ -1,15 +1,15 @@
 // The site's pages in Markdown, for agents, made once `modulato build` has: each page is
-// rendered by the built server and said again in Markdown, written beside the site's
-// files (/privacy.md, /index.html.md for the home page) and put into the Routing
-// Middleware that answers Accept: text/markdown with it (agents/middleware.ts). Run by
-// `npm run build`; the Middleware is only made where there is a Vercel output to put it in.
+// rendered by the built server, said again in Markdown and put into the Routing
+// Middleware that answers Accept: text/markdown, and /privacy.md and /index.html.md,
+// with it (agents/middleware.ts). Not as files beside the site's: Vercel serves a
+// static index.html.md for / (agents/routes.ts). Run by `npm run build`; the Middleware
+// is only made where there is a Vercel output to put it in.
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { build } from 'esbuild'
 import site from '../content/site.json'
 import { headingSkips, pageToMarkdown } from '../agents/markdown'
-import { markdownFile } from '../agents/addresses'
 import type { Documents } from '../agents/middleware'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -45,11 +45,6 @@ const documents: Documents = {
   pages,
   missing: fs.readFileSync(path.join(root, 'agents/not-found.md'), 'utf8'),
   origin: site.url,
-}
-
-for (const out of [path.join(root, 'dist/client'), path.join(vercel, 'static')]) {
-  if (!fs.existsSync(out)) continue
-  for (const [address, markdown] of Object.entries(pages)) fs.writeFileSync(path.join(out, markdownFile(address)), markdown)
 }
 
 if (fs.existsSync(vercel)) {

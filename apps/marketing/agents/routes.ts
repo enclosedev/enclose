@@ -14,8 +14,10 @@ export const NAMES_MARKDOWN = 'markdown|Markdown|MARKDOWN'
 export const TAKES_HTML = `text/html|text/\\*|\\*/\\*|${NAMES_MARKDOWN}`
 
 export const MARKDOWN_ROUTES = [
-  // the pages' Markdown as files (/privacy.md), said to be Markdown whatever the host thinks of .md
-  { src: '^/.+\\.md$', headers: { 'content-type': 'text/markdown; charset=utf-8' }, continue: true },
+  // The pages' Markdown as files (/privacy.md, /index.html.md), from the middleware too:
+  // never as files in the output, where Vercel would take index.html.md for the home page
+  // and serve it to browsers in place of the page.
+  { src: '^/.+\\.md$', middlewarePath: '_middleware', continue: true },
   // The middleware (agents/middleware.ts) decides between Markdown, the page as it is
   // and a 406. A browser always asks for HTML by name and never mentions Markdown, so
   // it goes straight to the page: only a request that names Markdown, or that would take

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { addressOf, markdownFile } from './addresses'
+import { addressOf, addressOfFile, markdownFile } from './addresses'
 import { respond, type Documents } from './middleware'
 
 const documents: Documents = {
@@ -67,9 +67,29 @@ test('HEAD has the headers and no body; other methods go on', async () => {
   assert.ok(goesOn(ask('/', 'text/markdown', 'POST')))
 })
 
+test("a page's Markdown as a file is that, whatever the Accept, and does not vary", async () => {
+  for (const accept of ['text/html', '*/*', 'text/markdown', undefined]) {
+    const response = ask('/index.html.md', accept)
+    assert.equal(response.status, 200)
+    assert.equal(response.headers.get('content-type'), 'text/markdown; charset=utf-8')
+    assert.equal(response.headers.get('vary'), null)
+    assert.equal(response.headers.get('link'), '<https://enclose.dev/>; rel="canonical"')
+    assert.equal(await response.text(), '# Home\n')
+  }
+  assert.equal(await ask('/privacy.md', 'text/html').text(), '# Privacy\n')
+  assert.equal(await ask('/privacy.md', 'text/html', 'HEAD').text(), '')
+  const missing = ask('/nowhere.md', 'text/html')
+  assert.equal(missing.status, 404)
+  assert.match(await missing.text(), /llms\.txt/)
+})
+
 test('addresses and the files their Markdown is kept in', () => {
   assert.equal(addressOf('/'), '/')
   assert.equal(addressOf('/terms/'), '/terms')
   assert.equal(markdownFile('/'), '/index.html.md')
   assert.equal(markdownFile('/terms'), '/terms.md')
+  for (const address of ['/', '/terms', '/a/b']) assert.equal(addressOfFile(markdownFile(address)), address)
+  assert.equal(addressOfFile('/'), null)
+  assert.equal(addressOfFile('/terms'), null)
+  assert.equal(addressOfFile('/.md'), null)
 })

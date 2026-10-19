@@ -95,13 +95,15 @@ machine (`CHROME_PATH` names another), and the picture's alt text in
 as [llmstxt.org](https://llmstxt.org) lays one out. Change it with the pages it lists.
 
 Every page can also be had in Markdown. `npm run build` renders each page once Modulato
-has built them and says it again in Markdown (`scripts/agents.ts`), as files beside the
-site's own (`/privacy.md`, `/index.html.md` for the first page) and inside a Vercel
+has built them and says it again in Markdown (`scripts/agents.ts`), inside a Vercel
 Routing Middleware (`agents/middleware.ts`). That answers a request that asks for
 `text/markdown` before `text/html` with the page's Markdown, an address with no page
 with a Markdown 404, and one that will take neither with a 406; everything else goes on
-to the page. Only a request that names Markdown, or would not take HTML, is handed to it
-(`agents/routes.ts`): a browser never is. `npm run preview` runs it as Vercel would:
+to the page. It also answers the pages' Markdown as files (`/privacy.md`,
+`/index.html.md` for the first page), which are kept out of the static output: Vercel
+would serve `index.html.md` for `/`. Only those, and a request that names Markdown or
+would not take HTML, are handed to it (`agents/routes.ts`): a browser asking for a page
+never is. `npm run preview` runs it as Vercel would:
 
 ```sh
 curl -i -H 'Accept: text/markdown' http://localhost:4173/
