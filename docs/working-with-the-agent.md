@@ -295,7 +295,8 @@ together, in at most 50 letters: "Material inspirations", "Look & feel". They li
 pile under that title; a click on the pile spreads them out, pushing the rest aside, and
 a click on the title renames it. Shift+Cmd+G takes them out of the group again. A
 picture dragged over a group opens the pile up; let go there, and it goes into the
-group, on top, and the group spreads out to show it.
+group first, and the group spreads out to show it. In a pile the tallest pictures lie at
+the back and the shortest on top, so that each shows over the one behind it.
 **Search** (Cmd+F) looks through the pictures by name, by group, by what was noted on
 them and by what the agent made of them.
 

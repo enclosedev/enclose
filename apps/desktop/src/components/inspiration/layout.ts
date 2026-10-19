@@ -110,9 +110,9 @@ const SHOWN_IN_PILE = 4
 /** How each of the pictures that show lies, off the one on top, and how far it is turned. */
 const LAID: { dx: number; dy: number; turn: number }[] = [
   { dx: 0, dy: 0, turn: 0 },
-  { dx: -34, dy: 14, turn: -3.5 },
-  { dx: 30, dy: 22, turn: 3 },
-  { dx: -10, dy: -18, turn: 1.5 },
+  { dx: -16, dy: 6, turn: -2 },
+  { dx: 14, dy: 10, turn: 1.6 },
+  { dx: -5, dy: -8, turn: 0.8 },
 ]
 
 /**
@@ -438,7 +438,7 @@ export function zoomedOn(
   }
 }
 
-/** The pictures of a group, in the order the board has them: the first is on top of its pile. */
+/** The pictures of a group, in the order the board has them: the order they spread out in. */
 export const picturesOf = (
   images: InspirationImage[],
   group: InspirationGroup

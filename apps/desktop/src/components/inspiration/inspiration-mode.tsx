@@ -80,7 +80,7 @@ const ROOM = 48
  * How much further a pile fans out while pictures are held over it, to go in: and how
  * much bigger its pictures are then.
  */
-const OPEN_FAN = 2.4
+const OPEN_FAN = 4.5
 const OPEN_GROW = 1.06
 
 const NONE: string[] = []
@@ -211,8 +211,13 @@ function Board({
       // (held over, to be gone into, it opens up: fanned out further, and bigger)
       const fan = group.id === over ? OPEN_FAN : 1
       const width = group.id === over ? PILE_WIDTH * OPEN_GROW : PILE_WIDTH
-      pileOf(pictures.length).forEach((laid, index) => {
-        const image = pictures[index]
+      // all as wide as each other in the pile, the tallest lie at the back and the
+      // shortest on top, for each to show over the one behind it
+      const stacked = [...pictures].sort(
+        (a, b) => heightOf(a.pixels, 1) - heightOf(b.pixels, 1)
+      )
+      pileOf(stacked.length).forEach((laid, index) => {
+        const image = stacked[index]
         out.push({
           image,
           key: `g:${group.id}`,
@@ -223,7 +228,7 @@ function Board({
             h: heightOf(image.pixels, width),
           },
           turn: laid.turn * fan,
-          // the first on top
+          // the shortest on top
           z: 1 + (pictures.length - index) / (pictures.length + 1),
           pile: group.id,
           top: index === 0,
@@ -581,7 +586,7 @@ function Board({
     return null
   }
 
-  /** Put pictures that lie by themselves in a group, on top of its pile, and open it. */
+  /** Put pictures that lie by themselves in a group, first among its pictures, and open it. */
   const putInGroup = (keys: Key[], groupId: string) => {
     const wanted = setOf(keys)
     const going = board.images.filter(
@@ -589,7 +594,7 @@ function Board({
     )
     if (going.length === 0) return
     const rest = board.images.filter((image) => !going.includes(image))
-    // (the first of a group's pictures is on top)
+    // (first in it: spread out, they come first)
     const first = rest.findIndex((image) => image.group === groupId)
     const at = first < 0 ? rest.length : first
     const next = {
