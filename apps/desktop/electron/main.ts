@@ -54,7 +54,7 @@ import {
 } from "../shared/api"
 import { BOARD_FOLDER, builtOf } from "../shared/board-format"
 import { archiveOf, EXAMPLES, EXAMPLES_URL } from "../shared/examples"
-import { INSPIRATION_FOLDER } from "../shared/inspiration-format"
+import { INSPIRATION_FOLDER, pastedLink } from "../shared/inspiration-format"
 import { PICTURE_TYPES } from "../shared/pictures"
 import {
   COLOURS_FILE,
@@ -105,6 +105,7 @@ import { groupNameOf } from "./naming"
 import { Pace } from "./pace"
 import { Pictures } from "./pictures"
 import { Inspiration, lookingWith } from "./inspiration"
+import { linkedPicture } from "./linked-picture"
 import { SaveFolder } from "./saving"
 import { serveFile } from "./serve"
 import {
@@ -1793,6 +1794,12 @@ function wire() {
         )
       : null
   )
+  ipcMain.handle(CHANNEL.inspirationFetch, (_, link: unknown) => {
+    const pasted = typeof link === "string" ? pastedLink(link) : null
+    return pasted
+      ? linkedPicture(pasted, (url, init) => net.fetch(String(url), init))
+      : null
+  })
   ipcMain.handle(
     CHANNEL.inspirationSave,
     (_, id: string, board: unknown, codexModel: unknown) => {

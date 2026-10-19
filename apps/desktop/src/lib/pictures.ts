@@ -13,12 +13,16 @@ export type Fitted = { mimeType: string; data: ArrayBuffer }
 const QUALITIES = [0.9, 0.75]
 
 /**
- * A picture made fit to be kept. One that is of a kind an agent takes, and no bigger
- * than it takes, is kept as it is. Any other is drawn again, smaller where it has to
- * be: a photo as a photo, and anything else (a drawing, a screenshot) as it is, sharp,
- * unless that comes to too much. Null where it cannot be read as a picture at all.
+ * A picture made fit to be kept. One that is of a kind an agent takes (or of `kinds`,
+ * where only some of those will do), and no bigger than it takes, is kept as it is. Any
+ * other is drawn again, smaller where it has to be: a photo as a photo, and anything
+ * else (a drawing, a screenshot) as it is, sharp, unless that comes to too much. Null
+ * where it cannot be read as a picture at all.
  */
-export async function fitted(file: Blob): Promise<Fitted | null> {
+export async function fitted(
+  file: Blob,
+  kinds: Record<string, string> = PICTURE_TYPES
+): Promise<Fitted | null> {
   const url = URL.createObjectURL(file)
   try {
     const image = new Image()
@@ -27,11 +31,7 @@ export async function fitted(file: Blob): Promise<Fitted | null> {
     const { naturalWidth: width, naturalHeight: height } = image
     if (width === 0 || height === 0) return null
     const longest = Math.max(width, height)
-    if (
-      file.type in PICTURE_TYPES &&
-      file.size <= MOST_BYTES &&
-      longest <= MOST_SIDE
-    )
+    if (file.type in kinds && file.size <= MOST_BYTES && longest <= MOST_SIDE)
       return { mimeType: file.type, data: await file.arrayBuffer() }
 
     const scale = Math.min(1, MOST_SIDE / longest)

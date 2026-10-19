@@ -4,6 +4,7 @@ import {
   EMPTY_BOARD,
   inspirationFile,
   isPictureFile,
+  pastedLink,
   readInspiration,
   TITLE_LONGEST,
 } from "./inspiration-format"
@@ -123,5 +124,20 @@ describe("readInspiration", () => {
     expect(readInspiration(null)).toEqual(EMPTY_BOARD)
     expect(readInspiration([image("one-1111.jpg")])).toEqual(EMPTY_BOARD)
     expect(readInspiration("board")).toEqual(EMPTY_BOARD)
+  })
+})
+
+describe("pastedLink", () => {
+  it("is a web link pasted by itself", () => {
+    expect(pastedLink("  https://a.example/chair.jpg\n")).toBe(
+      "https://a.example/chair.jpg"
+    )
+    expect(pastedLink("http://a.example")).toBe("http://a.example/")
+  })
+
+  it("is null for words, other links, or a link among words", () => {
+    expect(pastedLink("a chair")).toBeNull()
+    expect(pastedLink("file:///Users/me/chair.jpg")).toBeNull()
+    expect(pastedLink("see https://a.example/chair.jpg")).toBeNull()
   })
 })

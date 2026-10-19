@@ -29,6 +29,30 @@ export const MOST_IMAGES = 400
 export const OVERVIEW_LONGEST = 1600
 
 /**
+ * The kinds of picture put on a board now, and what a file of each ends in: a picture
+ * of any other kind is drawn again as one of these on its way on. (A board from before
+ * may still have others, which go on being read: see PICTURE_TYPES.)
+ */
+export const BOARD_TYPES: Record<string, string> = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+}
+
+/**
+ * The link in what was pasted, where that is a link and nothing else: to a picture, or
+ * to a page the picture is had from. Null for anything else.
+ */
+export function pastedLink(text: string): string | null {
+  const trimmed = text.trim()
+  if (!/^https?:\/\/\S+$/i.test(trimmed)) return null
+  try {
+    return new URL(trimmed).href
+  } catch {
+    return null
+  }
+}
+
+/**
  * Something the user said of a part of a picture: where on it, as a share of its width
  * from the left and of its height from the top, and what they said.
  */

@@ -113,9 +113,12 @@ describe("Inspiration", () => {
     ])
   })
 
-  it("keeps nothing that is no picture an agent takes, or of a project with no folder", () => {
+  it("keeps nothing that is no PNG or JPEG, or of a project with no folder", () => {
     expect(
       inspiration.add("p1", { ...png(), mimeType: "image/tiff" })
+    ).toBeNull()
+    expect(
+      inspiration.add("p1", { ...png(), mimeType: "image/webp" })
     ).toBeNull()
     expect(inspiration.add("p1", png("big.png", MOST_BYTES + 1))).toBeNull()
     expect(inspiration.add("p1", png("none.png", 0))).toBeNull()

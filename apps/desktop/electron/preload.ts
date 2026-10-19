@@ -95,6 +95,7 @@ const api: CadApi = {
       ),
     add: (projectId, picture) =>
       ipcRenderer.invoke(CHANNEL.inspirationAdd, projectId, picture),
+    fetch: (link) => ipcRenderer.invoke(CHANNEL.inspirationFetch, link),
     save: (projectId, board, codexModel) =>
       ipcRenderer.invoke(
         CHANNEL.inspirationSave,

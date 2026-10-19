@@ -18,6 +18,7 @@ import { types } from "node:util"
 import { query, type SDKUserMessage } from "@anthropic-ai/claude-agent-sdk"
 
 import {
+  BOARD_TYPES,
   EMPTY_BOARD,
   INSPIRATION_FILE,
   INSPIRATION_FOLDER,
@@ -147,7 +148,7 @@ export class Inspiration {
 
   /**
    * Put a picture's file in the board's folder. Gives back what it is kept as, or null
-   * where it is of no kind an agent takes, or is bigger than one takes.
+   * where it is no PNG or JPEG, or is bigger than an agent takes.
    */
   add(
     projectId: string,
@@ -155,7 +156,7 @@ export class Inspiration {
   ): { id: string; file: string } | null {
     const at = this.where(projectId)
     const { name, mimeType, data } = given ?? {}
-    const ending = typeof mimeType === "string" && PICTURE_TYPES[mimeType]
+    const ending = typeof mimeType === "string" && BOARD_TYPES[mimeType]
     if (!at || !ending) return null
     if (!(types.isArrayBuffer(data) || ArrayBuffer.isView(data))) return null
     const bytes = ArrayBuffer.isView(data)

@@ -6,6 +6,7 @@
 import { create } from "zustand"
 
 import {
+  BOARD_TYPES,
   EMPTY_BOARD,
   MOST_IMAGES,
   type InspirationBoard,
@@ -157,7 +158,7 @@ export const useInspiration = create<InspirationStore>((set, get) => ({
     const room = MOST_IMAGES - (get().boards[projectId]?.images.length ?? 0)
     const kept = await Promise.all(
       files.slice(0, Math.max(0, room)).map(async (file) => {
-        const fit = await fitted(file)
+        const fit = await fitted(file, BOARD_TYPES)
         const pixels = fit && (await pixelsOf(fit.data, fit.mimeType))
         if (!fit || !pixels) return null
         const name = file.name || "image"

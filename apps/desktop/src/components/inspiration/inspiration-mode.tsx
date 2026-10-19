@@ -5,10 +5,12 @@
 // The board goes on as far as it is wanted in every way. Fingers across a trackpad move
 // over it, as does a drag with a mouse's right or middle button, and a pinch or a mouse
 // wheel zooms, on the place under the pointer; a double click on the ground shows all of
-// it. Pictures are dropped on it, or pasted, and lie where they were put, each where it
-// covers no other, a little apart. A drag moves one, or all that are picked out; a box
-// drawn across the ground picks out what it takes in, as a box does in the view of the
-// model, and Shift with a click adds a picture or takes it back out.
+// it. Pictures are dropped on it, or pasted, or a link to one is (or to a page, which
+// gives the picture it is shared with), and lie where they were put, each where it
+// covers no other, a little apart. Each is kept as a PNG or a JPEG. A drag moves one,
+// or all that are picked out; a box drawn across the ground picks out what it takes in,
+// as a box does in the view of the model, and Shift with a click adds a picture or
+// takes it back out.
 //
 // A click on a picture goes up to it: the camera brings it to the middle and close, and
 // what is round it is pushed aside to give it room. A click on it then pins a note to
@@ -20,11 +22,12 @@
 // out of the board.
 import * as React from "react"
 import { cn } from "cn"
-import { ImagePlusIcon } from "lucide-react"
+import { LayoutGridIcon } from "lucide-react"
 
-import type {
-  InspirationBoard,
-  InspirationNote,
+import {
+  pastedLink,
+  type InspirationBoard,
+  type InspirationNote,
 } from "@shared/inspiration-format"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -786,14 +789,27 @@ function Board({
     useInspiration.setState({ dropping: addFiles })
     return () => useInspiration.setState({ dropping: null })
   }, [addFiles])
-  // and so does a picture pasted, other than into something being written
+  // and so does a picture pasted, other than into something being written: or the one
+  // at a link pasted, or that the page at it puts forward for itself
   React.useEffect(() => {
     const pasted = (event: ClipboardEvent) => {
       if (spokenFor(event.target)) return
       const files = [...(event.clipboardData?.files ?? [])].filter(isPicture)
-      if (files.length === 0) return
+      if (files.length > 0) {
+        event.preventDefault()
+        addFiles(files)
+        return
+      }
+      const link = pastedLink(event.clipboardData?.getData("text/plain") ?? "")
+      if (!link) return
       event.preventDefault()
-      addFiles(files)
+      void window.cad.inspiration.fetch(link).then((linked) => {
+        if (linked)
+          addFiles([
+            new File([linked.data], linked.name, { type: linked.mimeType }),
+          ])
+        else useStore.getState().say("No image could be found at that link")
+      })
     }
     window.addEventListener("paste", pasted)
     return () => window.removeEventListener("paste", pasted)
@@ -1215,15 +1231,14 @@ function Board({
 
       {empty && (
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-8 text-center select-none">
-          <ImagePlusIcon
+          <LayoutGridIcon
             className="mb-6 size-10 text-foreground/45"
             strokeWidth={1}
             absoluteStrokeWidth
           />
-          <div className="text-xl/[1.3] font-bold">Drop images here</div>
+          <div className="text-xl/[1.3] font-bold">Your inspiration board</div>
           <div className="max-w-md text-xl/[1.3] text-balance text-foreground/45">
-            Products, materials, details and places you want this to be like.
-            The agent looks at each one, and designs with them in mind.
+            Drop in images of things you want this to be like.
           </div>
           <Button
             variant="secondary"

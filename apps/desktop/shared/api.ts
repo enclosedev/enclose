@@ -986,6 +986,14 @@ export type CadApi = {
       picture: { name: string; mimeType: string; data: ArrayBuffer }
     ): Promise<{ id: string; file: string } | null>
     /**
+     * The picture at a link pasted on the board, or the one the page at it puts forward
+     * for itself: as it was fetched, for the window to make fit to be kept. Resolves to
+     * null where there is none, or it cannot be had.
+     */
+    fetch(
+      link: string
+    ): Promise<{ name: string; mimeType: string; data: ArrayBuffer } | null>
+    /**
      * Write the board as it is now. What the agent made of each picture is the app's to
      * keep, and is kept whatever is said of it here; the pictures that are no longer on
      * the board have their files go to the system's bin. Any picture the agent has not
@@ -1233,6 +1241,7 @@ export const CHANNEL = {
   assemblyRemove: "assembly:remove",
   inspirationRead: "inspiration:read",
   inspirationAdd: "inspiration:add",
+  inspirationFetch: "inspiration:fetch",
   inspirationSave: "inspiration:save",
   inspirationConfirmRemove: "inspiration:confirm-remove",
   inspirationStop: "inspiration:stop",
