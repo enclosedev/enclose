@@ -633,6 +633,42 @@ describe("Projects", () => {
     projects.close()
   })
 
+  it("renames a stand-in project's folder to the name the user gives it, where it may", () => {
+    const projects = new Projects(
+      path.join(root, "state/projects.json"),
+      () => {}
+    )
+    const start = path.join(root, "2026-10-05-2306-quiet-heron")
+    fs.mkdirSync(start)
+    const id = projects.add(start, { name: "Quiet heron", standIn: true })
+    const moves: string[][] = []
+    projects.rename(id, "Travel case", (from, to) => moves.push([from, to]))
+    const now = projects.get(id)!
+    expect(now.name).toBe("Travel case")
+    expect(path.basename(now.path)).toMatch(
+      /^\d{4}-\d\d-\d\d-\d{4}-travel-case$/
+    )
+    expect(fs.existsSync(start)).toBe(false)
+    expect(fs.existsSync(now.path)).toBe(true)
+    expect(moves).toEqual([
+      [fs.realpathSync(root) + "/2026-10-05-2306-quiet-heron", now.path],
+    ])
+
+    // named once, it is the user's: a later name leaves the folder as it is called
+    projects.rename(id, "Pill box", () => {
+      throw new Error("renamed")
+    })
+    expect(projects.get(id)).toMatchObject({ name: "Pill box", path: now.path })
+
+    // and with something at work in it (nobody to hear of a move), it is left too
+    const busy = path.join(root, "2026-10-05-2307-calm-otter")
+    fs.mkdirSync(busy)
+    const other = projects.add(busy, { name: "Calm otter", standIn: true })
+    projects.rename(other, "Desk lamp")
+    expect(projects.get(other)).toMatchObject({ name: "Desk lamp", path: busy })
+    projects.close()
+  })
+
   it("does not take a folder for its own making because it was given a name", () => {
     const projects = new Projects(
       path.join(root, "state/projects.json"),

@@ -794,6 +794,18 @@ function newFolder(): { dir: string; name: string } {
   return { dir: makeFolder(settings.get().projectsFolder, base), name }
 }
 
+/**
+ * A project's folder was renamed: what Claude Code keeps of it, in its home wherever the
+ * user has that, follows it there.
+ */
+function followFolder(from: string, to: string) {
+  followRename(
+    from,
+    to,
+    expandHome(settings.provider("claude").home) || undefined
+  )
+}
+
 // --- opening what was made elsewhere --------------------------------------------------
 
 /** what stops the build of each project whose files are being made a model of */
@@ -1338,7 +1350,14 @@ function wire() {
     analytics?.record("project removed")
   })
   ipcMain.handle(CHANNEL.projectsRename, (_, id: string, name: string) => {
-    projects.rename(String(id), String(name))
+    // a folder still named after its stand-in takes the name too, unless something is
+    // at work in it
+    const idle = !(
+      threads.working(String(id)) ||
+      builds.has(String(id)) ||
+      versions.busy(String(id))
+    )
+    projects.rename(String(id), String(name), idle ? followFolder : undefined)
     void backups.renamed(String(id))
   })
   ipcMain.handle(
@@ -2396,13 +2415,8 @@ if (!app.requestSingleInstanceLock()) {
         })
         return filed
       },
-      // (what Claude Code keeps of a folder is in its home, wherever the user has that)
       onRenamed: (from, to) => {
-        followRename(
-          from,
-          to,
-          expandHome(settings.provider("claude").home) || undefined
-        )
+        followFolder(from, to)
         // the project has its name now: its repository takes it too
         const renamed = projects.list(() => []).find((one) => one.path === to)
         if (renamed) void backups.renamed(renamed.id)

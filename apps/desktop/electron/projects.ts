@@ -1071,11 +1071,13 @@ export class Projects {
 
   /**
    * Call a project something else, as the user asks. That is its name from then on: one
-   * that went by a stand-in is no longer waiting for its model to name it. Only the
-   * project is renamed: its folder is left as it is called. A name that says nothing
-   * changes nothing.
+   * that went by a stand-in is no longer waiting for its model to name it, and its
+   * folder, which was named after the stand-in, is renamed to match, as `christen`
+   * renames it: where `moved` is given, which is to hear of it, for nothing is at work
+   * in the folder. Any other project's folder is left as it is called. A name that says
+   * nothing changes nothing.
    */
-  rename(id: string, name: string) {
+  rename(id: string, name: string, moved?: (from: string, to: string) => void) {
     const project = this.saved.find((p) => p.id === id)
     const called = name.replace(/\s+/g, " ").trim().slice(0, NAME_LENGTH)
     if (!project || !called) return
@@ -1084,6 +1086,7 @@ export class Projects {
     // no name of its own (see `remove`): it is said outright before it is given one.
     if (project.made === undefined && project.name === undefined)
       project.made = false
+    if (project.standIn && moved) this.rehouse(project, called, moved)
     project.name = called
     delete project.standIn
     this.save()
@@ -1109,43 +1112,54 @@ export class Projects {
     }
     if (typeof title !== "string" || !title.trim()) return
     const name = title.replace(/\s+/g, " ").trim()
-
-    const from = project.path
-    const base = folderName(name, new Date(project.addedAt))
-    let to = from
-    if (path.basename(from) !== base) {
-      for (let n = 1; ; n++) {
-        to = path.join(path.dirname(from), n === 1 ? base : `${base}-${n}`)
-        if (!fs.existsSync(to)) break
-      }
-      try {
-        fs.renameSync(from, to)
-      } catch {
-        // the folder stays as it is called; the project still gets its name
-        to = from
-      }
-    }
+    this.rehouse(project, name, moved)
     project.name = name
     delete project.standIn
-    if (to !== from) {
-      project.path = to
-      // the model is the same model, somewhere else: watched there, without being
-      // taken for a new one
-      this.found.set(id, {
-        manifest: path.join(to, path.relative(from, manifest)),
-        build: this.found.get(id)?.build ?? null,
-      })
-      this.watch(project)
-      // and so is its reference scene, if it has one of its own, its tools and guides,
-      // and the colours given its parts
-      this.locateScene(project)
-      this.locateTools(project)
-      this.locateGuides(project)
-      this.locateColours(project)
-      moved(from, to)
-    }
     this.save()
     this.onChange()
+  }
+
+  /**
+   * Rename a project's folder after the name it is being given, keeping the date it was
+   * made on, and follow it there. Where the folder cannot be renamed it stays as it is
+   * called. `moved` hears of the rename.
+   */
+  private rehouse(
+    project: Saved,
+    name: string,
+    moved: (from: string, to: string) => void
+  ) {
+    const from = project.path
+    const base = folderName(name, new Date(project.addedAt))
+    if (path.basename(from) === base) return
+    let to: string
+    for (let n = 1; ; n++) {
+      to = path.join(path.dirname(from), n === 1 ? base : `${base}-${n}`)
+      if (!fs.existsSync(to)) break
+    }
+    try {
+      fs.renameSync(from, to)
+    } catch {
+      return
+    }
+    project.path = to
+    // the model is the same model, somewhere else: watched there, without being taken
+    // for a new one
+    const found = this.found.get(project.id)
+    if (found)
+      this.found.set(project.id, {
+        ...found,
+        manifest:
+          found.manifest && path.join(to, path.relative(from, found.manifest)),
+      })
+    this.watch(project)
+    // and so is its reference scene, if it has one of its own, its tools and guides, and
+    // the colours given its parts
+    this.locateScene(project)
+    this.locateTools(project)
+    this.locateGuides(project)
+    this.locateColours(project)
+    moved(from, to)
   }
 
   /**
