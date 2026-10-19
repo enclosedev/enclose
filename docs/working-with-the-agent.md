@@ -215,7 +215,9 @@ its parts placed, then connected, then routed. Each build shows as it comes
 in, and as the agent writes the board the app makes a quick look at it by itself, unrouted,
 so that its parts appear as they are put on it: even while what is written breaks
 tscircuit's rules, as a board half written does. While it is routed, the line under the
-board's name says how far that has got. A board made in detail in the background has
+board's name says how far that has got, and the technical view has what the router is
+trying drawn over the board as it goes, a few times a second: the ways it is trying, in
+amber, the places it is going between, and the room it has cut the board into. A board made in detail in the background has
 its steps at the foot of PCB mode instead, in a row: **Placing parts**, **Connecting**,
 **Routing** and **Checking**, each with how long it took, how long it has been going,
 or that it has not started yet; and small, on its card in the conversation, how far it

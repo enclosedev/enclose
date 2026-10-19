@@ -17,7 +17,13 @@ import { LineSegments2 } from "three/addons/lines/LineSegments2.js"
 import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js"
 
 import type { BoardSummary } from "@shared/api"
-import type { Building } from "@shared/board-format"
+import { BOARD_HOST, MODEL_SCHEME } from "@shared/api"
+import {
+  builtOf,
+  readRouting,
+  type Building,
+  type Routing,
+} from "@shared/board-format"
 import type { PcbColours } from "@shared/theme-format"
 import { LIVE } from "@/components/steps"
 import { Badge } from "@/components/ui/badge"
@@ -54,6 +60,7 @@ import {
   type Shaded,
 } from "./colours"
 import { cleanDrawing } from "./clean-drawing"
+import { placeOf } from "./place"
 import { BoardPartsPanel } from "./parts-panel"
 import { TurningBoard } from "./turning-board"
 
@@ -281,6 +288,7 @@ function Drawing({
   dark,
   swept,
   checking = false,
+  routing = null,
 }: {
   /** the board, of which project, and the way it is drawn */
   id: string
@@ -290,6 +298,8 @@ function Drawing({
   swept: boolean
   /** and it is being checked: the light is a line that scans it */
   checking?: boolean
+  /** what the router is trying, while it is routed: drawn over the board */
+  routing?: Routing | null
 }) {
   const holder = React.useRef<HTMLDivElement>(null)
   // (the board being made, as it is when a new drawing comes, without waiting on it:
@@ -302,12 +312,15 @@ function Drawing({
   const sweep = React.useRef<ReturnType<typeof sweptOver> | null>(null)
   /** how big the whole of it is shown: what zooming in and out is counted from */
   const whole = React.useRef(1)
+  /** how the board's millimetres lie in the drawing, where it says (see placeOf) */
+  const place = React.useRef<ReturnType<typeof placeOf>>(null)
 
   React.useLayoutEffect(() => {
     const within = holder.current
     const drawing = readDrawing(markup)
     if (!within || !drawing) return
     const { svg, ...size } = drawing
+    place.current = placeOf(svg)
     sweep.current = sweptOver(svg, size, dark)
     within.replaceChildren(svg)
     // the traces it has that the drawing before it had not: what a build brought, drawn
@@ -453,6 +466,16 @@ function Drawing({
       within.removeEventListener("dblclick", fit)
     }
   }, [id, markup, dark])
+
+  // what the router is trying, over the board, while it is routed: drawn afresh each
+  // time it says, over whichever drawing is there
+  React.useLayoutEffect(() => {
+    const svg = holder.current?.firstElementChild
+    if (!(svg instanceof SVGSVGElement)) return
+    svg.querySelector(":scope > [data-routing]")?.remove()
+    if (routing && place.current)
+      svg.append(routingOver(routing, place.current))
+  }, [routing, markup])
 
   // the light, while the board is being made: as the 3D's, a frame at a time
   React.useEffect(() => {
@@ -1216,6 +1239,118 @@ function Nothing({
 }
 
 /**
+ * What the router is trying, as a group to go over the board's drawing: the room it has
+ * cut the board into, faintly; the ways it is trying, in the attention colour; and the
+ * places it is going between, as dots. In the board's millimetres, set where they lie in
+ * the drawing (`place`); its lines as thin however near the board is seen.
+ */
+function routingOver(
+  routing: Routing,
+  place: NonNullable<ReturnType<typeof placeOf>>
+): SVGGElement {
+  const NS = "http://www.w3.org/2000/svg"
+  const group = document.createElementNS(NS, "g")
+  group.setAttribute("data-routing", "")
+  group.setAttribute(
+    "transform",
+    `matrix(${place.a} 0 0 ${place.d} ${place.e} ${place.f})`
+  )
+  group.style.pointerEvents = "none"
+  const path = (d: string, style: Partial<CSSStyleDeclaration>) => {
+    if (!d) return
+    const made = document.createElementNS(NS, "path")
+    made.setAttribute("d", d)
+    made.setAttribute("vector-effect", "non-scaling-stroke")
+    Object.assign(made.style, style)
+    group.append(made)
+  }
+  path(
+    routing.rects
+      .map(([x, y, w, h]) => `M${x - w / 2} ${y - h / 2}h${w}v${h}h${-w}z`)
+      .join(""),
+    {
+      fill: "var(--foreground)",
+      fillOpacity: "0.03",
+      stroke: "var(--foreground)",
+      strokeOpacity: "0.12",
+      strokeWidth: "0.6",
+    }
+  )
+  path(
+    routing.lines
+      .map((line) => {
+        let d = `M${line[0]} ${line[1]}`
+        for (let at = 2; at < line.length; at += 2)
+          d += `L${line[at]} ${line[at + 1]}`
+        return d
+      })
+      .join(""),
+    {
+      fill: "none",
+      stroke: "var(--attention)",
+      strokeOpacity: "0.9",
+      strokeWidth: "1.5",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+    }
+  )
+  // (a dot a fifth of a millimetre across)
+  const r = 0.1
+  path(
+    routing.points
+      .map(
+        ([x, y]) =>
+          `M${x - r} ${y}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0`
+      )
+      .join(""),
+    { fill: "var(--attention)", fillOpacity: "0.8" }
+  )
+  return group
+}
+
+/**
+ * What the router is trying on a board, while `on` (it is being routed, and the board is
+ * drawn as it is made): read from what the build writes of it, again and again, and
+ * none from before this routing began. Null while there is none.
+ */
+function useRouting(
+  projectId: string,
+  board: BoardSummary,
+  on: boolean
+): Routing | null {
+  const [read, setRead] = React.useState<Routing | null>(null)
+  React.useEffect(() => {
+    if (!on) return
+    let over = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const url = `${MODEL_SCHEME}://${projectId}.${BOARD_HOST}/${builtOf(board.id).routing}`
+    const look = async () => {
+      try {
+        const answer = await fetch(`${url}?t=${Date.now()}`, {
+          cache: "no-store",
+        })
+        const routing = answer.ok ? readRouting(await answer.json()) : null
+        if (!over && routing)
+          setRead((was) => (was?.at === routing.at ? was : routing))
+      } catch {
+        // not written yet, or being written: looked for again
+      }
+      if (!over) timer = setTimeout(() => void look(), ROUTING_EVERY_MS)
+    }
+    void look()
+    return () => {
+      over = true
+      clearTimeout(timer)
+    }
+  }, [on, projectId, board.id])
+  const since = board.building?.since ?? Infinity
+  return on && read && read.at >= since ? read : null
+}
+
+/** How often what the router is trying is looked at again, ms. */
+const ROUTING_EVERY_MS = 400
+
+/**
  * PCB mode, with one of the project's boards in it: the board, the way the buttons have
  * it looked at, and over it at the top what it is called and how big it is.
  */
@@ -1244,6 +1379,12 @@ export function BoardMode({
   )
   const size = sizeSaid(board)
   const making = useBeingMade(projectId, board)
+  // (drawn over the board as it is made, from the top: the router's work is seen so)
+  const routing = useRouting(
+    projectId,
+    board,
+    as === "pcb" && !turned && board.building?.stage === "routing"
+  )
   // (an agent making it in detail has the steps it is at shown at the foot of the view)
   const job = useJobOn(projectId, board)
   const partsOpen = useStore((state) => state.boardPartsOpen)
@@ -1318,6 +1459,7 @@ export function BoardMode({
           dark={dark}
           swept={making}
           checking={job?.steps.at(-1)?.step === "checking"}
+          routing={routing}
         />
       ) : trouble || markup === false ? (
         <Nothing

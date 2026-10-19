@@ -27,7 +27,9 @@
 // ordered (board-check.mjs, beside this), and what the checks found is said at the end.
 //
 // While it builds, main.building.json says how far it has got: the app shows that, and
-// the routing as it goes. It is gone when the build is over, however it ended.
+// the routing as it goes. And while it routes, main.routing.json has what the router is
+// trying, as tscircuit's router draws that of itself: the app draws it over the board.
+// Both are gone when the build is over, however it ended.
 //
 // With --preview it builds only a quick look at the board, unrouted and with nothing
 // else made of it, into main.preview.json: the app does that by itself each time the
@@ -161,7 +163,10 @@ function tell(next, now = false) {
 function over() {
   clearTimeout(telling)
   // (a preview says nothing of how far it has got: what is there is a real build's)
-  if (!preview) fs.rmSync(building, { force: true })
+  if (!preview) {
+    fs.rmSync(building, { force: true })
+    fs.rmSync(path.join(built, `${name}.routing.json`), { force: true })
+  }
 }
 for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"])
   process.on(signal, () => {
@@ -226,6 +231,148 @@ if (preview) {
     fs.copyFileSync(circuit, to)
   )
   process.exit(0)
+}
+
+// What the router is trying, as it routes. tscircuit's command line makes the board with
+// the RootCircuit of the tscircuit it finds in the folder it builds in, or else its own:
+// so the work folder is given one of its own, which is tscircuit itself but for a
+// RootCircuit that also writes down what the router draws of its work as it goes (its
+// debug graphics, a few times a second), for the app to draw over the board. Where the
+// tscircuit npx keeps cannot be found, there is none, and the board builds as it would.
+const routing = path.join(built, `${name}.routing.json`)
+fs.rmSync(routing, { force: true })
+if (!preview) {
+  const real = realTscircuit()
+  if (real) {
+    // (with a node_modules of its own, the folder is looked in for all that the board
+    // imports, React with it, and no longer has it fetched: so it has the rest of what
+    // npx keeps beside tscircuit, as links)
+    const kept = real.slice(0, real.lastIndexOf(`${path.sep}tscircuit${path.sep}`))
+    const modules = path.join(work, "node_modules")
+    fs.mkdirSync(modules, { recursive: true })
+    for (const entry of fs.readdirSync(kept))
+      if (entry !== "tscircuit" && !entry.startsWith("."))
+        fs.symlinkSync(path.join(kept, entry), path.join(modules, entry), "junction")
+    const own = path.join(modules, "tscircuit")
+    fs.mkdirSync(own, { recursive: true })
+    fs.writeFileSync(
+      path.join(own, "package.json"),
+      JSON.stringify({ name: "tscircuit", type: "module", main: "index.mjs" })
+    )
+    fs.writeFileSync(
+      path.join(own, "index.mjs"),
+      watchingRouter(pathToFileURL(real).href, routing)
+    )
+  }
+}
+
+/**
+ * Where the tscircuit that npx keeps for TSCIRCUIT is, as a file to import: asked of npx
+ * once, and kept in the work folder for the builds after. Null where it cannot be found.
+ */
+function realTscircuit() {
+  const kept = path.join(work, ".tscircuit.json")
+  try {
+    const was = JSON.parse(fs.readFileSync(kept, "utf8"))
+    if (was.version === TSCIRCUIT && fs.existsSync(was.entry)) return was.entry
+  } catch {
+    // not asked yet
+  }
+  // npx puts the folder of what it runs first on the PATH: tscircuit is beside it
+  const find = `const p = require("path"), f = require("fs")
+for (const bin of (process.env.PATH ?? "").split(p.delimiter)) {
+  const at = p.join(bin, "..", "tscircuit")
+  if (!f.existsSync(p.join(at, "package.json"))) continue
+  const pkg = JSON.parse(f.readFileSync(p.join(at, "package.json"), "utf8"))
+  const dot = pkg.exports?.["."]
+  const entry = (typeof dot === "string" ? dot : dot?.import ?? dot?.default) ?? pkg.module ?? pkg.main
+  if (entry) { process.stdout.write(p.join(at, entry)); break }
+}`
+  try {
+    const entry = execFileSync("npx", ["--yes", "-p", TSCIRCUIT, "node", "-e", find], {
+      cwd: work,
+      env: TSCI_ENV,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      shell: process.platform === "win32",
+    }).trim()
+    if (!entry || !fs.existsSync(entry)) return null
+    fs.writeFileSync(kept, JSON.stringify({ version: TSCIRCUIT, entry }))
+    return entry
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The tscircuit the work folder has: the real one at `real` (a file URL), but for a
+ * RootCircuit that writes what the router draws of its work to `file`, as it routes.
+ * What it writes is kept small: the lines, boxes and points of it, in millimetres on the
+ * board, rounded, and no more than so many of each.
+ */
+function watchingRouter(real, file) {
+  return `// Written by Enclose's kit/board.mjs for this build alone: tscircuit itself, but for a
+// RootCircuit that writes down what the router draws of its work as it routes.
+import fs from "node:fs"
+import { RootCircuit as Root } from ${JSON.stringify(real)}
+export * from ${JSON.stringify(real)}
+
+const FILE = ${JSON.stringify(file)}
+const EVERY_MS = 400
+const MOST = 4000
+const r = (n) => Math.round(n * 1000) / 1000
+const ok = (n) => typeof n === "number" && Number.isFinite(n)
+
+function picture(event) {
+  const g = event.debugGraphics ?? {}
+  const lines = []
+  for (const line of g.lines ?? []) {
+    const points = (line.points ?? []).filter((p) => ok(p?.x) && ok(p?.y))
+    if (points.length < 2) continue
+    lines.push(points.flatMap((p) => [r(p.x), r(p.y)]))
+    if (lines.length >= MOST) break
+  }
+  const rects = []
+  for (const rect of g.rects ?? []) {
+    const c = rect.center
+    if (!ok(c?.x) || !ok(c?.y) || !ok(rect.width) || !ok(rect.height)) continue
+    rects.push([r(c.x), r(c.y), r(rect.width), r(rect.height)])
+    if (rects.length >= MOST) break
+  }
+  const points = []
+  for (const point of [...(g.points ?? []), ...(g.circles ?? []).map((c) => c.center)]) {
+    if (!ok(point?.x) || !ok(point?.y)) continue
+    points.push([r(point.x), r(point.y)])
+    if (points.length >= MOST) break
+  }
+  return {
+    at: Date.now(),
+    phase: typeof event.phase === "string" ? event.phase : null,
+    progress: ok(event.progress) ? event.progress : null,
+    lines,
+    rects,
+    points,
+  }
+}
+
+export class RootCircuit extends Root {
+  constructor(...args) {
+    super(...args)
+    let last = 0
+    this.on?.("autorouting:progress", (event) => {
+      const now = Date.now()
+      if (now - last < EVERY_MS || !event?.debugGraphics) return
+      last = now
+      try {
+        fs.writeFileSync(FILE + ".part", JSON.stringify(picture(event)))
+        fs.renameSync(FILE + ".part", FILE)
+      } catch {
+        // what the router is at is only shown: the build goes on without it
+      }
+    })
+  }
+}
+`
 }
 
 // What the build says as it goes: how the routing is getting on, and the makers' models

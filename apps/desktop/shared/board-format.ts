@@ -33,7 +33,51 @@ export const builtOf = (id: string) => ({
   building: `${BUILT_FOLDER}/${id}.building.json`,
   // a quick look at it, unrouted, made by the app as its file is written (see previews.ts)
   preview: `${BUILT_FOLDER}/${id}.preview.json`,
+  // and while it is routed, what the router is trying (see readRouting)
+  routing: `${BUILT_FOLDER}/${id}.routing.json`,
 })
+
+/**
+ * What tscircuit's router is trying, as it routes a board: what it draws of its work, as
+ * kit/board.mjs writes it down a few times a second. In millimetres on the board, as
+ * the board's own drawing is: each line its points one after another (x, y, x, y, …),
+ * each box its middle and its size, and each point where it is.
+ */
+export type Routing = {
+  /** when it was written (ms) */
+  at: number
+  /** what the router is at, as it calls that: null where it does not say */
+  phase: string | null
+  lines: number[][]
+  rects: [number, number, number, number][]
+  points: [number, number][]
+}
+
+const numbers = (value: unknown): value is number[] =>
+  Array.isArray(value) &&
+  value.every((n) => typeof n === "number" && Number.isFinite(n))
+
+/** What the router is trying, from what kit/board.mjs wrote of it: null where it is not that. */
+export function readRouting(written: unknown): Routing | null {
+  if (!isObject(written) || typeof written.at !== "number") return null
+  const list = (value: unknown, length: number | null) =>
+    Array.isArray(value)
+      ? value.filter(
+          (one): one is number[] =>
+            numbers(one) &&
+            (length === null
+              ? one.length >= 4 && one.length % 2 === 0
+              : one.length === length)
+        )
+      : []
+  return {
+    at: written.at,
+    phase: typeof written.phase === "string" ? written.phase : null,
+    lines: list(written.lines, null),
+    rects: list(written.rects, 4) as Routing["rects"],
+    points: list(written.points, 2) as Routing["points"],
+  }
+}
 
 /** How long a build can go without saying how far it has got and still be at it, ms. */
 export const QUIET_BUILD_MS = 3 * 60_000

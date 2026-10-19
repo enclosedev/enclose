@@ -12,6 +12,7 @@ import type { AnyCircuitElement } from "circuit-json"
 import type { PcbColours } from "@shared/theme-format"
 import type { Circuit } from "./boards"
 import { DRAWN } from "./ground"
+import { PLACE_MARK } from "./place"
 
 /**
  * The schematic's colours. tscircuit draws one as KiCad does, for paper, its parts and
@@ -177,6 +178,30 @@ export function turnedOver(markup: string): string {
 }
 
 /** A board drawn the one way or the other, on the ground it is seen on. */
+/**
+ * A line nobody sees, from the middle of the board a millimetre along each way: where it
+ * comes out in the drawing says how the board's millimetres lie in the drawing's own
+ * units (see `placeOf`), for what is drawn over the board to lie where it should.
+ */
+function placeMark(elements: AnyCircuitElement[]): AnyCircuitElement[] {
+  const board = elements.find((one) => one.type === "pcb_board")
+  const [x, y] =
+    board && "center" in board ? [board.center.x, board.center.y] : [0, 0]
+  return [
+    {
+      type: "pcb_note_line",
+      // (with where it begins, on the board, in what it is known by)
+      pcb_note_line_id: `${PLACE_MARK}:${x}:${y}`,
+      x1: x,
+      y1: y,
+      x2: x + 1,
+      y2: y + 1,
+      stroke_width: 0,
+      color: "transparent",
+    } as unknown as AnyCircuitElement,
+  ]
+}
+
 export function drawingOf(
   circuit: Circuit,
   as: "pcb" | "schematic",
@@ -205,7 +230,10 @@ export function drawingOf(
     )
   if (as === "pcb")
     return holesEdged(
-      convertCircuitJsonToPcbSvg(elements, pcbLook(elements, colours, ground)),
+      convertCircuitJsonToPcbSvg(
+        [...elements, ...placeMark(elements)],
+        pcbLook(elements, colours, ground)
+      ),
       colours
     )
   const drawn = convertCircuitJsonToSchematicSvg(elements, {
