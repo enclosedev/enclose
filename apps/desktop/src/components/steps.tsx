@@ -129,6 +129,13 @@ function StepLine({
   )
 }
 
+/** A count of tokens as it is said in a line: "820 tokens", "4.2k tokens", "36k tokens". */
+export function tokensSaid(count: number): string {
+  if (count < 1000) return `${count} tokens`
+  const thousands = count / 1000
+  return `${thousands < 10 ? thousands.toFixed(1).replace(/\.0$/, "") : Math.round(thousands)}k tokens`
+}
+
 /**
  * What Claude is at where nothing it says or does shows it, in a line: thinking, and for
  * how long (and about how much, where that was asked for in the settings); or trying the
@@ -190,7 +197,10 @@ export const Steps = React.memo(
   }) {
     const [open, setOpen] = React.useState(false)
     const whole = useKeptInView<HTMLDivElement>(open)
+    const counting = usePreferences((state) => state.thinkingTokens)
     const taken = steps.filter((step) => step.kind === "tool")
+    // what Claude wrote over them, its thinking with it, where it said (see ThreadItem)
+    const tokens = taken.reduce((all, step) => all + (step.tokens ?? 0), 0)
     const current =
       taken.findLast((step) => step.state === "running") ?? taken.at(-1)
     if (!current) return null
@@ -233,7 +243,10 @@ export const Steps = React.memo(
               {taken.length === 1 ? "1 step" : `${taken.length} steps`}
             </span>
           ) : (
-            <span>Worked for {duration(took)}</span>
+            <span className="tabular-nums">
+              Worked for {duration(took)}
+              {counting && tokens > 0 && ` · ${tokensSaid(tokens)}`}
+            </span>
           )}
           <ChevronDownIcon className="size-3.5 shrink-0 opacity-60 transition-transform group-data-panel-open/steps:rotate-180" />
         </CollapsibleTrigger>

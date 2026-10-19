@@ -11,7 +11,7 @@ click on the app puts them away.
 | | How much the agent [may do without asking](working-with-the-agent.md#model-effort-and-access) |
 | | Whether each conversation has [a version of the project](working-with-the-agent.md#versions) of its own |
 | | After how many days a [conversation](working-with-the-agent.md#conversations) left alone goes under its project's card |
-| | Whether the conversation says about how many tokens Claude has used while it thinks, beside how long it has been thinking (off to begin with) |
+| | Whether the conversation says about how many tokens Claude has used while it thinks, beside how long it has been thinking, and once it is done, how many it wrote over its steps, beside how long it worked (off to begin with) |
 | | What a [blueprint](blueprints.md#exploded-dimensions-and-labels)'s dimensions are in, millimetres or inches |
 | | Whether what you [download](parts.md#saving-the-model) has the day before its name: `2026_10_11_table-clock.step` |
 | | Whether the app sends [usage data](usage-data.md) |

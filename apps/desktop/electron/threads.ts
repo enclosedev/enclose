@@ -3062,6 +3062,12 @@ export class Threads {
     let messageId: string | null = null
     const tools = new Map<string, Extract<ThreadItem, { kind: "tool" }>>()
     const live = new Map<string, Extract<ThreadItem, { kind: "assistant" }>>()
+    // The tokens Claude wrote in each reply, as it says once the reply is over, by the
+    // reply; and the last step each reply asked for, which they are kept with. A step is
+    // only taken once the reply that asks for it is over, so they are known by its end.
+    const used = new Map<string, number>()
+    const lastStep = new Map<string, string>()
+    const replyOf = new Map<string, string>()
     // what it is at where nothing shows it: thinking, above all, which can go on for minutes
     const doing = followDoing((what) => turn.doing(what))
 
@@ -3101,6 +3107,9 @@ export class Threads {
         const event = message.event
         if (event.type === "message_start") {
           messageId = event.message.id
+        } else if (event.type === "message_delta" && messageId) {
+          if (event.usage.output_tokens > 0)
+            used.set(messageId, event.usage.output_tokens)
         } else if (
           event.type === "content_block_delta" &&
           event.delta.type === "text_delta" &&
@@ -3177,6 +3186,8 @@ export class Threads {
               state: "running" as const,
             }
             tools.set(block.id, item)
+            replyOf.set(block.id, message.message.id)
+            lastStep.set(message.message.id, block.id)
             turn.put(item)
           }
         })
@@ -3190,9 +3201,15 @@ export class Threads {
           const item = tools.get(block.tool_use_id)
           if (!item) continue
           tools.delete(block.tool_use_id)
+          const reply = replyOf.get(block.tool_use_id)
+          const tokens =
+            reply && lastStep.get(reply) === block.tool_use_id
+              ? used.get(reply)
+              : undefined
           turn.put({
             ...item,
             state: block.is_error ? "failed" : "done",
+            ...(tokens ? { tokens } : {}),
           })
         }
         // What Claude just did may have written the model for the first time, or moved

@@ -336,6 +336,11 @@ export type ThreadItem =
       name: string
       detail: string
       state: "running" | "done" | "failed"
+      /**
+       * The tokens the agent wrote in the reply that asked for this, its thinking with
+       * them: on the last step a reply asked for, and only where the agent says.
+       */
+      tokens?: number
     }
   | {
       kind: "permission"
