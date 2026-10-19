@@ -125,16 +125,11 @@ export const Card = React.memo(function Card({
             className="pointer-events-none size-full object-cover select-none"
           />
         )}
-        {analysing && (
-          <div
-            className="pointer-events-none absolute top-0 left-0 origin-top-left"
-            style={{ scale: "calc(1 / var(--zoom))" }}
-          >
-            <div className="absolute top-0 left-0 size-24 bg-[radial-gradient(circle_at_top_left,rgba(0,0,0,0.5),transparent_70%)]" />
-            <Spinner className="relative m-2.5 size-3.5 text-white" />
-          </div>
-        )}
       </div>
+      {/* the agent looking at it, said beside it: at the size it is read at whatever the zoom */}
+      {analysing && (
+        <Spinner className="pointer-events-none absolute top-0 right-full mr-[calc(8px/var(--zoom))] size-[calc(20px/var(--zoom))] text-foreground/80" />
+      )}
       {notes &&
         image.notes.map((note) =>
           writing?.note === note.id ? null : (

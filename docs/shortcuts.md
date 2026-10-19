@@ -63,6 +63,7 @@ is Ctrl off a Mac.
 | Cmd+Delete | Take it off without asking |
 | Cmd+A | Pick out everything |
 | N | Show every note, or only the one pointed at |
+| O | Organize: everything in tidy rows |
 | Cmd+F | Search |
 | Cmd+1 | All of the board |
 | Esc | Step back: out of a note, a picture, a group spread out, then the board |

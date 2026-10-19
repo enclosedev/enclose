@@ -271,13 +271,18 @@ gather the pictures first, and the first thing the agent makes is made by them. 
 buttons down the right change over to the board's, the cards of the other projects are
 put away, and the red **Exit Inspiration Board**, or Esc, brings the view back.
 
-Drop pictures on it, paste them, or choose them from the empty board. Each lies where it
-was dropped, where it covers no other. The board goes on as far as it is wanted: two
+Drop pictures on it, paste them, or choose them from the empty board. Pasting a link
+does too: a link to a picture puts that picture on the board, and a link to a page puts
+the picture the page is shared with, named by the page's title. Each is kept as a PNG or
+a JPEG, made smaller where it is bigger than the agent takes, and lies where it was
+dropped, where it covers no other. The board goes on as far as it is wanted: two
 fingers or a drag with the right or middle button move over it, a pinch or the wheel
 zooms, and a double click on the ground, or Cmd+1, shows all of it. A drag moves a
 picture, or all that are picked out; a drag across the ground picks out what the box
 takes in, as it does in the view of the model, and Shift with a click adds a picture or
-takes it back out.
+takes it back out. **Organize** (O) tidies the board when it has got messy: the groups
+first, then every other picture in rows, in the order they are read in now, each row as
+wide as the rest and its pictures all one height.
 
 A click on a picture goes up to it: it comes to the middle of the view, close, and the
 rest are pushed aside to give it room. A click on it then pins a note to that place, a
@@ -298,7 +303,7 @@ it.
 
 As each picture is put on the board the agent looks at it, as an industrial designer
 would: what it is, its form, its materials and finish, how it looks to be made, and what
-to take from it. A small ring turns at the picture's corner meanwhile, and at the foot of
+to take from it. A small ring turns beside the picture's top left corner meanwhile, and at the foot of
 the view is how long it has been at it, with a button to stop it. What it says is not
 shown: it is kept for the agent. With each message, where the board has changed since
 the agent last heard of it, the agent is told of the whole board: each picture with what

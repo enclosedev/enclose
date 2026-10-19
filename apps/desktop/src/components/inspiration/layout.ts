@@ -186,6 +186,127 @@ export function spreadOf(
   return boxes
 }
 
+/** How tall a row of pictures is, about, once the board is organized. */
+const ROW_HEIGHT = 260
+/** And the most a row is let be made taller than that, for it to be as wide as the rest. */
+const ROW_STRETCH = 1.6
+
+/**
+ * What is laid in rows when the board is organized: a picture, which is made as big as
+ * its row has room for, by its shape (how wide it is for how tall), or a pile, which is
+ * as big as it is. Each as the box it takes now.
+ */
+export type Shelved = { id: string; box: Box; aspect?: number }
+
+/** These in the order they are read in: along each band of the board, top to bottom. */
+const readOrder = (items: Shelved[]) =>
+  [...items].sort(
+    (a, b) =>
+      Math.round(a.box.y / ROW_HEIGHT) - Math.round(b.box.y / ROW_HEIGHT) ||
+      a.box.x - b.box.x
+  )
+
+/**
+ * The board organized: everything in rows, in the order it is read in now, from where
+ * what is on the board begins, top left. The piles first, in rows of their own, as big
+ * as they are; then the pictures, each row as wide as the rest and its pictures all
+ * one height, about ROW_HEIGHT (but the last row, which is left as short as it is). All
+ * told, about as wide as `aspect` (width for height) has it, for it to fit the view.
+ * Gives each one's middle, and how wide it is.
+ */
+export function organized(
+  items: Shelved[],
+  aspect: number
+): Map<string, { at: [number, number]; width: number }> {
+  const out = new Map<string, { at: [number, number]; width: number }>()
+  const bounds = boundsOf(items.map((item) => item.box))
+  if (!bounds) return out
+  const piles = readOrder(items.filter((item) => item.aspect === undefined))
+  const pictures = readOrder(items.filter((item) => item.aspect !== undefined))
+  const natural = pictures.map((item) => ROW_HEIGHT * item.aspect!)
+
+  // as wide as the whole, with the gaps, is for its height as the view is
+  const area =
+    natural.reduce(
+      (sum, width) => sum + (width + GAP) * (ROW_HEIGHT + GAP),
+      0
+    ) +
+    piles.reduce(
+      (sum, pile) => sum + (pile.box.w + GAP) * (pile.box.h + GAP),
+      0
+    )
+  const across = Math.max(
+    Math.sqrt(area * aspect),
+    ...natural,
+    ...piles.map((pile) => pile.box.w)
+  )
+  const left = bounds.x - bounds.w / 2
+  let top = bounds.y - bounds.h / 2
+
+  // the piles, as many to a row as fit
+  let x = left
+  let tallest = 0
+  for (const pile of piles) {
+    if (x > left && x + pile.box.w > left + across) {
+      top += tallest + GAP
+      x = left
+      tallest = 0
+    }
+    out.set(pile.id, {
+      at: [Math.round(x + pile.box.w / 2), Math.round(top + pile.box.h / 2)],
+      width: pile.box.w,
+    })
+    x += pile.box.w + GAP
+    tallest = Math.max(tallest, pile.box.h)
+  }
+  if (piles.length > 0) top += tallest + GAP
+
+  // the pictures, a row at a time: full where one more would not fit, with it or
+  // without it, whichever leaves the row nearer the height it is meant to be
+  const rows: { members: number[]; full: boolean }[] = []
+  let row: number[] = []
+  let wide = 0
+  const rowHeight = (count: number, sum: number) =>
+    (ROW_HEIGHT * (across - (count - 1) * GAP)) / sum
+  natural.forEach((width, index) => {
+    if (row.length === 0 || wide + width + row.length * GAP <= across) {
+      row.push(index)
+      wide += width
+      return
+    }
+    const without = rowHeight(row.length, wide)
+    const withIt = rowHeight(row.length + 1, wide + width)
+    if (Math.abs(withIt - ROW_HEIGHT) < Math.abs(without - ROW_HEIGHT)) {
+      rows.push({ members: [...row, index], full: true })
+      row = []
+      wide = 0
+    } else {
+      rows.push({ members: row, full: true })
+      row = [index]
+      wide = width
+    }
+  })
+  if (row.length > 0) rows.push({ members: row, full: false })
+
+  for (const { members, full } of rows) {
+    const sum = members.reduce((sum, index) => sum + natural[index], 0)
+    const height = full
+      ? Math.min(rowHeight(members.length, sum), ROW_HEIGHT * ROW_STRETCH)
+      : ROW_HEIGHT
+    let at = left
+    for (const index of members) {
+      const width = Math.round((natural[index] * height) / ROW_HEIGHT)
+      out.set(pictures[index].id, {
+        at: [Math.round(at + width / 2), Math.round(top + height / 2)],
+        width,
+      })
+      at += width + GAP
+    }
+    top += height + GAP
+  }
+  return out
+}
+
 /**
  * How far each of these is moved to be out of the way of a place being cleared, by
  * what it is known by: straight out from the middle of the place, as far as it takes to

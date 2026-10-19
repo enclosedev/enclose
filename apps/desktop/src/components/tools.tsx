@@ -10,6 +10,7 @@ import {
   HammerIcon,
   ImagesIcon,
   LayersIcon,
+  LayoutDashboardIcon,
   LetterTextIcon,
   MessageSquareIcon,
   RefreshCwIcon,
@@ -751,7 +752,8 @@ export function Tools({
   const onBoard = view.board !== null
   const inspiring = view.inspiration
   // the inspiration board's own: what was noted on its pictures, shown beside each mark
-  // or only when it is pointed at; looking through it; and, in red, what leaves it
+  // or only when it is pointed at; its pictures laid out tidily; looking through it; and,
+  // in red, what leaves it
   const inspirationButtons = (
     <>
       <Switch
@@ -762,6 +764,13 @@ export function Tools({
       >
         <LetterTextIcon />
       </Switch>
+      <Press
+        label="Organize"
+        shortcut="O"
+        onClick={() => useInspiration.getState().organizing?.()}
+      >
+        <LayoutDashboardIcon />
+      </Press>
       <Switch
         label="Search"
         shortcut={MAC ? "⌘F" : "Ctrl F"}

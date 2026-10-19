@@ -1,6 +1,6 @@
 // The inspiration board: the pictures the user gathers of what the thing they are making
 // should be like, for the agent to design by (see shared/inspiration-format.ts). It has
-// the view's place, as a board does in PCB mode, on a ground of the view's own colour.
+// the view's place, as a board does in PCB mode, on a ground of the user's bubbles' grey.
 //
 // The board goes on as far as it is wanted in every way. Fingers across a trackpad move
 // over it, as does a drag with a mouse's right or middle button, and a pinch or a mouse
@@ -18,8 +18,8 @@
 // picked out in a group, which they say the title of: its pictures lie in one pile, under
 // the title, and a click on the pile spreads them out, pushing the rest aside. Delete
 // takes what is picked out off the board, once it is asked whether to; Cmd+Delete takes
-// it off without asking. Esc steps back out of each of these, the last first, and then
-// out of the board.
+// it off without asking. O organizes the board, everything in tidy rows. Esc steps back
+// out of each of these, the last first, and then out of the board.
 import * as React from "react"
 import { cn } from "cn"
 import { LayoutGridIcon } from "lucide-react"
@@ -31,8 +31,7 @@ import {
 } from "@shared/inspiration-format"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { useThemeColors } from "@/lib/css-color"
-import { useInspiration } from "@/lib/inspiration"
+import { organizedBoard, takenOn, useInspiration } from "@/lib/inspiration"
 import { spokenFor } from "@/lib/keys"
 import { isPicture } from "@/lib/pictures"
 import { MAC } from "@/lib/platform"
@@ -110,16 +109,13 @@ type Press = {
 /** The ground of the board while it is read, and the board once it is. */
 export function InspirationMode({ projectId }: { projectId: string }) {
   const board = useInspiration((state) => state.boards[projectId])
-  const { backdrop } = useThemeColors()
   React.useEffect(() => {
     void useInspiration.getState().load(projectId)
   }, [projectId])
   return (
-    // (its ground comes in over the model as the buttons change over)
-    <div
-      className="absolute inset-0 animate-in overflow-hidden duration-300 fade-in motion-reduce:animate-none"
-      style={{ background: `#${backdrop.getHexString()}` }}
-    >
+    // (its ground comes in over the model as the buttons change over: the grey of what
+    // the user says in the conversation, a little lighter than the view's)
+    <div className="absolute inset-0 animate-in overflow-hidden bg-user-message duration-300 fade-in motion-reduce:animate-none">
       {board && <Board projectId={projectId} board={board} />}
     </div>
   )
@@ -412,6 +408,8 @@ function Board({
           x: at.x + event.deltaX / at.zoom,
           y: at.y + event.deltaY / at.zoom,
         })
+      // (as hard as the model's flat views zoom, and the same way: the board's zoom is
+      // how close it is, as theirs is, where a PCB drawing's scale is how far)
       const lines = event.deltaMode === 1 ? 10 : 1
       const way = !event.ctrlKey && wheelReversed ? -1 : 1
       const box = on.getBoundingClientRect()
@@ -419,11 +417,10 @@ function Board({
         zoomedOn(
           at,
           view.current,
-          1 /
-            flatZoom(
-              event.deltaY * lines * (event.ctrlKey ? PINCH : 1) * way,
-              zoomSpeed
-            ),
+          flatZoom(
+            event.deltaY * lines * (event.ctrlKey ? PINCH : 1) * way,
+            zoomSpeed
+          ),
           event.clientX - box.left,
           event.clientY - box.top
         )
@@ -677,6 +674,29 @@ function Board({
     setSelected(freed.map((id) => `i:${id}` as Key))
   }
 
+  /**
+   * Lay everything on the board out in tidy rows (see `organizedBoard`), shaped for the
+   * view, and show all of it: out of whatever was gone up to or spread out first.
+   */
+  const organize = () => {
+    if (board.images.length === 0)
+      return say("There is nothing on the board to organize yet")
+    const { width, height } = view.current
+    const across = width - EDGES.left - EDGES.right
+    const down = height - EDGES.top - EDGES.bottom
+    const next = organizedBoard(
+      board,
+      across > 0 && down > 0 ? across / down : 1.5
+    )
+    back.current = []
+    setWriting(null)
+    setFocused(null)
+    setSpread(null)
+    changed(next)
+    const all = boundsOf(takenOn(next))
+    if (all) glide(fitting(all, view.current, EDGES, 0.9, 1))
+  }
+
   /** Take what is picked out off the board: once the user says to, unless `ask` is false. */
   const removePicked = async (ask: boolean) => {
     const keys =
@@ -872,6 +892,7 @@ function Board({
     removePicked,
     moveBy,
     whole,
+    organize,
   }
   const now = React.useRef(latest)
   React.useLayoutEffect(() => {
@@ -931,11 +952,21 @@ function Board({
         if (event.repeat) return
         const { notesShown, setNotesShown } = useInspiration.getState()
         setNotesShown(!notesShown)
+        return
+      }
+      if (!held && !event.shiftKey && event.key.toLowerCase() === "o") {
+        taken()
+        if (!event.repeat) it.organize()
       }
     }
     window.addEventListener("keydown", key, true)
     return () => window.removeEventListener("keydown", key, true)
   }, [glide, setFocused])
+  // and so is the button that does it, beside the board
+  React.useEffect(() => {
+    useInspiration.setState({ organizing: () => now.current.organize() })
+    return () => useInspiration.setState({ organizing: null })
+  }, [])
 
   // --- the pointer --------------------------------------------------------------------
 

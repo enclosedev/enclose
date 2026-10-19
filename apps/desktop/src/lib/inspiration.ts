@@ -16,6 +16,7 @@ import {
 import {
   boxOf,
   heightOf,
+  organized,
   pileOf,
   picturesOf,
   PILE_WIDTH,
@@ -49,6 +50,8 @@ type InspirationStore = {
    * (in the window's pixels): null while there is no board on screen.
    */
   dropping: ((files: File[], x: number, y: number) => void) | null
+  /** Organizes the board on screen (see `organizedBoard`): null while there is none. */
+  organizing: (() => void) | null
 
   /** Read a project's board from its folder, if it has not been read yet. */
   load(projectId: string): Promise<void>
@@ -98,32 +101,73 @@ async function pixelsOf(
   }
 }
 
+/** The box a group's pile takes, with room round it for its pictures lying askew: null for none. */
+function pileBoxOf(
+  board: InspirationBoard,
+  group: InspirationBoard["groups"][number]
+): Box | null {
+  const pictures = picturesOf(board.images, group)
+  if (pictures.length === 0) return null
+  const tallest = Math.max(
+    ...pictures.map((image) => heightOf(image.pixels, PILE_WIDTH))
+  )
+  const askew = pileOf(pictures.length).reduce(
+    (most, one) => Math.max(most, Math.abs(one.dx), Math.abs(one.dy)),
+    0
+  )
+  return {
+    x: group.at[0],
+    y: group.at[1],
+    w: PILE_WIDTH + 2 * askew + 40,
+    h: tallest + 2 * askew + 60,
+  }
+}
+
 /**
  * What lies on a board, each as the box it takes: a picture by itself, or the pile of a
  * group, with room round it for its pictures lying askew.
  */
 export function takenOn(board: InspirationBoard): Box[] {
   const loose = board.images.filter((image) => image.group === null).map(boxOf)
-  const piles = board.groups.flatMap((group) => {
-    const pictures = picturesOf(board.images, group)
-    if (pictures.length === 0) return []
-    const tallest = Math.max(
-      ...pictures.map((image) => heightOf(image.pixels, PILE_WIDTH))
-    )
-    const askew = pileOf(pictures.length).reduce(
-      (most, one) => Math.max(most, Math.abs(one.dx), Math.abs(one.dy)),
-      0
-    )
-    return [
-      {
-        x: group.at[0],
-        y: group.at[1],
-        w: PILE_WIDTH + 2 * askew + 40,
-        h: tallest + 2 * askew + 60,
-      },
-    ]
-  })
+  const piles = board.groups.flatMap((group) => pileBoxOf(board, group) ?? [])
   return [...loose, ...piles]
+}
+
+/**
+ * A board organized (see `organized`): its piles and the pictures that lie by
+ * themselves in rows, about as wide as `aspect` (width for height) has them.
+ */
+export function organizedBoard(
+  board: InspirationBoard,
+  aspect: number
+): InspirationBoard {
+  const placed = organized(
+    [
+      ...board.images
+        .filter((image) => image.group === null)
+        .map((image) => ({
+          id: `i:${image.id}`,
+          box: boxOf(image),
+          aspect: image.pixels[0] / image.pixels[1],
+        })),
+      ...board.groups.flatMap((group) => {
+        const box = pileBoxOf(board, group)
+        return box ? [{ id: `g:${group.id}`, box }] : []
+      }),
+    ],
+    aspect
+  )
+  return {
+    ...board,
+    images: board.images.map((image) => {
+      const to = placed.get(`i:${image.id}`)
+      return to ? { ...image, at: to.at, width: to.width } : image
+    }),
+    groups: board.groups.map((group) => {
+      const to = placed.get(`g:${group.id}`)
+      return to ? { ...group, at: to.at } : group
+    }),
+  }
 }
 
 export const useInspiration = create<InspirationStore>((set, get) => ({
@@ -133,6 +177,7 @@ export const useInspiration = create<InspirationStore>((set, get) => ({
   notesShown: localStorage.getItem(NOTES_KEY) === "on",
   focused: null,
   dropping: null,
+  organizing: null,
 
   async load(projectId) {
     if (get().boards[projectId]) return

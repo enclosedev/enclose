@@ -5,6 +5,7 @@ import {
   fitting,
   GAP,
   onBoard,
+  organized,
   overlaps,
   pileOf,
   placed,
@@ -14,6 +15,7 @@ import {
   widthFor,
   zoomedOn,
   type Box,
+  type Shelved,
 } from "./layout"
 
 /** Always the same numbers, each from 0 to 1, as Math.random would give. */
@@ -182,5 +184,84 @@ describe("the camera", () => {
     expect(onBoard(near, view, 800, 100)).toEqual(
       onBoard(camera, view, 800, 100)
     )
+  })
+})
+
+describe("organized", () => {
+  const random = seeded(3)
+  // a mess: pictures of every shape, anywhere, and two piles among them
+  const mess: Shelved[] = [
+    ...Array.from({ length: 13 }, (_, index) => {
+      const aspect = 0.5 + random() * 1.5
+      const w = 150 + random() * 300
+      return {
+        id: `i:${index}`,
+        box: { x: random() * 2000, y: random() * 1500, w, h: w / aspect },
+        aspect,
+      }
+    }),
+    { id: "g:a", box: { x: 900, y: 40, w: 420, h: 380 } },
+    { id: "g:b", box: { x: 100, y: 1400, w: 420, h: 300 } },
+  ]
+  const placedBoxes = (out: ReturnType<typeof organized>) =>
+    mess.map((item) => {
+      const to = out.get(item.id)!
+      const h = item.aspect ? to.width / item.aspect : item.box.h
+      return { x: to.at[0], y: to.at[1], w: to.width, h }
+    })
+
+  it("lays everything out with nothing over anything, from where the board began", () => {
+    const out = organized(mess, 16 / 10)
+    expect(out.size).toBe(mess.length)
+    const boxes = placedBoxes(out)
+    for (const [index, box] of boxes.entries())
+      for (const other of boxes.slice(index + 1))
+        expect(overlaps(box, other, GAP - 2)).toBe(false)
+    const was = boundsOf(mess.map((item) => item.box))!
+    const is = boundsOf(boxes)!
+    expect(is.x - is.w / 2).toBeCloseTo(was.x - was.w / 2, 0)
+    expect(is.y - is.h / 2).toBeCloseTo(was.y - was.h / 2, 0)
+  })
+
+  it("puts the piles first, then the pictures in rows of one height and one width", () => {
+    const out = organized(mess, 16 / 10)
+    const boxes = placedBoxes(out)
+    const piles = boxes.slice(-2)
+    const pictures = boxes.slice(0, -2)
+    const pilesEnd = Math.max(...piles.map((box) => box.y + box.h / 2))
+    for (const box of pictures)
+      expect(box.y - box.h / 2).toBeGreaterThan(pilesEnd)
+    const rows = new Map<number, Box[]>()
+    for (const box of pictures)
+      rows.set(box.y, [...(rows.get(box.y) ?? []), box])
+    const lines = [...rows.values()]
+    expect(lines.length).toBeGreaterThan(1)
+    const widthOf = (row: Box[]) => boundsOf(row)!.w
+    // every row but the last as wide as the first, to within the rounding
+    for (const row of lines.slice(0, -1)) {
+      expect(Math.abs(widthOf(row) - widthOf(lines[0]))).toBeLessThan(
+        row.length * 2
+      )
+      for (const box of row) expect(box.h).toBeCloseTo(row[0].h, -1)
+    }
+    // and about as wide as the view is for its height
+    const all = boundsOf(boxes)!
+    expect(all.w / all.h).toBeGreaterThan(1)
+    expect(all.w / all.h).toBeLessThan(2.4)
+  })
+
+  it("keeps the order the board is read in", () => {
+    const row = [3, 1, 2].map((n) => ({
+      id: `i:${n}`,
+      box: { x: n * 400, y: 10 * n, w: 300, h: 200 },
+      aspect: 1.5,
+    }))
+    const out = organized(row, 3)
+    const xs = [1, 2, 3].map((n) => out.get(`i:${n}`)!.at[0])
+    expect(xs).toEqual([...xs].sort((a, b) => a - b))
+  })
+
+  it("has nothing to lay out for an empty board", () => {
+    expect(organized([], 1.5).size).toBe(0)
   })
 })
