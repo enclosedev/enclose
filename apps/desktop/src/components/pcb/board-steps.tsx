@@ -96,6 +96,68 @@ function Steps({
 }
 
 /**
+ * The same steps on the board's card in the conversation, while it is being made: in a
+ * row, small, the one under way lit and going round, those done ticked. How long each
+ * took is PCB mode's to say; here it is how far the making has got.
+ */
+export function StepsInLine({
+  job,
+  className,
+}: {
+  job: BoardJob
+  className?: string
+}) {
+  const steps = stepsOf(job)
+  return (
+    <ol
+      className={cn(
+        "flex flex-wrap items-center gap-x-3 gap-y-1 text-xs select-none",
+        className
+      )}
+      aria-label="How far the board has got"
+    >
+      {steps.map((step, index) => (
+        <li key={step.name} className="flex items-center gap-1.5">
+          {step.state === "done" ? (
+            <CheckIcon
+              className="size-3 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+          ) : step.state === "now" ? (
+            <span
+              className="size-3 shrink-0 animate-spin rounded-full border-[1.5px] border-foreground/25 border-t-foreground"
+              aria-hidden
+            />
+          ) : (
+            <span
+              className="size-1.5 shrink-0 rounded-full bg-foreground/25"
+              aria-hidden
+            />
+          )}
+          <span
+            className={cn(
+              step.state === "now"
+                ? "font-medium text-foreground"
+                : step.state === "done"
+                  ? "text-muted-foreground"
+                  : "text-muted-foreground/60"
+            )}
+            aria-current={step.state === "now" ? "step" : undefined}
+          >
+            {step.name}
+          </span>
+          {index < steps.length - 1 && (
+            <span className="text-muted-foreground/40" aria-hidden>
+              ·
+            </span>
+          )}
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+/**
  * The round mark a step has: ticked once it is done, going round while it is the one
  * under way (or filling, as far as that is told), and three dots before it is begun.
  */

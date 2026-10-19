@@ -25,6 +25,7 @@ import type {
 } from "@shared/api"
 import { Composer } from "@/components/composer"
 import { BoardIcon, ReferenceIcon } from "@/components/icons"
+import { StepsInLine } from "@/components/pcb/board-steps"
 import { Thumb } from "@/components/picture"
 import { QuestionCard } from "@/components/question"
 import { QUOTABLE, Quoting } from "@/components/quoting"
@@ -497,6 +498,12 @@ function JobCard({
   const now = useNow(1000)
   const setView = useStore((state) => state.setView)
   const working = item.state === "working"
+  // how far it has got, as PCB mode has it at its foot, while it is being made
+  const job = working
+    ? (project.conversations.find(
+        (conversation) => conversation.job?.board === item.board
+      )?.job ?? null)
+    : null
   const blocks = React.useMemo(() => inBlocks(item.items), [item.items])
   const last = blocks.at(-1)
   // what came of it: what was said last, once it is over
@@ -609,6 +616,7 @@ function JobCard({
             )}
           </span>
         </div>
+        {job && <StepsInLine job={job} />}
         <div
           ref={body}
           className={cn(

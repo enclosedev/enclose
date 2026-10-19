@@ -218,7 +218,8 @@ tscircuit's rules, as a board half written does. While it is routed, the line un
 board's name says how far that has got. A board made in detail in the background has
 its steps at the foot of PCB mode instead, in a row: **Placing parts**, **Connecting**,
 **Routing** and **Checking**, each with how long it took, how long it has been going,
-or that it has not started yet. The agent says which step it is at as it begins each.
+or that it has not started yet; and small, on its card in the conversation, how far it
+has got. The agent says which step it is at as it begins each.
 It often goes back, to routing again after a check failed, say: then the steps after
 that one are to come again. (An agent that says nothing of its steps has them gone by
 how far each build of the board got.) While it is routed, how far that has got goes
