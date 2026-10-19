@@ -132,7 +132,8 @@ export class Saying implements AsyncIterable<string> {
   }
 }
 
-type Piece =
+/** Words, or a picture, of what an agent is given. */
+export type Piece =
   | { type: "text"; text: string }
   | { type: "image"; data: string; mimeType: string }
 

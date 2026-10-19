@@ -31,6 +31,7 @@ import {
 import { MOST_BYTES, PICTURE_TYPES } from "../shared/pictures"
 import { writeWhole } from "./atomic"
 import { running } from "./claude"
+import { askCodexOnce } from "./codex"
 import type { Launch } from "./providers"
 
 /** A picture as the agent is shown it: what it was called, its kind, and its file as base64. */
@@ -39,8 +40,16 @@ export type Looked = { name: string; mimeType: string; data: string }
 export type InspirationDeps = {
   /** where a project's folder is: null for one that is not on the list, or not there */
   folderOf: (projectId: string) => string | null
-  /** what the agent says a picture is; null where it would not say, or cannot be asked */
-  look: (picture: Looked, signal: AbortSignal) => Promise<string | null>
+  /**
+   * what the agent says a picture is; null where it would not say, or cannot be asked.
+   * `codexModel` is what Codex is to run, where it is Codex that looks: null leaves it
+   * to Codex
+   */
+  look: (
+    picture: Looked,
+    signal: AbortSignal,
+    codexModel: string | null
+  ) => Promise<string | null>
   /** put a file in the system's bin */
   trash: (file: string) => Promise<void>
   /** a project's board changed here, or which of its pictures are being looked at did */
@@ -84,6 +93,8 @@ export class Inspiration {
    * nothing of them. They are tried again once another picture is put on the board.
    */
   private passed = new Map<string, Set<string>>()
+  /** the model chosen for Codex in the window, as the window last said it */
+  private codexModel: string | null = null
 
   constructor(deps: InspirationDeps) {
     this.deps = deps
@@ -127,7 +138,8 @@ export class Inspiration {
   }
 
   /** The board as it is, and which of its pictures are being looked at. */
-  read(projectId: string): InspirationState {
+  read(projectId: string, codexModel?: string | null): InspirationState {
+    if (codexModel !== undefined) this.codexModel = codexModel
     const state = this.stateOf(projectId)
     this.lookAtNew(projectId, state.board)
     return state
@@ -165,7 +177,8 @@ export class Inspiration {
    * not on the board. The files of pictures that were on it, and are not now, go to the
    * bin. Then any picture the agent has not looked at yet is looked at.
    */
-  save(projectId: string, given: unknown) {
+  save(projectId: string, given: unknown, codexModel?: string | null) {
+    if (codexModel !== undefined) this.codexModel = codexModel
     const at = this.where(projectId)
     if (!at) return
     const was = this.load(projectId)
@@ -241,7 +254,8 @@ export class Inspiration {
       const data = await fs.promises.readFile(path.join(at.folder, image.file))
       said = await this.deps.look(
         { name: image.name, mimeType, data: data.toString("base64") },
-        abort.signal
+        abort.signal,
+        this.codexModel
       )
     } catch {
       said = null
@@ -393,79 +407,110 @@ export function tidyOverview(answer: string): string | null {
 }
 
 /**
- * What Claude Code says a picture is, with one of its models that sees pictures well,
- * answering straight off with nothing but the picture to go by and none of it kept.
- * Nothing, where Claude Code is not there to ask, or would not say.
+ * Which agent looks at the pictures, and what it is started with: Claude Code, where it
+ * is there, and otherwise Codex. (Grok is handed no pictures by the app, and opencode
+ * none either, as only some of its models see them.)
  */
-export function lookingWith(claude: () => Promise<Launch | null>) {
+export type Looker = { by: "claude" | "codex"; launch: Launch }
+
+/** What a picture is called, as the agent is told it beside the picture. */
+const calledSo = (picture: Looked) =>
+  `The picture was called "${named(picture.name)}". Write its lines.`
+
+/**
+ * What an agent says a picture is, as it is kept: Claude Code with one of its models
+ * that sees pictures well, or else Codex, as it is set up to run. Either answers straight
+ * off, with nothing but the picture to go by, and keeps none of it. Nothing, where
+ * neither is there to ask, or it would not say.
+ */
+export function lookingWith(who: () => Promise<Looker | null>) {
   return async (
     picture: Looked,
-    signal: AbortSignal
+    signal: AbortSignal,
+    codexModel: string | null = null
   ): Promise<string | null> => {
-    const launch = await claude()
-    if (!launch || signal.aborted) return null
-    const abort = new AbortController()
-    const timer = setTimeout(() => abort.abort(), LOOK_MS)
-    const stop = () => abort.abort()
-    signal.addEventListener("abort", stop, { once: true })
-    // the picture is said once, and nothing more is: the input is kept open until the
-    // answer is in, as Claude Code would otherwise take its end for being stopped
-    let answered = () => {}
-    const over = new Promise<void>((resolve) => (answered = resolve))
-    async function* prompt(): AsyncGenerator<SDKUserMessage> {
-      yield {
-        type: "user",
-        message: {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: picture.mimeType as
-                  "image/jpeg" | "image/png" | "image/gif" | "image/webp",
-                data: picture.data,
-              },
+    const looker = await who()
+    if (!looker || signal.aborted) return null
+    const said =
+      looker.by === "claude"
+        ? await lookWithClaude(looker.launch, picture, signal)
+        : await askCodexOnce(
+            looker.launch,
+            LOOK,
+            [
+              { type: "image", mimeType: picture.mimeType, data: picture.data },
+              { type: "text", text: calledSo(picture) },
+            ],
+            signal,
+            LOOK_MS,
+            codexModel
+          )
+    return said === null ? null : tidyOverview(said)
+  }
+}
+
+/** What Claude Code says of a picture, as it says it: nothing, where it would not say. */
+async function lookWithClaude(
+  launch: Launch,
+  picture: Looked,
+  signal: AbortSignal
+): Promise<string | null> {
+  const abort = new AbortController()
+  const timer = setTimeout(() => abort.abort(), LOOK_MS)
+  const stop = () => abort.abort()
+  signal.addEventListener("abort", stop, { once: true })
+  // the picture is said once, and nothing more is: the input is kept open until the
+  // answer is in, as Claude Code would otherwise take its end for being stopped
+  let answered = () => {}
+  const over = new Promise<void>((resolve) => (answered = resolve))
+  async function* prompt(): AsyncGenerator<SDKUserMessage> {
+    yield {
+      type: "user",
+      message: {
+        role: "user",
+        content: [
+          {
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: picture.mimeType as
+                "image/jpeg" | "image/png" | "image/gif" | "image/webp",
+              data: picture.data,
             },
-            {
-              type: "text",
-              text: `The picture was called "${named(picture.name)}". Write its lines.`,
-            },
-          ],
-        },
-        parent_tool_use_id: null,
-      }
-      await over
+          },
+          { type: "text", text: calledSo(picture) },
+        ],
+      },
+      parent_tool_use_id: null,
     }
-    try {
-      const session = query({
-        prompt: prompt(),
-        options: {
-          cwd: os.tmpdir(),
-          ...running(launch),
-          abortController: abort,
-          model: "sonnet",
-          thinking: { type: "disabled" },
-          tools: [],
-          maxTurns: 1,
-          settingSources: [],
-          persistSession: false,
-          systemPrompt: LOOK,
-        },
-      })
-      for await (const message of session)
-        if (message.type === "result")
-          return message.subtype === "success"
-            ? tidyOverview(message.result)
-            : null
-      return null
-    } catch {
-      return null
-    } finally {
-      answered()
-      clearTimeout(timer)
-      signal.removeEventListener("abort", stop)
-      abort.abort()
-    }
+    await over
+  }
+  try {
+    const session = query({
+      prompt: prompt(),
+      options: {
+        cwd: os.tmpdir(),
+        ...running(launch),
+        abortController: abort,
+        model: "sonnet",
+        thinking: { type: "disabled" },
+        tools: [],
+        maxTurns: 1,
+        settingSources: [],
+        persistSession: false,
+        systemPrompt: LOOK,
+      },
+    })
+    for await (const message of session)
+      if (message.type === "result")
+        return message.subtype === "success" ? message.result : null
+    return null
+  } catch {
+    return null
+  } finally {
+    answered()
+    clearTimeout(timer)
+    signal.removeEventListener("abort", stop)
+    abort.abort()
   }
 }

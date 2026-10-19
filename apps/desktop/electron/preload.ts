@@ -87,11 +87,21 @@ const api: CadApi = {
       ipcRenderer.invoke(CHANNEL.assemblyRemove, projectId, guideId),
   },
   inspiration: {
-    read: (projectId) => ipcRenderer.invoke(CHANNEL.inspirationRead, projectId),
+    read: (projectId, codexModel) =>
+      ipcRenderer.invoke(
+        CHANNEL.inspirationRead,
+        projectId,
+        codexModel ?? null
+      ),
     add: (projectId, picture) =>
       ipcRenderer.invoke(CHANNEL.inspirationAdd, projectId, picture),
-    save: (projectId, board) =>
-      ipcRenderer.invoke(CHANNEL.inspirationSave, projectId, board),
+    save: (projectId, board, codexModel) =>
+      ipcRenderer.invoke(
+        CHANNEL.inspirationSave,
+        projectId,
+        board,
+        codexModel ?? null
+      ),
     confirmRemove: (projectId, what) =>
       ipcRenderer.invoke(CHANNEL.inspirationConfirmRemove, projectId, what),
     stop: (projectId) => ipcRenderer.invoke(CHANNEL.inspirationStop, projectId),

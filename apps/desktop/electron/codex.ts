@@ -13,7 +13,15 @@ import {
 } from "../shared/api"
 import type { Launch, Looked } from "./providers"
 import { NO_SUCH_METHOD, RpcError, startPeer, type Peer } from "./rpc"
-import { bare, guideAgain, inside, piecesOf, stopped, type Turn } from "./turn"
+import {
+  bare,
+  guideAgain,
+  inside,
+  piecesOf,
+  stopped,
+  type Piece,
+  type Turn,
+} from "./turn"
 
 /** What the app says it is, on taking up the line. */
 const HELLO = {
@@ -560,6 +568,88 @@ export async function runCodex(turn: Turn): Promise<void> {
     // what was in flight did not finish
     for (const item of live.values()) turn.put({ ...item, streaming: false })
     for (const item of tools.values()) turn.put({ ...item, state: "failed" })
+    peer.close()
+  }
+}
+
+/**
+ * What Codex says to one thing put to it, with nothing to go by but what it is given:
+ * `told` is what it is to do, and `given` the words and pictures it is to do it with. Its
+ * last words, as it says them; nothing, where it would not say, the turn failed, it took
+ * longer than `ms`, or it was stopped. It is shut in to reading, in a folder that is
+ * nobody's, with nothing it may ask anyone, and none of it is kept among its own
+ * conversations.
+ */
+export async function askCodexOnce(
+  launch: Launch,
+  told: string,
+  given: Piece[],
+  signal: AbortSignal,
+  ms: number,
+  /** what it is to run: null for what it is set to */
+  model: string | null = null
+): Promise<string | null> {
+  if (signal.aborted) return null
+  let threadId = ""
+  let said: string | null = null
+  let over: (done: boolean) => void = () => {}
+  const finished = new Promise<boolean>((resolve) => (over = resolve))
+  const peer = startPeer(launch.path, ["app-server", ...launch.args], {
+    cwd: os.tmpdir(),
+    env: launch.env,
+    versioned: false,
+    onNotification: (method, params) => {
+      const heard = (params ?? {}) as Told
+      if (heard.threadId && threadId && heard.threadId !== threadId) return
+      if (method === "item/completed" && heard.item?.type === "agentMessage")
+        said = heard.item.text ?? said
+      else if (method === "turn/completed")
+        over(heard.turn?.status === "completed")
+    },
+    // there is nobody to ask, and it may do nothing it would have to ask about
+    onRequest: (method) =>
+      Promise.reject(
+        new RpcError(NO_SUCH_METHOD, `Method not found: ${method}`)
+      ),
+  })
+  const died = peer.gone.then(() => {
+    throw new Error(peer.stderr() || "Codex exited before it answered.")
+  })
+  died.catch(() => {})
+  const asking = async () => {
+    await peer.request("initialize", HELLO)
+    peer.notify("initialized")
+    const opened = await peer.request<{ thread: { id: string } }>(
+      "thread/start",
+      {
+        cwd: os.tmpdir(),
+        approvalPolicy: "never",
+        sandbox: "read-only",
+        developerInstructions: told,
+        ephemeral: true,
+        ...(model ? { model } : {}),
+      }
+    )
+    threadId = opened.thread.id
+    await peer.request("turn/start", {
+      threadId,
+      input: given.map((piece) =>
+        piece.type === "text"
+          ? { type: "text", text: piece.text, text_elements: [] }
+          : {
+              type: "image",
+              url: `data:${piece.mimeType};base64,${piece.data}`,
+            }
+      ),
+      ...(model ? { model } : {}),
+    })
+    return (await finished) ? said : null
+  }
+  try {
+    return await Promise.race([asking(), stopped(signal), died, tooLong(ms)])
+  } catch {
+    return null
+  } finally {
     peer.close()
   }
 }

@@ -966,8 +966,16 @@ export type CadApi = {
   }
   /** a project's inspiration board (see shared/inspiration-format.ts) */
   inspiration: {
-    /** The board as its folder has it, and which of its pictures the agent is looking at. */
-    read(projectId: string): Promise<InspirationState>
+    /**
+     * The board as its folder has it, and which of its pictures the agent is looking at.
+     * `codexModel` is the model chosen for Codex in the window, for Codex to look at the
+     * pictures with where it is Codex that looks: null leaves that to Codex. (So too with
+     * `save`.)
+     */
+    read(
+      projectId: string,
+      codexModel?: string | null
+    ): Promise<InspirationState>
     /**
      * Put a picture's file in the board's folder, for the picture to go on the board.
      * Resolves to what it is kept as, or to null if it is no picture an agent can be
@@ -983,7 +991,11 @@ export type CadApi = {
      * the board have their files go to the system's bin. Any picture the agent has not
      * looked at yet is looked at.
      */
-    save(projectId: string, board: InspirationBoard): Promise<void>
+    save(
+      projectId: string,
+      board: InspirationBoard,
+      codexModel?: string | null
+    ): Promise<void>
     /** Ask whether pictures are to be taken off the board: resolves to whether they are. */
     confirmRemove(
       projectId: string,

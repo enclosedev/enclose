@@ -37,8 +37,9 @@ What this page says is so whichever of them answers, but for a few things:
   message, the name of a [group you make](parts.md#changing-the-groups-by-hand), and what
   a [commit](projects.md#history-and-backup) says of a turn. What is made of each picture
   on the [inspiration board](#the-inspiration-board) is written by Claude Code too, with
-  one of its models that sees pictures well: with Claude switched off, the pictures go
-  unlooked at, and the agent opens them itself when it needs to.
+  one of its models that sees pictures well; with Claude switched off, by Codex, with the
+  model chosen for it under the message. With neither, the pictures go unlooked at, and
+  the agent opens them itself when it needs to.
 
 ## What the agent works on
 

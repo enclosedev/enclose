@@ -1143,6 +1143,13 @@ const mannerFrom = (manner: Partial<Manner> | null): Manner => ({
 })
 
 /**
+ * A model the window says an agent is to run, as it is taken: a name of a few words, or
+ * nothing, which leaves it to the agent.
+ */
+const modelFrom = (model: unknown): string | null =>
+  typeof model === "string" && /^[\w.:/@+-]{1,120}$/.test(model) ? model : null
+
+/**
  * How a message is to be answered, as the app's count of its use has it. A model the
  * user wrote in themselves, or has from their own config, is called whatever they called
  * it, which is theirs: it is counted as one of those, and not by name (see modelSaid).
@@ -1773,8 +1780,10 @@ function wire() {
     }
   )
 
-  ipcMain.handle(CHANNEL.inspirationRead, (_, id: string) =>
-    inspiration.read(String(id))
+  ipcMain.handle(
+    CHANNEL.inspirationRead,
+    (_, id: string, codexModel: unknown) =>
+      inspiration.read(String(id), modelFrom(codexModel))
   )
   ipcMain.handle(CHANNEL.inspirationAdd, (_, id: string, picture: unknown) =>
     projects.get(String(id))
@@ -1784,9 +1793,13 @@ function wire() {
         )
       : null
   )
-  ipcMain.handle(CHANNEL.inspirationSave, (_, id: string, board: unknown) => {
-    if (projects.get(String(id))) inspiration.save(String(id), board)
-  })
+  ipcMain.handle(
+    CHANNEL.inspirationSave,
+    (_, id: string, board: unknown, codexModel: unknown) => {
+      if (projects.get(String(id)))
+        inspiration.save(String(id), board, modelFrom(codexModel))
+    }
+  )
   ipcMain.handle(
     CHANNEL.inspirationConfirmRemove,
     async (_, id: string, what: unknown): Promise<boolean> => {
@@ -2298,10 +2311,14 @@ if (!app.requestSingleInstanceLock()) {
     inspiration = new Inspiration({
       folderOf: (id) => projects.get(id)?.path ?? null,
       // (each picture is looked at by Claude Code, whichever agent the user talks to,
-      // as a group of parts is named by it: it is there to be asked once it is found)
+      // as a group of parts is named by it; and by Codex where Claude Code is not there.
+      // Either is there to be asked once it is found)
       look: lookingWith(async () => {
         await providers.found
-        return providers.launch("claude")
+        const claude = providers.launch("claude")
+        if (claude) return { by: "claude", launch: claude }
+        const codex = providers.launch("codex")
+        return codex ? { by: "codex", launch: codex } : null
       }),
       trash: (file) => shell.trashItem(file),
       onChange: (id, state) => send(CHANNEL.inspirationChanged, id, state),

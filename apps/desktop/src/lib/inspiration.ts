@@ -69,11 +69,17 @@ type InspirationStore = {
 
 const timers = new Map<string, ReturnType<typeof setTimeout>>()
 
+/**
+ * The model chosen for Codex where a message is written: what Codex looks at the
+ * pictures with, where it is Codex that looks (see connectInspiration).
+ */
+let codexModel: () => string | null = () => null
+
 function saveNow(projectId: string) {
   clearTimeout(timers.get(projectId))
   timers.delete(projectId)
   const board = useInspiration.getState().boards[projectId]
-  if (board) void window.cad.inspiration.save(projectId, board)
+  if (board) void window.cad.inspiration.save(projectId, board, codexModel())
 }
 
 /** How big a picture is, in its own pixels: null where it cannot be read as one. */
@@ -129,7 +135,7 @@ export const useInspiration = create<InspirationStore>((set, get) => ({
 
   async load(projectId) {
     if (get().boards[projectId]) return
-    const state = await window.cad.inspiration.read(projectId)
+    const state = await window.cad.inspiration.read(projectId, codexModel())
     // (read meanwhile by another asking, or changed here: what is here stays)
     if (get().boards[projectId]) return
     set((now) => ({ boards: { ...now.boards, [projectId]: state.board } }))
@@ -236,8 +242,12 @@ function took(projectId: string, state: InspirationState) {
   })
 }
 
-/** Connect the boards to the app's own process. Call once, before the first render. */
-export function connectInspiration() {
+/**
+ * Connect the boards to the app's own process. Call once, before the first render, with
+ * where the model chosen for Codex is had from.
+ */
+export function connectInspiration(chosenForCodex: () => string | null) {
+  codexModel = chosenForCodex
   window.cad.inspiration.onChange(took)
   // what is waiting to be written is written before the window goes
   window.addEventListener("pagehide", () => {

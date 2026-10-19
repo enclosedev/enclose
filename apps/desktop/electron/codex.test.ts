@@ -4,7 +4,13 @@ import path from "node:path"
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
-import { accountOf, codexModels, lookAtCodex, runCodex } from "./codex"
+import {
+  accountOf,
+  askCodexOnce,
+  codexModels,
+  lookAtCodex,
+  runCodex,
+} from "./codex"
 import { fakeAgent, fakeTurn, until } from "./testing"
 
 let dir: string
@@ -338,5 +344,85 @@ on("initialize", () => { console.error("no such flag: --nope"); process.exit(2) 
     )
     const fake = fakeTurn({ launch: launch(file), cwd: dir })
     await expect(runCodex(fake.turn)).rejects.toThrow("no such flag: --nope")
+  })
+})
+
+describe("askCodexOnce", () => {
+  /** A Codex that says what it was asked, as it was asked it, and then how it went. */
+  const answering = (how: "completed" | "failed" | "never") => `
+let opening = null
+on("initialize", () => ({}))
+on("initialized", () => {})
+on("thread/start", (params) => { opening = params; return { thread: { id: "thread-1" } } })
+on("turn/start", (params) => {
+  if (${JSON.stringify(how)} !== "never")
+    setTimeout(() => {
+      tell("item/completed", { threadId: "thread-2", item: { type: "agentMessage", id: "x", text: "elsewhere" } })
+      tell("item/completed", { threadId: "thread-1", item: { type: "agentMessage", id: "m1", text: "Let me look." } })
+      tell("item/completed", { threadId: "thread-1", item: { type: "agentMessage", id: "m2", text: JSON.stringify({ opening, input: params.input, model: params.model }) } })
+      tell("turn/completed", { threadId: "thread-1", turn: { id: "turn-1", status: ${JSON.stringify(how)} } })
+    }, 5)
+  return { turn: { id: "turn-1" } }
+})
+`
+  const given = [
+    { type: "image" as const, mimeType: "image/png", data: "AAAA" },
+    { type: "text" as const, text: "What is it?" },
+  ]
+
+  it("asks once, shut in to reading and kept nowhere, and gives back its last words", async () => {
+    const file = fakeAgent(dir, false, answering("completed"))
+    const said = await askCodexOnce(
+      launch(file),
+      "You look at pictures.",
+      given,
+      new AbortController().signal,
+      10_000
+    )
+    expect(JSON.parse(said!)).toEqual({
+      opening: {
+        cwd: os.tmpdir(),
+        approvalPolicy: "never",
+        sandbox: "read-only",
+        developerInstructions: "You look at pictures.",
+        ephemeral: true,
+      },
+      input: [
+        { type: "image", url: "data:image/png;base64,AAAA" },
+        { type: "text", text: "What is it?", text_elements: [] },
+      ],
+    })
+  })
+
+  it("runs the model it is told to, where it is told one", async () => {
+    const file = fakeAgent(dir, false, answering("completed"))
+    const said = await askCodexOnce(
+      launch(file),
+      "",
+      given,
+      new AbortController().signal,
+      10_000,
+      "gpt-luna"
+    )
+    expect(JSON.parse(said!)).toMatchObject({
+      opening: { model: "gpt-luna" },
+      model: "gpt-luna",
+    })
+  })
+
+  it("gives back nothing where the turn failed, took too long, or was stopped", async () => {
+    const signal = () => new AbortController().signal
+    const failed = fakeAgent(dir, false, answering("failed"))
+    expect(
+      await askCodexOnce(launch(failed), "", given, signal(), 10_000)
+    ).toBe(null)
+    const silent = fakeAgent(dir, false, answering("never"))
+    expect(await askCodexOnce(launch(silent), "", given, signal(), 200)).toBe(
+      null
+    )
+    const stop = new AbortController()
+    const asking = askCodexOnce(launch(silent), "", given, stop.signal, 10_000)
+    setTimeout(() => stop.abort(), 100)
+    expect(await asking).toBeNull()
   })
 })

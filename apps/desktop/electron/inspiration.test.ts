@@ -26,6 +26,7 @@ let dir: string
 let looked: {
   picture: Looked
   signal: AbortSignal
+  model: string | null
   say: (said: string | null) => void
 }[]
 let trashed: string[]
@@ -39,8 +40,10 @@ beforeEach(() => {
   told = []
   inspiration = new Inspiration({
     folderOf: (id) => (id === "p1" ? dir : null),
-    look: (picture, signal) =>
-      new Promise((resolve) => looked.push({ picture, signal, say: resolve })),
+    look: (picture, signal, model) =>
+      new Promise((resolve) =>
+        looked.push({ picture, signal, model, say: resolve })
+      ),
     trash: async (file) => {
       trashed.push(path.basename(file))
       fs.rmSync(file)
@@ -225,6 +228,20 @@ describe("Inspiration", () => {
       images: [...files, more].map((one) => onBoard(one.id, one.file)),
     })
     await until(() => looked.length === 4)
+  })
+
+  it("has Codex look with the model the window last said it runs", async () => {
+    const one = inspiration.add("p1", png("one.png"))!
+    inspiration.save("p1", { images: [onBoard(one.id, one.file)] }, "gpt-luna")
+    await until(() => looked.length === 1)
+    expect(looked[0].model).toBe("gpt-luna")
+    // (where the window says nothing of it, it is as it was)
+    const two = inspiration.add("p1", png("two.png"))!
+    inspiration.save("p1", {
+      images: [onBoard(one.id, one.file), onBoard(two.id, two.file)],
+    })
+    await until(() => looked.length === 2)
+    expect(looked[1].model).toBe("gpt-luna")
   })
 
   it("tries again what the agent said nothing of only once more is put on the board", async () => {

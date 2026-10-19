@@ -2593,7 +2593,7 @@ function tally(before?: Project[]) {
 export function connect() {
   const { cad } = window
   cad.projects.onChange(reconcile)
-  connectInspiration()
+  connectInspiration(() => useStore.getState().model.codex ?? null)
   // a cut left a moment before the window goes is kept all the same
   window.addEventListener("pagehide", cutsSettled)
   adoptColours()
