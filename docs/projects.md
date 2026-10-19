@@ -98,7 +98,8 @@ plain cube standing in for the model there is not yet and the conversation open 
 it. Say what you want made and the agent sets it up: it copies the app's exporter,
 [`kit/enclose.py`](../kit/enclose.py), into the folder, writes a `model.py` that builds
 the parts with [build123d](https://build123d.readthedocs.io) and hands them to it, and
-runs it. The exporter writes the meshes, the edges, a STEP file of each part and the
+runs it. Meanwhile the camera goes slowly round the cube and a light passes across it, as
+over a model being looked over. The exporter writes the meshes, the edges, a STEP file of each part and the
 manifest, and the model takes the cube's place as soon as it has. The build runs with the
 `python3` a terminal would, where that has build123d, and otherwise with the Python the
 app makes of its own (see [Install](install.md#what-it-needs)), which it puts first on

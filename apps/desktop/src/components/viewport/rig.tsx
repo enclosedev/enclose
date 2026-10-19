@@ -1013,6 +1013,7 @@ export function Rig({
   homeKey,
   refit = "",
   circling = false,
+  small = 1,
   around = null,
   more = null,
   ground = null,
@@ -1029,6 +1030,11 @@ export function Rig({
   refit?: string
   /** the camera goes slowly round the model by itself, for as long as this is so */
   circling?: boolean
+  /**
+   * How big what there is to see is seen when it opens, as a share of all the view
+   * takes in: less, for what is only standing in for a model
+   */
+  small?: number
   /**
    * What the model is set in to be seen beside, a reference scene, by a name that tells
    * one such thing from another; null while it is set in nothing.
@@ -1170,10 +1176,10 @@ export function Rig({
     director.current?.home(
       !first.current,
       shape.current,
-      watching ? WATCHING : 1
+      (watching ? WATCHING : 1) * small
     )
     first.current = false
-  }, [homeKey, watching])
+  }, [homeKey, watching, small])
 
   // the view changed shape: a panel opened, or the window was resized
   React.useEffect(() => {

@@ -1986,6 +1986,7 @@ export function Scene({
   changing,
   arriving = null,
   reading = false,
+  small = 1,
   covered = false,
   sweep,
   hoveredId,
@@ -2038,6 +2039,8 @@ export function Scene({
    * to pick from until it is through.
    */
   reading?: boolean
+  /** how big the model is seen when it opens, as a share of all the view takes in */
+  small?: number
   /**
    * It is out of sight, under something else that has the view's place: it is not drawn
    * meanwhile, whatever in it moves by itself, and is drawn as it is once it is back.
@@ -2265,6 +2268,7 @@ export function Scene({
         homeKey={homeKey}
         refit={refit}
         circling={reading}
+        small={small}
         around={reference?.scene.id ?? null}
         // (with the figure of a person in it, there is more of a scene to take in)
         more={reference && hasFigure(reference.scene) ? "a figure" : null}

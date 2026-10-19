@@ -560,6 +560,13 @@ function AtWork({
  * loaded into the view, which is the quicker of the two.
  */
 const MAKING = 0.8
+/**
+ * How big the cube that stands in for a model is seen, as a share of all the view takes
+ * in: it is nothing yet, and is not to fill the view as a model does.
+ */
+const STAND_IN_SEEN = 0.55
+/** The cube's one part, for the light to go across while the first model is made. */
+const STAND_IN_PARTS = ["stand-in"]
 
 type Loading =
   | { status: "loading"; done: number; total: number }
@@ -753,6 +760,12 @@ function Model({ project }: { project: Project }) {
     () => real?.parts.map((part) => part.part.id) ?? NO_PARTS,
     [real]
   )
+  // And while the first model is being made, the cube that stands in for it is looked
+  // over the same way: the camera goes round it, and the light goes across it, until
+  // the model takes its place.
+  const makingFirst =
+    loaded?.standIn === true &&
+    project.conversations.some((c) => c.status === "working")
 
   // The model can be set in a reference scene: things of a known real size drawn round
   // it, a desk under it or a room about it, so that how big it is can be seen. Cmd+/
@@ -1768,13 +1781,16 @@ function Model({ project }: { project: Project }) {
             // (a guide to the whole of it is of every part, as looking it over is)
             changing={
               loaded.standIn
-                ? NO_PARTS
+                ? makingFirst
+                  ? STAND_IN_PARTS
+                  : NO_PARTS
                 : lookingOver || (project.assembling && changing.length === 0)
                   ? every
                   : changing
             }
             arriving={still ? null : (coming?.arriving ?? null)}
-            reading={lookingOver}
+            reading={lookingOver || makingFirst}
+            small={loaded.standIn ? STAND_IN_SEEN : 1}
             sweep={sweep}
             hoveredId={hoveredId}
             hoveredWith={hoveredWith}
