@@ -25,6 +25,7 @@ import { useThemeColors } from "@/lib/css-color"
 import { usePreferences } from "@/lib/preferences"
 import { scrollSource } from "@/lib/scroll"
 import { useStore, type BoardAs } from "@/lib/store"
+import { ago, useNow } from "@/lib/time"
 import { rateWhen, useWatched } from "@/lib/watched"
 import {
   boardUrl,
@@ -1357,9 +1358,33 @@ export function BoardMode({
             </Badge>
           )}
         </div>
-        {!job && board.building && <BuildingLine building={board.building} />}
+        {!job && board.building ? (
+          <BuildingLine building={board.building} />
+        ) : (
+          as === "3d" &&
+          board.model &&
+          board.built !== null &&
+          (board.preview !== null || board.outdated) && (
+            <LastBuilt at={board.built} />
+          )
+        )}
       </div>
     </div>
+  )
+}
+
+/**
+ * That the board in 3D is as it was last built, and when that was: the 3D is made only
+ * by a full build, and the board has been written since (its quick look, which the
+ * technical view and the schematic draw, is newer).
+ */
+function LastBuilt({ at }: { at: number }) {
+  const now = useNow(30_000)
+  const when = ago(at, now)
+  return (
+    <span className="animate-in text-xs text-foreground/60 duration-200 select-none fade-in">
+      As last built, {when === "now" ? "just now" : `${when} ago`}
+    </span>
   )
 }
 
