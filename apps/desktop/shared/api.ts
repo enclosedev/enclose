@@ -3,6 +3,7 @@
 
 import type { Building, StepsGone } from "./board-format"
 import type { PartColours } from "./colours-format"
+import type { InspirationBoard, InspirationState } from "./inspiration-format"
 import type { Defaults, Theme } from "./theme-format"
 
 export type Vec3 = [number, number, number]
@@ -726,6 +727,7 @@ export const FEATURES = [
   "reference",
   "tools",
   "board",
+  "inspiration",
 ] as const
 export type Feature = (typeof FEATURES)[number]
 
@@ -962,6 +964,40 @@ export type CadApi = {
      */
     remove(projectId: string, guideId: string): Promise<boolean>
   }
+  /** a project's inspiration board (see shared/inspiration-format.ts) */
+  inspiration: {
+    /** The board as its folder has it, and which of its pictures the agent is looking at. */
+    read(projectId: string): Promise<InspirationState>
+    /**
+     * Put a picture's file in the board's folder, for the picture to go on the board.
+     * Resolves to what it is kept as, or to null if it is no picture an agent can be
+     * shown, or is too big.
+     */
+    add(
+      projectId: string,
+      picture: { name: string; mimeType: string; data: ArrayBuffer }
+    ): Promise<{ id: string; file: string } | null>
+    /**
+     * Write the board as it is now. What the agent made of each picture is the app's to
+     * keep, and is kept whatever is said of it here; the pictures that are no longer on
+     * the board have their files go to the system's bin. Any picture the agent has not
+     * looked at yet is looked at.
+     */
+    save(projectId: string, board: InspirationBoard): Promise<void>
+    /** Ask whether pictures are to be taken off the board: resolves to whether they are. */
+    confirmRemove(
+      projectId: string,
+      what: { images: number; groups: string[] }
+    ): Promise<boolean>
+    /** Stop the agent looking at the pictures it has not got through yet. */
+    stop(projectId: string): Promise<void>
+    /** Save every picture on the board, as one zip archive, somewhere the user picks. */
+    saveArchive(projectId: string): Promise<boolean>
+    /** The board changed in the app's own process: the agent said what a picture is, say. */
+    onChange(
+      listener: (projectId: string, state: InspirationState) => void
+    ): () => void
+  }
   pictures: {
     /**
      * Keep a picture that is to go with a project's next message. Resolves to what it
@@ -1183,6 +1219,13 @@ export const CHANNEL = {
   assemblyOpen: "assembly:open",
   assemblySave: "assembly:save",
   assemblyRemove: "assembly:remove",
+  inspirationRead: "inspiration:read",
+  inspirationAdd: "inspiration:add",
+  inspirationSave: "inspiration:save",
+  inspirationConfirmRemove: "inspiration:confirm-remove",
+  inspirationStop: "inspiration:stop",
+  inspirationSaveArchive: "inspiration:save-archive",
+  inspirationChanged: "inspiration:changed",
   picturesAdd: "pictures:add",
   picturesDrop: "pictures:drop",
   threadItems: "thread:items",
@@ -1245,9 +1288,11 @@ export const CHANNEL = {
  * And so do the pictures put with a project's messages: <project id>.picture; and its
  * circuit boards, from the folder they are in: <project id>.pcb. A project's model as
  * the app builds it while an agent writes it (electron/drafts.ts) is <project id>.draft.
+ * The pictures on its inspiration board are <project id>.inspiration.
  */
 export const MODEL_SCHEME = "cad-model"
 export const SCENE_HOST = { own: "reference", app: "scene" } as const
 export const PICTURE_HOST = "picture"
 export const BOARD_HOST = "pcb"
 export const DRAFT_HOST = "draft"
+export const INSPIRATION_HOST = "inspiration"

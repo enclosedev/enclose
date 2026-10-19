@@ -22,6 +22,7 @@ import {
   CHANNEL,
   EFFORTS,
   FEATURES,
+  INSPIRATION_HOST,
   MODEL_SCHEME,
   PICTURE_HOST,
   OWN_SCENE,
@@ -53,6 +54,7 @@ import {
 } from "../shared/api"
 import { BOARD_FOLDER, builtOf } from "../shared/board-format"
 import { archiveOf, EXAMPLES, EXAMPLES_URL } from "../shared/examples"
+import { INSPIRATION_FOLDER } from "../shared/inspiration-format"
 import { PICTURE_TYPES } from "../shared/pictures"
 import {
   COLOURS_FILE,
@@ -102,6 +104,7 @@ import { standInName } from "./names"
 import { groupNameOf } from "./naming"
 import { Pace } from "./pace"
 import { Pictures } from "./pictures"
+import { Inspiration, lookingWith } from "./inspiration"
 import { SaveFolder } from "./saving"
 import { serveFile } from "./serve"
 import {
@@ -227,6 +230,7 @@ const MIME: Record<string, string> = {
 let win: BrowserWindow | null = null
 let projects: Projects
 let pictures: Pictures
+let inspiration: Inspiration
 let threads: Threads
 let drafts: Drafts
 let changes: Changes
@@ -285,7 +289,8 @@ const previews = new Previews({
 /**
  * The folder a file asked for is in, by the host it is asked of: a project's model, the
  * reference scene the project has of its own, one of the app's, the pictures put with
- * the project's messages, its circuit boards, or its model as an agent writes it.
+ * the project's messages, its circuit boards, its model as an agent writes it, or the
+ * pictures on its inspiration board.
  */
 function servedFrom(host: string): string | null {
   const [name, kind] = host.split(".")
@@ -297,6 +302,8 @@ function servedFrom(host: string): string | null {
   }
   const project = projects.get(name)
   if (kind === PICTURE_HOST) return project ? pictures.folder(project.id) : null
+  if (kind === INSPIRATION_HOST)
+    return project ? path.join(project.path, INSPIRATION_FOLDER) : null
   if (kind === BOARD_HOST)
     return project ? path.join(project.path, BOARD_FOLDER) : null
   const manifest =
@@ -1315,6 +1322,7 @@ function wire() {
     unturned.delete(project.id)
     versions.forget(project.id)
     pictures.forget(project.id)
+    inspiration.forget(project.id)
     // a model still being made of its files is given up on
     builds.get(project.id)?.()
     builds.delete(project.id)
@@ -1765,6 +1773,107 @@ function wire() {
     }
   )
 
+  ipcMain.handle(CHANNEL.inspirationRead, (_, id: string) =>
+    inspiration.read(String(id))
+  )
+  ipcMain.handle(CHANNEL.inspirationAdd, (_, id: string, picture: unknown) =>
+    projects.get(String(id))
+      ? inspiration.add(
+          String(id),
+          picture as Parameters<Inspiration["add"]>[1]
+        )
+      : null
+  )
+  ipcMain.handle(CHANNEL.inspirationSave, (_, id: string, board: unknown) => {
+    if (projects.get(String(id))) inspiration.save(String(id), board)
+  })
+  ipcMain.handle(
+    CHANNEL.inspirationConfirmRemove,
+    async (_, id: string, what: unknown): Promise<boolean> => {
+      if (!projects.get(String(id))) return false
+      const { images, groups } = (what ?? {}) as {
+        images?: unknown
+        groups?: unknown
+      }
+      const count = typeof images === "number" ? images : 0
+      const titles = Array.isArray(groups)
+        ? groups.filter((title): title is string => typeof title === "string")
+        : []
+      if (count < 1) return false
+      // (a run with nobody at it has nobody to ask)
+      if (!win || CAPTURE) return true
+      const called = titles.map((title) => `“${title}”`)
+      const { response } = await dialog.showMessageBox(win, {
+        type: "warning",
+        message:
+          count === 1
+            ? "Delete this image from the board?"
+            : `Delete ${count} images from the board?`,
+        detail: [
+          ...(called.length > 0
+            ? [
+                `The ${called.length === 1 ? "group" : "groups"} ${called.length === 1 ? called[0] : `${called.slice(0, -1).join(", ")} and ${called.at(-1)}`} ${called.length === 1 ? "goes" : "go"} with ${count === 1 ? "it" : "them"}.`,
+              ]
+            : []),
+          `${count === 1 ? "Its file goes" : "Their files go"} to the ${process.platform === "darwin" ? "Trash" : "Recycle Bin"}, what was noted on ${count === 1 ? "it" : "them"} is forgotten, and the agent no longer designs by ${count === 1 ? "it" : "them"}.`,
+        ].join(" "),
+        buttons: ["Delete", "Cancel"],
+        defaultId: 0,
+        cancelId: 1,
+      })
+      return response === 0
+    }
+  )
+  ipcMain.handle(CHANNEL.inspirationStop, (_, id: string) =>
+    inspiration.stop(String(id))
+  )
+  ipcMain.handle(
+    CHANNEL.inspirationSaveArchive,
+    async (_, id: string): Promise<boolean> => {
+      const project = projects.get(String(id))
+      if (!win || !project) return false
+      const folder = path.join(project.path, INSPIRATION_FOLDER)
+      const { board } = inspiration.read(project.id)
+      // each by what it was called where it came from, and none by another's name
+      const taken = new Set<string>()
+      const wanted = board.images.flatMap((image) => {
+        const source = path.join(folder, image.file)
+        if (!fs.existsSync(source)) return []
+        const ending = path.extname(image.file)
+        const stem =
+          path.basename(image.name, path.extname(image.name)).trim() || image.id
+        let name = `${stem}${ending}`
+        for (let more = 2; taken.has(name.toLowerCase()); more++)
+          name = `${stem} ${more}${ending}`
+        taken.add(name.toLowerCase())
+        return [{ source, name }]
+      })
+      if (wanted.length === 0) return false
+      const picked = await dialog.showSaveDialog(win, {
+        defaultPath: saving.offer(
+          `${
+            (project.name ?? "")
+              .replace(/[^A-Za-z0-9]+/g, "-")
+              .replace(/^-|-$/g, "")
+              .toLowerCase() || "project"
+          }-inspiration.zip`
+        ),
+      })
+      if (picked.canceled || !picked.filePath) return false
+      const archive = zipOf(
+        await Promise.all(
+          wanted.map(async ({ source, name }) => ({
+            name,
+            data: await fs.promises.readFile(source),
+          }))
+        )
+      )
+      await fs.promises.writeFile(picked.filePath, archive)
+      saving.savedIn(path.dirname(picked.filePath))
+      return true
+    }
+  )
+
   ipcMain.handle(CHANNEL.picturesAdd, (_, id: string, picture: unknown) =>
     projects.get(String(id))
       ? pictures.add(String(id), picture as Parameters<Pictures["add"]>[1])
@@ -2186,6 +2295,17 @@ if (!app.requestSingleInstanceLock()) {
     )
     versions = new Versions(path.join(data, "versions"), locks)
     pictures = new Pictures(path.join(data, "pictures"))
+    inspiration = new Inspiration({
+      folderOf: (id) => projects.get(id)?.path ?? null,
+      // (each picture is looked at by Claude Code, whichever agent the user talks to,
+      // as a group of parts is named by it: it is there to be asked once it is found)
+      look: lookingWith(async () => {
+        await providers.found
+        return providers.launch("claude")
+      }),
+      trash: (file) => shell.trashItem(file),
+      onChange: (id, state) => send(CHANNEL.inspirationChanged, id, state),
+    })
     connection = new Connection({
       saved: () => settings.github(),
       save: (github) => settings.setGitHub(github),
@@ -2279,6 +2399,7 @@ if (!app.requestSingleInstanceLock()) {
         return connection.connected() ? "github" : "local"
       },
       viewport: askViewport,
+      inspiration: (projectId) => inspiration.digest(projectId),
       onItem: (projectId, conversationId, item) =>
         pace.put(projectId, conversationId, item),
       onVersion: (projectId, from, to, manner) => {

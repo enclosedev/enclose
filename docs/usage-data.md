@@ -28,7 +28,7 @@ Each thing counted is an event: its name, and a few words and numbers that say w
 | `board saved` | Whether its Gerbers or its STEP file |
 | `board made` | Of a board made in detail in the background: the agent, its model, the effort and the permissions; whether it was done, stopped or failed; how long it took, in minutes, and how long it was at each of its steps all told (placing its parts, connecting them, routing, checking), and how many times it went back to an earlier one; how many things the agent did, and how many times the board was built; whether it was made from a rough one, and whether it was finished; and how many parts, nets, connections and vias it has |
 | `assembly guide removed` | |
-| `feature used` | Which of these the view was put into: a section, the exploded view, parts shown alone, parts hidden, the blueprint, the assembly guides, a reference scene, a project's own tools, or a circuit board in PCB mode. Each is counted once for a run of the app |
+| `feature used` | Which of these the view was put into: a section, the exploded view, parts shown alone, parts hidden, the blueprint, the assembly guides, a reference scene, a project's own tools, a circuit board in PCB mode, or the inspiration board. Each is counted once for a run of the app |
 | `provider switched` | Which agent, and whether on or off |
 | `provider updated` | Which agent, and what came of it: updated, the same as it was, failed, or not answering after |
 | `update fetched` | The version |

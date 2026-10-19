@@ -19,6 +19,11 @@ export type Conversation = {
    * takes such things only when a session begins is told again when they change.
    */
   guided: string | null
+  /**
+   * What that session was last told of the project's inspiration board, as a mark of it:
+   * it is told again when the board changes. None, where it has been told nothing of one.
+   */
+  inspired?: string
   /** what the user has called it; until they do, it goes by the first thing said in it */
   name: string | null
   items: ThreadItem[]
@@ -73,11 +78,12 @@ const fileOf = ({
   provider,
   sessionId,
   guided,
+  inspired,
   name,
   items,
   gist,
 }: Conversation) =>
-  JSON.stringify({ provider, sessionId, guided, name, items, gist })
+  JSON.stringify({ provider, sessionId, guided, inspired, name, items, gist })
 
 export function writeConversation(
   dir: string,
@@ -142,14 +148,16 @@ function adopt(dir: string, projectId: string, session: () => string | null) {
 function readFile(file: string, id: string): Conversation | null {
   const read: unknown = JSON.parse(fs.readFileSync(file, "utf8"))
   try {
-    const { provider, sessionId, guided, name, items, gist } = read as {
-      provider?: unknown
-      sessionId?: unknown
-      guided?: unknown
-      name?: unknown
-      items?: unknown
-      gist?: unknown
-    }
+    const { provider, sessionId, guided, inspired, name, items, gist } =
+      read as {
+        provider?: unknown
+        sessionId?: unknown
+        guided?: unknown
+        inspired?: unknown
+        name?: unknown
+        items?: unknown
+        gist?: unknown
+      }
     if (!Array.isArray(items) || items.length === 0) return null
     const { of, text } = (gist ?? {}) as { of?: unknown; text?: unknown }
     return {
@@ -158,6 +166,7 @@ function readFile(file: string, id: string): Conversation | null {
       provider: PROVIDERS.find((one) => one === provider) ?? "claude",
       sessionId: typeof sessionId === "string" ? sessionId : null,
       guided: typeof guided === "string" ? guided : null,
+      ...(typeof inspired === "string" && { inspired }),
       name: typeof name === "string" && name ? name : null,
       items: (items as ThreadItem[]).map(settled),
       gist:
@@ -269,6 +278,7 @@ export type Summed = {
   provider: ProviderId
   sessionId: string | null
   guided: string | null
+  inspired?: string
   name: string | null
   gist: { of: string; text: string } | null
   items: ThreadItem[]
@@ -276,13 +286,23 @@ export type Summed = {
 
 /** What the summaries keep of a conversation as it is now, with how its file stands. */
 export const summedOf = (
-  { provider, sessionId, guided, name, gist, items, shelved }: Conversation,
+  {
+    provider,
+    sessionId,
+    guided,
+    inspired,
+    name,
+    gist,
+    items,
+    shelved,
+  }: Conversation,
   stamp: string
 ): Summed => ({
   stamp,
   provider,
   sessionId,
   guided,
+  ...(inspired !== undefined && { inspired }),
   name,
   gist,
   items: shelved ? items : digestOf(items),
@@ -330,6 +350,9 @@ export function readShelved(
         provider: summed.provider as ProviderId,
         sessionId: summed.sessionId ?? null,
         guided: summed.guided ?? null,
+        ...(typeof summed.inspired === "string" && {
+          inspired: summed.inspired,
+        }),
         name: summed.name ?? null,
         gist: summed.gist ?? null,
         items: summed.items,

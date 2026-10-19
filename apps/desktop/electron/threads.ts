@@ -45,6 +45,10 @@ import {
   type MadeOf,
   type StepsTook,
 } from "../shared/board-format"
+import {
+  INSPIRATION_FILE,
+  INSPIRATION_FOLDER,
+} from "../shared/inspiration-format"
 import { MANIFEST_FORMAT } from "../shared/manifest-format"
 import { TOOLS_FOLDER } from "../shared/tool-format"
 import { PALETTE_NAMES } from "../shared/palette"
@@ -57,6 +61,7 @@ import { followDoing, running, settingSources } from "./claude"
 import { runCodex } from "./codex"
 import { GIST_FROM, gistOf, plain } from "./gist"
 import { runGrok } from "./grok"
+import { EMPTIED } from "./inspiration"
 import { runOpencode } from "./opencode"
 import type { Arrangement } from "./imports"
 import {
@@ -219,6 +224,8 @@ type Asked = {
    * there: the conversation it begins is a new version of the project
    */
   version?: true
+  /** it is the user's, and goes with the inspiration board where that changed (see `inspirationFor`) */
+  inspired?: true
 }
 
 /**
@@ -325,6 +332,11 @@ export type ThreadsDeps = {
     conversation: string | null,
     said: string
   ) => void
+  /**
+   * The project's inspiration board, as the agent is told of it (see inspiration.ts):
+   * null where it has no pictures, or the app keeps none.
+   */
+  inspiration?: (projectId: string) => string | null
 }
 
 /** Claude Code's tools that write files: not to be had while the project's files are locked. */
@@ -686,6 +698,25 @@ export function assembling(
 }
 
 /**
+ * What an agent is told of the project's inspiration board, where it has one: what is
+ * on it and how each thing there is meant, that it is the user's own, and how a thing is
+ * designed by it. The board itself comes with the messages, as it changes (see
+ * `withNotes`), and not here: so this stays as it is, and so does the session it began.
+ */
+export function inspiring(canAsk: boolean): string[] {
+  return [
+    `- The user keeps an inspiration board for this project (the Inspiration Board button beside the view): pictures of what they want the thing to be like, gathered before they design it and as they go. Products whose style they are after, materials, details, the places the thing is to live in. A message leads with an <inspiration-board> block at the start of a conversation and whenever the board has changed since you were last told of it: that is the board as it now is, in place of what you were told before, and no part of what the message asks. The pictures are in ${INSPIRATION_FOLDER}/ at the top of the project, and ${INSPIRATION_FOLDER}/${INSPIRATION_FILE} keeps all the block says. They are the user's, kept by the app: never write, move or delete anything there.`,
+    '- Three things on the board say what the user wants, and each is gone by. A <picture> holds what an industrial designer made of it when the user put it there: what it is, its form, its materials, how it is made, and what to take from it. A <note> in it is the user\'s own words about one place in the picture, which it gives as a share of the picture\'s width from the left and of its height from the top: that place is what they mean the picture to show, and their words count for more than anything else said of it. A <group> is pictures the user put together, and its title says what they stand for together ("Material inspirations", "Look & feel"): take each picture in it as that, and the group as one thing said several times over.',
+    "- Design by the board. When you make the thing, or change how it looks, take its form, proportions, details, colours and finishes from what the board shows, wherever the user has not said otherwise, and adapt them to this thing, its size and its use: the board says what it should be like, not what to copy. Where many pictures are of one manner (dozens of products by one designer, say), that manner is the style to work in, and to propose details in. Say in the short reply which pictures, or which group, a choice came from.",
+    "- A picture that is not of a thing like this one (a room, a building, a landscape) is where the thing is to live, or the feeling the user is after. Take none of its details literally: design the kind of object that would look right there, in its materials, its colours and its scale.",
+    canAsk
+      ? "- The app draws each part in a solid colour, whatever it is made of, but a material the board points to (wood, a metal, glass, stone, fabric) is meant all the same. Where its pictures, notes or groups keep pointing to one, take it that the thing is to be made of it. The first time that would decide the design, ask with AskUserQuestion whether to design it for that material, offering it beside what you would make it of otherwise; then design for what they chose in every turn after, without asking again: wall thicknesses, the sizes the material comes in (boards, sheet, tube), its joints and fasteners, and how it is cut, bent or turned, as someone who makes such things in it would."
+      : "- The app draws each part in a solid colour, whatever it is made of, but a material the board points to (wood, a metal, glass, stone, fabric) is meant all the same. Where its pictures, notes or groups keep pointing to one, take it that the thing is to be made of it, and design for that: wall thicknesses, the sizes the material comes in (boards, sheet, tube), its joints and fasteners, and how it is cut, bent or turned, as someone who makes such things in it would. Say in the short reply that you took it to be made of that, so that they can say otherwise.",
+    `- Open a picture itself, its file in ${INSPIRATION_FOLDER}/, when you need more than is said of it: above all where a note points at a place in it, and where it has not been looked at yet.`,
+  ]
+}
+
+/**
  * The app's script that builds a circuit board, the one that checks a board before it
  * is ordered, and the reference for one, beside the exporter.
  */
@@ -850,7 +881,9 @@ function guide(
   /** whether the app keeps its history in git, and backs that up to GitHub */
   history: "off" | "local" | "github" = "off",
   /** what the circuit board being made in the background is called, while one is */
-  job: string | null = null
+  job: string | null = null,
+  /** the project has an inspiration board with pictures on it */
+  inspired = false
 ): string {
   const tool = knownAs(provider)
   const lines = [
@@ -886,6 +919,7 @@ function guide(
     "- When the user pulls the model apart (Explode), a model that gives its parts no explode of their own comes apart by its groups. The parts of a group that touch one another go as one piece, so that a circuit board keeps its components and a switch its pins. The parts of the outside (a group made with shell=True) each go their own way, and so do parts in no group. So keep what is one object in one group, and make the group that encloses the rest the outside.",
     `- Colour is the app's job. It draws every part in one of its own colours (${PALETTE_NAMES.join(", ")}), and a part given no colour takes the one that falls to its group, so parts that belong together match and groups differ. Leave colour out unless the user asks for one or parts within a group need telling apart; then name one of those. Any other colour is drawn as the nearest of them, unless it is a grey, white or black, which is drawn as it is. A part with a circuit board in it (as read_board gives it) is drawn in green, and green is then the boards' alone: whatever else would be green is drawn in indigo, so do not name green for anything else.`,
     ...referring(tool, kit, scenes),
+    ...(trying && inspired ? inspiring(canAsk) : []),
     ...(trying ? tooling(tool, kit) : []),
     // (there is nothing to write a guide to until there is a model)
     ...(trying && manifest ? assembling(tool, kit) : []),
@@ -951,7 +985,12 @@ export type Referenced = { name: string; app: string | null }
 export type Boarded = { id: string; name: string }
 
 /** What Claude has not been told of what was taken back of its turns, and put back. */
-export type Told = { undone: string[]; redone: string[] }
+export type Told = {
+  undone: string[]
+  redone: string[]
+  /** the inspiration board, where it changed since it was told of (see `inspirationFor`) */
+  inspiration?: string | null
+}
 const NOT_TOLD: Told = { undone: [], redone: [] }
 
 /**
@@ -997,7 +1036,9 @@ export function withNotes(
   const shown = board
     ? [`<board id="${board.id}" name="${named(board.name)}" />`]
     : []
+  const inspiration = told.inspiration ? [told.inspiration] : []
   if (
+    inspiration.length === 0 &&
     notes.length === 0 &&
     objects.length === 0 &&
     turned.length === 0 &&
@@ -1046,7 +1087,7 @@ export function withNotes(
           "</quotes>",
         ]
       : []
-  const ahead = [turned, scene, shown, called, comments, quoted]
+  const ahead = [inspiration, turned, scene, shown, called, comments, quoted]
     .filter((block) => block.length > 0)
     .flatMap((block, index) => (index > 0 ? ["", ...block] : block))
   return (text.startsWith("/") ? [text, "", ...ahead] : [...ahead, "", text])
@@ -1928,6 +1969,7 @@ export class Threads {
       board: board?.name,
       pictures,
       quotes,
+      inspired: true,
     }
     return this.say(
       projectId,
@@ -2177,10 +2219,16 @@ export class Threads {
       )
     // Claude hears with the message of any of this conversation's turns that had what
     // they did taken back, or put back, since it was last told
+    // and, with what the user says, the inspiration board where it changed since
     const content =
       typeof asked.content === "function"
         ? asked.content(
-            this.deps.changes.toTell(projectId, conversation.id),
+            {
+              ...this.deps.changes.toTell(projectId, conversation.id),
+              inspiration: asked.inspired
+                ? this.inspirationFor(projectId, conversation)
+                : null,
+            },
             conversation.provider
           )
         : asked.content
@@ -2215,6 +2263,30 @@ export class Threads {
       })
     )
     return conversation.id
+  }
+
+  /**
+   * The inspiration board as a conversation's agent is to be told of it with what is
+   * said to it next: where the board has changed since it was last told of it, or its
+   * session is a new one, which knows nothing of it. Null, where there is nothing new to
+   * tell; what is told is marked as told.
+   */
+  private inspirationFor(
+    projectId: string,
+    conversation: Conversation
+  ): string | null {
+    const board = this.deps.inspiration?.(projectId) ?? null
+    const mark =
+      board === null
+        ? undefined
+        : createHash("sha1").update(board).digest("hex")
+    const was =
+      conversation.sessionId === null ? undefined : conversation.inspired
+    if (mark === was) return null
+    if (mark === undefined) delete conversation.inspired
+    else conversation.inspired = mark
+    // a board told of once and emptied since is told of as empty
+    return board ?? (was === undefined ? null : EMPTIED)
   }
 
   /** One turn of a conversation: from what was asked to the agent having done with it. */
@@ -2259,7 +2331,8 @@ export class Threads {
       asked.arrange === undefined,
       this.deps.projects.hasMeshes(projectId),
       this.deps.history(projectId),
-      busy
+      busy,
+      (this.deps.inspiration?.(projectId) ?? null) !== null
     )
     const guided = createHash("sha1").update(told).digest("hex")
 

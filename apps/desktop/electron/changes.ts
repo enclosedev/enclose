@@ -26,6 +26,7 @@ import { createHash, randomBytes } from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
 
+import { INSPIRATION_FOLDER } from "../shared/inspiration-format"
 import { missing, writeWhole } from "./atomic"
 import { Locks } from "./locks"
 
@@ -89,6 +90,12 @@ const LEFT_OUT = new Set([
   "venv",
   ".DS_Store",
 ])
+/**
+ * And these, at the top of the folder: what is the same in every version of the project,
+ * and only ever the user's doing, so that no turn has anything of it to take back. The
+ * inspiration board (shared/inspiration-format.ts).
+ */
+const LEFT_OUT_AT_TOP = new Set([INSPIRATION_FOLDER])
 
 type Standing = { path: string; size: number; mtimeMs: number }
 
@@ -151,6 +158,7 @@ export async function filesOf(folder: string): Promise<Standing[] | null> {
     if (entries.some((entry) => entry.name === "pyvenv.cfg")) return true
     for (const entry of entries) {
       if (LEFT_OUT.has(entry.name)) continue
+      if (within === "" && LEFT_OUT_AT_TOP.has(entry.name)) continue
       const at = path.join(within, entry.name)
       if (entry.isDirectory()) {
         if (!(await go(at))) return false

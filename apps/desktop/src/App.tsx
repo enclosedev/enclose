@@ -17,6 +17,7 @@ import { UpdateButton } from "@/components/update"
 import { bridge } from "@/components/viewport/bridge"
 import { Viewport } from "@/components/viewport/viewport"
 import { appKey } from "@/lib/app-keys"
+import { useInspiration } from "@/lib/inspiration"
 import { toolsAsked, toolUsed } from "@/lib/custom-tools/asked"
 import { isPicture } from "@/lib/pictures"
 import { MAC } from "@/lib/platform"
@@ -129,12 +130,15 @@ function useAppKeys() {
 
 /**
  * A folder dropped anywhere on the window becomes a project, and so do CAD files. A
- * picture dropped on it, with a project open, goes with that project's next message.
- * Says what is being dragged over the window, while something is: pictures alone, or
- * anything else.
+ * picture dropped on it, with a project open, goes with that project's next message;
+ * or, with the project's inspiration board on screen, on to the board, where it was
+ * dropped. Says what is being dragged over the window, while something is: pictures
+ * alone, for the message or for the board, or anything else.
  */
-function useFolderDrop(): "pictures" | "files" | null {
-  const [over, setOver] = React.useState<"pictures" | "files" | null>(null)
+function useFolderDrop(): "pictures" | "board" | "files" | null {
+  const [over, setOver] = React.useState<"pictures" | "board" | "files" | null>(
+    null
+  )
   React.useEffect(() => {
     // entering a child fires before leaving its parent: count, so the two cancel
     let inside = 0
@@ -155,7 +159,13 @@ function useFolderDrop(): "pictures" | "files" | null {
       if (!carriesFiles(event)) return
       event.preventDefault()
       inside++
-      setOver(allPictures(event) ? "pictures" : "files")
+      setOver(
+        !allPictures(event)
+          ? "files"
+          : useInspiration.getState().dropping
+            ? "board"
+            : "pictures"
+      )
     }
     const hover = (event: DragEvent) => {
       if (!carriesFiles(event) || !event.dataTransfer) return
@@ -174,10 +184,14 @@ function useFolderDrop(): "pictures" | "files" | null {
       inside = 0
       setOver(null)
       const files = [...event.dataTransfer.files]
-      // pictures go with the open project's next message, and the rest is opened
+      // pictures go with the open project's next message, or on to its board where
+      // that is on screen, and the rest is opened
       const { activeId, attach, openPaths } = useStore.getState()
       const pictures = activeId ? files.filter(isPicture) : []
-      if (pictures.length > 0) void attach(pictures, true)
+      const onBoard = useInspiration.getState().dropping
+      if (pictures.length > 0 && onBoard)
+        onBoard(pictures, event.clientX, event.clientY)
+      else if (pictures.length > 0) void attach(pictures, true)
       const paths = files
         .filter((file) => !pictures.includes(file))
         .map((file) => window.cad.projects.pathOf(file))
@@ -263,6 +277,11 @@ export function App() {
                 <>
                   <ImagePlusIcon className="size-5" />
                   Drop an image to send it with your message
+                </>
+              ) : dropping === "board" ? (
+                <>
+                  <ImagePlusIcon className="size-5" />
+                  Drop images to put them on the board
                 </>
               ) : (
                 <>

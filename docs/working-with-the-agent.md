@@ -35,7 +35,10 @@ What this page says is so whichever of them answers, but for a few things:
 - A few short things are written by the quickest of Claude Code's models, whichever agent
   answers, where Claude is switched on: what a [card](#conversations) says of a long
   message, the name of a [group you make](parts.md#changing-the-groups-by-hand), and what
-  a [commit](projects.md#history-and-backup) says of a turn.
+  a [commit](projects.md#history-and-backup) says of a turn. What is made of each picture
+  on the [inspiration board](#the-inspiration-board) is written by Claude Code too, with
+  one of its models that sees pictures well: with Claude switched off, the pictures go
+  unlooked at, and the agent opens them itself when it needs to.
 
 ## What the agent works on
 
@@ -256,6 +259,59 @@ written and fitted into the model, and is what the agent reads before it makes o
 The [Table clock](projects.md#starting-from-an-example) example has a board to try all
 this on: the one that keeps its time and steps its motor, built and fitted into the case
 behind the motor.
+
+## The inspiration board
+
+**Inspiration Board** (Shift+I), beside the view, puts the project's board of pictures
+where the view was: the pictures of what you want the thing to be like, for the agent to
+design by. Products whose style you are after, materials, details, the rooms and places
+it is to live in. It is there before there is any model, which is when it is most use:
+gather the pictures first, and the first thing the agent makes is made by them. The
+buttons down the right change over to the board's, the cards of the other projects are
+put away, and the red **Exit Inspiration Board**, or Esc, brings the view back.
+
+Drop pictures on it, paste them, or choose them from the empty board. Each lies where it
+was dropped, where it covers no other. The board goes on as far as it is wanted: two
+fingers or a drag with the right or middle button move over it, a pinch or the wheel
+zooms, and a double click on the ground, or Cmd+1, shows all of it. A drag moves a
+picture, or all that are picked out; a drag across the ground picks out what the box
+takes in, as it does in the view of the model, and Shift with a click adds a picture or
+takes it back out.
+
+A click on a picture goes up to it: it comes to the middle of the view, close, and the
+rest are pushed aside to give it room. A click on it then pins a note to that place, a
+dot, with what you say of it: "this joint", "the grille, not the colour". Pointing at a
+dot shows its note, and **Notes** (N) shows them all; a click on one changes it or
+deletes it. Esc, or a click on the ground, puts the picture back.
+
+Cmd+G puts the pictures picked out in a group, after asking what they stand for
+together, in at most 50 letters: "Material inspirations", "Look & feel". They lie in a
+pile under that title; a click on the pile spreads them out, pushing the rest aside, and
+a click on the title renames it. Shift+Cmd+G takes them out of the group again.
+**Search** (Cmd+F) looks through the pictures by name, by group, by what was noted on
+them and by what the agent made of them.
+
+Delete takes what is picked out off the board, once you say it is to go; Cmd+Delete
+takes it off without asking. Its file goes to the Trash, and what was noted on it with
+it.
+
+As each picture is put on the board the agent looks at it, as an industrial designer
+would: what it is, its form, its materials and finish, how it looks to be made, and what
+to take from it. A small ring turns at the picture's corner meanwhile, and at the foot of
+the view is how long it has been at it, with a button to stop it. What it says is not
+shown: it is kept for the agent. With each message, where the board has changed since
+the agent last heard of it, the agent is told of the whole board: each picture with what
+was made of it and your notes on it, and each group by its title. It designs by it: in
+the manner the pictures share, adapted to the thing; for the places in them, the kind of
+object that would belong there, and not their details; and for the materials they keep
+pointing to, though the app draws every part in a plain colour, which Claude asks about
+before it first designs for one.
+
+The board is kept in `inspiration/` at the top of the project: a copy of each picture,
+and `board.json`, with where each lies, your notes, the groups and what the agent made
+of each picture ([`shared/inspiration-format.ts`](../apps/desktop/shared/inspiration-format.ts)).
+It is the project's, whichever conversation is had: every [version](#versions) has the
+same, and taking a change back leaves it as it is.
 
 ## Conversations
 

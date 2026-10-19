@@ -15,6 +15,8 @@ import { runTools, stopTools, useTools } from "@/lib/custom-tools/host"
 import type { PartFact } from "@/lib/custom-tools/types"
 import { Blueprint } from "@/components/blueprint/blueprint"
 import { Floating } from "@/components/floating"
+import { InspirationMode } from "@/components/inspiration/inspiration-mode"
+import { LookingAtPictures, NotingHint } from "@/components/inspiration/looking"
 import { NewerAgent } from "@/components/newer-agent"
 import { TrustSettings } from "@/components/trust-settings"
 import { Options } from "@/components/blueprint/options"
@@ -968,7 +970,8 @@ function Model({ project }: { project: Project }) {
   // up in the view, through all the rest. There is nothing to look through in the cube
   // that stands in for a model, or while the view is Claude's, or is not the model's
   // but its guides'.
-  const searched = lookingOver || view.assembly ? null : real
+  const searched =
+    lookingOver || view.assembly || view.inspiration ? null : real
   const finds = React.useMemo(
     () =>
       searched && finding !== null ? lookFor(searched.model, finding) : null,
@@ -1349,16 +1352,27 @@ function Model({ project }: { project: Project }) {
         // (on some keyboards it is typed with Shift held, and it is no other key's)
         event.preventDefault()
         if (event.repeat) return
-        // the scene is the view's: a blueprint is of the model alone, and the guides
-        // and a board are no view of it
-        const { blueprint, assembly, board } = useStore.getState().view
-        if (!blueprint && !assembly && board === null) toggleReference()
+        // the scene is the view's: a blueprint is of the model alone, and the guides,
+        // a board and the inspiration board are no view of it
+        const { blueprint, assembly, board, inspiration } =
+          useStore.getState().view
+        if (!blueprint && !assembly && board === null && !inspiration)
+          toggleReference()
         return
       }
       if (event.shiftKey) {
         // the keys here that Shift goes with: and not a capital letter being typed
         const alone = !event.metaKey && !event.ctrlKey && !event.repeat
         if (!loaded || !alone || spokenFor(event.target)) return
+        if (event.key.toLowerCase() === "i") {
+          // the inspiration board, in the view's place, and the view back
+          const { view, setView } = useStore.getState()
+          setView({ inspiration: !view.inspiration })
+          event.preventDefault()
+          return
+        }
+        // (nothing else of the view's is over the inspiration board)
+        if (useStore.getState().view.inspiration) return
         if (event.key.toLowerCase() === "p") {
           // the list of the project's circuit boards, which PCB mode is gone into from
           const { boardsOpen, setBoardsOpen } = useStore.getState()
@@ -1380,9 +1394,11 @@ function Model({ project }: { project: Project }) {
         if (!digit) return
         event.preventDefault()
         // the set views are the view's: a blueprint has a sheet for each of them, and
-        // the guides none; a board has them in 3D, of its own camera
-        const { blueprint, assembly, board, boardAs } = useStore.getState().view
-        if (blueprint || assembly) return
+        // the guides none; a board has them in 3D, of its own camera, and the
+        // inspiration board only the one that shows all of it, which it sees to itself
+        const { blueprint, assembly, board, boardAs, inspiration } =
+          useStore.getState().view
+        if (blueprint || assembly || inspiration) return
         const view = VIEWS[Number(digit) - 2]
         if (board !== null) {
           if (boardAs !== "3d") return
@@ -1432,9 +1448,9 @@ function Model({ project }: { project: Project }) {
               ? "top"
               : "bottom",
         })
-      } else if (view.assembly || view.board !== null) {
+      } else if (view.assembly || view.board !== null || view.inspiration) {
         // every other key here is the view's, or the blueprint's: they wait until the
-        // guides are put away, or PCB mode is left
+        // guides are put away, PCB mode is left, or the inspiration board
         return
       } else if (view.blueprint && "sxy".includes(letter)) {
         // the cut is the view's: a blueprint is of the model whole
@@ -1525,6 +1541,11 @@ function Model({ project }: { project: Project }) {
   const assembly = view.assembly && real !== null && !lookingOver
   // And so does a board, in PCB mode: one of the circuit boards that go in the thing.
   const board = onBoard && loaded && !lookingOver ? onBoard : null
+  // And so does the inspiration board: the pictures of what the thing should be like.
+  // It is there before there is any model, the cube standing in for one.
+  const inspiring = view.inspiration && loaded !== null && !lookingOver
+  /** something other than the model has the view's place */
+  const away = !!(blueprint || assembly || board || inspiring)
   // (what the project's tools have out of sight too)
   const { only, hidden } = shownView
   const drawn = React.useMemo(
@@ -1552,6 +1573,7 @@ function Model({ project }: { project: Project }) {
       view.blueprint ||
       view.assembly ||
       view.board !== null ||
+      view.inspiration ||
       lookingOver
     )
       return null
@@ -1571,6 +1593,7 @@ function Model({ project }: { project: Project }) {
     view.blueprint,
     view.assembly,
     view.board,
+    view.inspiration,
     lookingOver,
     only,
     hidden,
@@ -1727,17 +1750,12 @@ function Model({ project }: { project: Project }) {
   return (
     <>
       {loaded && (
-        // (out of sight under a blueprint, the guides or a board, and none of it there
-        // to be pressed)
-        <div
-          className={cn(
-            "absolute inset-0",
-            (blueprint || assembly || board) && "invisible"
-          )}
-        >
+        // (out of sight under a blueprint, the guides, a board or the inspiration
+        // board, and none of it there to be pressed)
+        <div className={cn("absolute inset-0", away && "invisible")}>
           <Scene
             loaded={loaded}
-            covered={!!(blueprint || assembly || board)}
+            covered={away}
             reference={reference}
             projectId={project.id}
             notes={notes}
@@ -1791,6 +1809,7 @@ function Model({ project }: { project: Project }) {
         <Assembly project={project} loaded={guided} listed={listed} />
       )}
       {board && <BoardMode projectId={project.id} board={board} />}
+      {inspiring && <InspirationMode projectId={project.id} />}
 
       {waiting && <Waiting {...waiting} />}
       {state.status === "error" && (
@@ -1832,7 +1851,9 @@ function Model({ project }: { project: Project }) {
         </div>
       )}
 
-      {searched && !board && <Search finds={finds} onShow={showFound} />}
+      {searched && !board && !inspiring && (
+        <Search finds={finds} onShow={showFound} />
+      )}
       <Tools
         loaded={loaded}
         projectId={project.id}
@@ -1840,27 +1861,33 @@ function Model({ project }: { project: Project }) {
         hasTools={hasTools}
         board={board}
       />
-      {loaded && partsOpen && !lookingOver && !assembly && !board && (
-        <PartsPanel
-          loaded={loaded}
-          projectId={project.id}
-          onRename={renameGroup}
-          // further in while the section's other buttons stand where it would be, and
-          // no wider than leaves it room in the view
-          className={cn(
-            "absolute top-1/2 max-h-[80%] -translate-y-1/2 transition-[right]",
-            view.section && !blueprint
-              ? "right-36 max-w-[calc(100%-9.75rem)]"
-              : "right-15 max-w-[calc(100%-4.5rem)]"
-          )}
-        />
-      )}
+      {loaded &&
+        partsOpen &&
+        !lookingOver &&
+        !assembly &&
+        !board &&
+        !inspiring && (
+          <PartsPanel
+            loaded={loaded}
+            projectId={project.id}
+            onRename={renameGroup}
+            // further in while the section's other buttons stand where it would be, and
+            // no wider than leaves it room in the view
+            className={cn(
+              "absolute top-1/2 max-h-[80%] -translate-y-1/2 transition-[right]",
+              view.section && !blueprint
+                ? "right-36 max-w-[calc(100%-9.75rem)]"
+                : "right-15 max-w-[calc(100%-4.5rem)]"
+            )}
+          />
+        )}
       {real &&
         scenes &&
         referenceOpen &&
         !lookingOver &&
         !blueprint &&
-        !assembly && (
+        !assembly &&
+        !inspiring && (
           <ReferencePanel
             scenes={scenes}
             shown={view.reference}
@@ -1878,7 +1905,8 @@ function Model({ project }: { project: Project }) {
         toolsOpen &&
         !lookingOver &&
         !blueprint &&
-        !assembly && (
+        !assembly &&
+        !inspiring && (
           <ToolsPanel
             projectId={project.id}
             // where the list of parts goes, which is never up with it
@@ -1890,7 +1918,7 @@ function Model({ project }: { project: Project }) {
             )}
           />
         )}
-      {loaded && boards && boardsOpen && !lookingOver && (
+      {loaded && boards && boardsOpen && !lookingOver && !inspiring && (
         <BoardsPanel
           projectId={project.id}
           boards={boards}
@@ -1924,15 +1952,21 @@ function Model({ project }: { project: Project }) {
                 meanwhile="Working out the steps"
               />
             )}
+            {inspiring && (
+              <>
+                <LookingAtPictures projectId={project.id} />
+                <NotingHint projectId={project.id} />
+              </>
+            )}
             <Saying />
-            {!assembly && !board && (
+            {!assembly && !board && !inspiring && (
               <AddToChat
                 listed={listed}
                 groups={loaded.model.groups}
                 projectId={project.id}
               />
             )}
-            {reference && !lookingOver && !blueprint && !assembly && !board && (
+            {reference && !away && !lookingOver && (
               <div className="flex items-center gap-2">
                 {reference.scene.figures.length > 0 && <ShowFigure />}
                 <ImproveReference
@@ -1944,7 +1978,7 @@ function Model({ project }: { project: Project }) {
             {/* how far apart the parts are pulled: which a blueprint has beside its own
               bar, with the rest of how its sheets show the model; and for a board, the
               steps it is made in, while an agent makes it */}
-            {board ? (
+            {inspiring ? null : board ? (
               <BoardSteps projectId={project.id} board={board} />
             ) : blueprint ? (
               <Options further={loaded.further} />
@@ -1963,21 +1997,14 @@ function Model({ project }: { project: Project }) {
           <Saying />
         )}
       </div>
-      {loaded &&
-        middle &&
-        !lookingOver &&
-        !blueprint &&
-        !assembly &&
-        !board && (
-          <div className="pointer-events-none absolute right-3 bottom-3 flex items-center gap-1">
-            <SectionPlanes middle={middle} />
-            <AxisGizmo />
-          </div>
-        )}
+      {loaded && middle && !lookingOver && !away && (
+        <div className="pointer-events-none absolute right-3 bottom-3 flex items-center gap-1">
+          <SectionPlanes middle={middle} />
+          <AxisGizmo />
+        </div>
+      )}
       <ShadingPie
-        enabled={
-          loaded !== null && !lookingOver && !blueprint && !assembly && !board
-        }
+        enabled={loaded !== null && !lookingOver && !away}
         tap={cutAcrossZ}
       />
     </>

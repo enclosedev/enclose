@@ -14,7 +14,7 @@
 - [Blueprints](blueprints.md): the model drawn flat, saved as SVG
 - [Tools of a project's own](project-tools.md): controls the agent builds for your model
 - [Working with the agent](working-with-the-agent.md): the agents, conversations, replies, access,
-  assembly guides, circuit boards, and taking a change back
+  assembly guides, circuit boards, the inspiration board, and taking a change back
 - [Writing a message](messages.md): parts by name, skills, commands and pictures
 - [Screws](screws.md)
 - [Keyboard shortcuts](shortcuts.md)

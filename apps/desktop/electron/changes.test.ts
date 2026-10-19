@@ -211,6 +211,24 @@ describe("Changes", () => {
     expect(read("env/lib/site.py")).toBe("changed")
   })
 
+  it("leaves the inspiration board alone at the top of the folder, and only there", async () => {
+    write("inspiration/board.json", "{}")
+    write("parts/inspiration/notes.txt", "a")
+    const changes = new Changes(kept)
+    const change = await turn(changes, "Taller", () => {
+      write("model.py", "box(20)")
+      write("inspiration/board.json", '{"images": []}')
+      write("parts/inspiration/notes.txt", "b")
+    })
+    expect(change?.files.map((file) => file.path).sort()).toEqual([
+      "model.py",
+      path.join("parts", "inspiration", "notes.txt"),
+    ])
+    await changes.undo("p1", folder)
+    expect(read("inspiration/board.json")).toBe('{"images": []}')
+    expect(read("parts/inspiration/notes.txt")).toBe("a")
+  })
+
   it("takes back and puts back a file that became a folder, and a folder that became a file", async () => {
     const changes = new Changes(kept)
     write("parts/lid.py", "lid()")

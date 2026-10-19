@@ -14,6 +14,7 @@ import { cutsOf, readCuts } from "@/lib/cuts"
 import { mannerOf, savedAccess } from "@/lib/manner"
 import { answering, offeredModels, updatedSaid, usable } from "@/lib/providers"
 import { callingOn, notCalledOn } from "@/lib/mentions"
+import { connectInspiration } from "@/lib/inspiration"
 import { fitted } from "@/lib/pictures"
 import { keptAsWas } from "@/lib/same"
 import { usePreferences } from "@/lib/preferences"
@@ -154,6 +155,13 @@ export type View = {
    * it, or the bottom, turned over to be seen as it is from under the board
    */
   boardSide: "top" | "bottom"
+  /**
+   * Whether it is the project's inspiration board that is looked at, and not the model:
+   * the pictures of what the thing should be like (see components/inspiration), which
+   * have the view's place as a board does in PCB mode. Never with the blueprint, the
+   * guides or a board: one of them at a time has the view's place.
+   */
+  inspiration: boolean
 }
 
 /**
@@ -518,6 +526,7 @@ const homeView = (): View => ({
   // a board is first seen in 3D, whichever way it was looked at before
   boardAs: "3d",
   boardSide: "top",
+  inspiration: false,
 })
 
 /** What the view can be put into, and got back out of with Esc. */
@@ -531,6 +540,7 @@ export type Entered =
   | "reference"
   | "tools"
   | "board"
+  | "inspiration"
 
 /** Those of them that are on, in the order they were gone into: the last is the latest. */
 function enteredNow(view: View, before: Entered[]): Entered[] {
@@ -544,6 +554,7 @@ function enteredNow(view: View, before: Entered[]): Entered[] {
     reference: view.reference !== null,
     tools: view.tools && !view.toolsQuiet,
     board: view.board !== null,
+    inspiration: view.inspiration,
   }
   const still = before.filter((name) => on[name])
   const fresh = (Object.keys(on) as Entered[]).filter(
@@ -1331,17 +1342,24 @@ export const useStore = create<State>()((set, get) => ({
     const before = get().entered
     set((state) => {
       const view = { ...state.view, ...patch }
-      // the blueprint, the guides and a board have the view's place by turns: gone
-      // into, one puts the others away
+      // the blueprint, the guides, a board and the inspiration board have the view's
+      // place by turns: gone into, one puts the others away
       if (patch.assembly) {
         view.blueprint = false
         view.board = null
+        view.inspiration = false
       } else if (patch.blueprint) {
+        view.assembly = false
+        view.board = null
+        view.inspiration = false
+      } else if (patch.inspiration) {
+        view.blueprint = false
         view.assembly = false
         view.board = null
       } else if (patch.board) {
         view.blueprint = false
         view.assembly = false
+        view.inspiration = false
         // a board that is opened is first seen whole, in 3D, from above, unless it is
         // asked for another way
         if (patch.board !== state.view.board) {
@@ -1390,21 +1408,22 @@ export const useStore = create<State>()((set, get) => ({
             hoveredId: null,
             writing: null,
           }),
-        // A board is no view of the model at all: what is picked out of the model is let
-        // go of, and the lists are put away for it, the list of boards among them.
-        ...(view.board !== null &&
-          state.view.board === null && {
-            partsOpen: false,
-            referenceOpen: false,
-            toolsOpen: false,
-            boardsOpen: false,
-            finding: null,
-            selection: null,
-            several: NONE,
-            sweep: null,
-            hoveredId: null,
-            writing: null,
-          }),
+        // A board is no view of the model at all, nor is the inspiration board: what is
+        // picked out of the model is let go of, and the lists are put away for it, the
+        // list of boards among them.
+        ...(((view.board !== null && state.view.board === null) ||
+          (view.inspiration && !state.view.inspiration)) && {
+          partsOpen: false,
+          referenceOpen: false,
+          toolsOpen: false,
+          boardsOpen: false,
+          finding: null,
+          selection: null,
+          several: NONE,
+          sweep: null,
+          hoveredId: null,
+          writing: null,
+        }),
       }
     })
     // what the view has just been put into is counted, where the app counts its use
@@ -2020,6 +2039,13 @@ export const useStore = create<State>()((set, get) => ({
       })
       return true
     }
+    // The inspiration board is over everything else of the view, as a board is: it is
+    // got out of before anything that was gone into under it. (What it has open of its
+    // own, a picture gone up to or a group spread out, it closes itself, first.)
+    if (get().view.inspiration) {
+      setView({ inspiration: false })
+      return true
+    }
     // A board is over everything else of the view, as the guides are: PCB mode is got
     // out of before anything that was gone into under it.
     if (get().view.board !== null) {
@@ -2053,6 +2079,7 @@ export const useStore = create<State>()((set, get) => ({
     else if (last === "reference") setView({ reference: null })
     else if (last === "tools") setView({ tools: false })
     else if (last === "board") setView({ board: null })
+    else if (last === "inspiration") setView({ inspiration: false })
     else setView({ only: null })
     return true
   },
@@ -2566,6 +2593,7 @@ function tally(before?: Project[]) {
 export function connect() {
   const { cad } = window
   cad.projects.onChange(reconcile)
+  connectInspiration()
   // a cut left a moment before the window goes is kept all the same
   window.addEventListener("pagehide", cutsSettled)
   adoptColours()

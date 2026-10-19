@@ -675,15 +675,16 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
   // While it is a model's blueprint that is looked at, the sheets have the window: the
   // card of the project they are of stays, at the top, and the rest are put away. And
   // so it is while it is the model's assembly guides, whose covers have it likewise, in
-  // PCB mode, where one of its circuit boards has it, and once Cmd+. has put the other
-  // projects away. (Cmd+. is of the project that is open: with none open there is no
-  // view, and the cards are what there is.)
+  // PCB mode, where one of its circuit boards has it, on its inspiration board, and once
+  // Cmd+. has put the other projects away. (Cmd+. is of the project that is open: with
+  // none open there is no view, and the cards are what there is.)
   const activeId = useStore((state) => state.activeId)
   const oneProject = useStore(
     (state) =>
       state.view.blueprint ||
       state.view.assembly ||
       state.view.board !== null ||
+      state.view.inspiration ||
       (state.cleared !== null && state.activeId !== null)
   )
   // And while one sheet has the view to itself that card is gone too, and what is at

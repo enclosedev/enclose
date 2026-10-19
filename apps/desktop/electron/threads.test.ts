@@ -11,6 +11,7 @@ import {
   assemblyAsked,
   assembling,
   fastening,
+  inspiring,
   keeping,
   knownAs,
   tooling,
@@ -706,6 +707,7 @@ function talking(
   } = {}
 ) {
   const flag = path.join(dir, "go")
+  const heard = path.join(dir, "heard.jsonl")
   const file = fakeAgent(
     dir,
     false,
@@ -715,7 +717,8 @@ let ticking = null
 on("initialize", () => ({}))
 on("thread/start", () => ({ thread: { id: "thread-1" } }))
 on("thread/resume", () => ({ thread: { id: "thread-1" } }))
-on("turn/start", () => {
+on("turn/start", (params) => {
+  fs.appendFileSync(${JSON.stringify(heard)}, JSON.stringify(params.input.map((piece) => piece.text ?? "").join("\\n")) + "\\n")
   ticking = setInterval(() => {
     if (!fs.existsSync(${JSON.stringify(flag)})) return
     clearInterval(ticking)
@@ -795,6 +798,15 @@ on("turn/interrupt", () => {
         .flatMap((item) => (item.kind === "user" ? [item.text] : [])),
     go: () => fs.writeFileSync(flag, ""),
     hold: () => fs.rmSync(flag, { force: true }),
+    /** what the agent was given at the start of each turn, as words */
+    heard: (): string[] =>
+      fs.existsSync(heard)
+        ? fs
+            .readFileSync(heard, "utf8")
+            .split("\n")
+            .filter(Boolean)
+            .map((line) => JSON.parse(line) as string)
+        : [],
     idle: () => until(() => now().status === "idle"),
     /**
      * The agent asks for a new version, with the tool that the turn under way was
@@ -1347,6 +1359,61 @@ describe("what is said while a conversation is being answered", () => {
     expect(now().queued).toEqual([])
     go()
     await idle()
+  })
+})
+
+describe("what the agent is told of the inspiration board", () => {
+  let dir: string
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "enclose-threads-"))
+  })
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  const BOARD =
+    '<inspiration-board pictures="1" groups="0">\n…\n</inspiration-board>'
+
+  it("is told of it with what the user says, when it has not been told of it as it is", async () => {
+    let board: string | null = BOARD
+    const { say, go, idle, heard } = talking(dir, {
+      deps: { inspiration: () => board },
+    })
+    go()
+    const into = say("Make a speaker", null) as string
+    await idle()
+    expect(heard()[0].startsWith(`${BOARD}\n\nMake a speaker`)).toBe(true)
+    say("Taller", into)
+    await idle()
+    expect(heard()[1]).not.toContain("<inspiration-board")
+    board = BOARD.replace("…", "another picture")
+    say("Wider", into)
+    await idle()
+    expect(heard()[2]).toContain("another picture")
+    board = null
+    say("Deeper", into)
+    await idle()
+    expect(heard()[3]).toContain('<inspiration-board pictures="0">')
+    say("Done?", into)
+    await idle()
+    expect(heard()[4]).not.toContain("<inspiration-board")
+  })
+
+  it("is told nothing of a board with no pictures", async () => {
+    const { say, go, idle, heard } = talking(dir, {
+      deps: { inspiration: () => null },
+    })
+    go()
+    say("Make a speaker", null)
+    await idle()
+    expect(heard()[0]).not.toContain("inspiration")
+  })
+})
+
+describe("inspiring", () => {
+  it("has the agent ask before it designs for a material, where it can ask", () => {
+    expect(inspiring(true).join("\n")).toContain("AskUserQuestion")
+    expect(inspiring(false).join("\n")).not.toContain("AskUserQuestion")
   })
 })
 

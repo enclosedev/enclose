@@ -8,7 +8,9 @@ import {
   DraftingCompassIcon,
   Grid3x3Icon,
   HammerIcon,
+  ImagesIcon,
   LayersIcon,
+  LetterTextIcon,
   MessageSquareIcon,
   RefreshCwIcon,
   Rotate3dIcon,
@@ -36,6 +38,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useInspiration } from "@/lib/inspiration"
 import { oneFile, sizeOf } from "@/lib/model"
 import { MAC } from "@/lib/platform"
 import { usePreferences, type Format } from "@/lib/preferences"
@@ -473,6 +476,60 @@ function BoardDownloads({
   )
 }
 
+/**
+ * On the inspiration board, its pictures as files, to take elsewhere: all of them in one
+ * zip, each by what it was called where it came from.
+ */
+function InspirationDownloads({ projectId }: { projectId: string }) {
+  const [open, setOpen] = React.useState(false)
+  const say = useStore((state) => state.say)
+  const count = useInspiration(
+    (state) => state.boards[projectId]?.images.length ?? 0
+  )
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <Tooltip disableHoverablePopup>
+        <TooltipTrigger
+          render={
+            <DropdownMenuTrigger
+              render={<Button variant="ghost" size="icon" className={ROUND} />}
+            />
+          }
+        >
+          <DownloadIcon />
+          <span className="sr-only">Download</span>
+        </TooltipTrigger>
+        {!open && <TooltipContent side="left">Download</TooltipContent>}
+      </Tooltip>
+      <DropdownMenuContent side="left" align="start" className="w-60">
+        {count > 0 ? (
+          <DropdownMenuGroup>
+            <DropdownMenuItem
+              onClick={() =>
+                void window.cad.inspiration
+                  .saveArchive(projectId)
+                  .then((saved) => {
+                    if (saved)
+                      say(
+                        `Saved ${count === 1 ? "the image" : `${count} images`} as a zip`
+                      )
+                  })
+              }
+            >
+              All images
+              <Size kind="ZIP" />
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        ) : (
+          <p className="px-2 py-1.5 text-xs text-balance text-muted-foreground">
+            There are no images on the board yet.
+          </p>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 /** The parts on a board, by name, as a sentence has them: "U1, U2 and L1", "U1, U2 and 6 more". */
 function partsSaid(parts: string[]): string {
   const shown = parts.length > 4 ? parts.slice(0, 3) : parts.slice(0, -1)
@@ -533,27 +590,30 @@ function Geared({
 }
 
 /**
- * The stack in the middle of the edge, of the one set of buttons or the other: the
- * model's, or in PCB mode the board's. Going from one to the other is a change of gear:
- * the buttons there go off the edge to the right, one after another from the top, and
- * once they are gone the others come in, the same way. Both are there all the while,
- * one of them out of sight and not to be pressed.
+ * The stack in the middle of the edge, of one set of buttons or another: the model's,
+ * in PCB mode the board's, or the inspiration board's. Going from one to another is a
+ * change of gear: the buttons there go off the edge to the right, one after another
+ * from the top, and once they are gone the others come in, the same way. All of them
+ * are there all the while, but one out of sight and not to be pressed.
  */
 function Gears({
-  onBoard,
-  model,
-  board,
+  shown,
+  ...given
 }: {
-  onBoard: boolean
-  model: React.ReactElement<{ children?: React.ReactNode }>
-  board: React.ReactElement<{ children?: React.ReactNode }>
-}) {
-  const sets = {
-    model: React.Children.toArray(model.props.children),
-    board: React.Children.toArray(board.props.children),
-  }
-  // the others come in once the last of these is on its way out
-  const leaving = (onBoard ? sets.model : sets.board).length
+  shown: Gear
+} & Record<Gear, React.ReactElement<{ children?: React.ReactNode }>>) {
+  const names = Object.keys(given) as Gear[]
+  const sets = Object.fromEntries(
+    names.map((name) => [
+      name,
+      React.Children.toArray(given[name].props.children),
+    ])
+  ) as Record<Gear, React.ReactNode[]>
+  // the set that was shown before this one: these come in once the last of its buttons
+  // is on its way out
+  const [was, setWas] = React.useState({ shown, before: shown })
+  if (was.shown !== shown) setWas({ shown, before: was.shown })
+  const leaving = sets[was.before]?.length ?? 0
   const coming = leaving * STAGGER_MS + SHIFT_MS * 0.5
   const stack = (buttons: React.ReactNode[], away: boolean) => (
     // (the set that is away is still where it stands, over the other: nothing in it is
@@ -576,11 +636,20 @@ function Gears({
   )
   return (
     <>
-      {stack(sets.model, onBoard)}
-      {stack(sets.board, !onBoard)}
+      {names.map((name) => (
+        <React.Fragment key={name}>
+          {stack(sets[name], name !== shown)}
+        </React.Fragment>
+      ))}
     </>
   )
 }
+
+/**
+ * Whose buttons the stack in the middle of the edge has: the model's, a board's in PCB
+ * mode, or the inspiration board's.
+ */
+type Gear = "model" | "board" | "inspiration"
 
 /** The ways a circuit board is looked at in PCB mode, as the buttons for them have it. */
 const BOARD_WAYS: Record<BoardAs, { label: string; icon: React.ReactNode }> = {
@@ -600,9 +669,10 @@ const BOARD_WAYS: Record<BoardAs, { label: string; icon: React.ReactNode }> = {
  * it is on show.
  *
  * In PCB mode, with one of the project's circuit boards where the model was, the ones
- * in the middle are the board's instead: the ways it is looked at, one of them lit. The
- * model is not there to be saved, nor the board yet: the conversation is all there is
- * at the top.
+ * in the middle are the board's instead: the ways it is looked at, one of them lit. And
+ * on the inspiration board they are its own: whether the notes on its pictures are
+ * shown, looking through it, and what leaves it. At the top, what is saved is the board
+ * or the pictures, in place of the model.
  *
  * And while the view has the window to itself (Cmd+.) they are all put away: there
  * still, for whatever they bring up to know its button by, and not to be seen or
@@ -646,6 +716,8 @@ export function Tools({
   const setBoardPartsOpen = useStore((state) => state.setBoardPartsOpen)
   const finding = useStore((state) => state.finding !== null)
   const find = useStore((state) => state.find)
+  const notesShown = useInspiration((state) => state.notesShown)
+  const setNotesShown = useInspiration((state) => state.setNotesShown)
   // (put away only at the last of Cmd+.'s steps: the first is of the cards alone)
   const bare = useStore((state) => state.cleared === "all")
   // While one sheet of the blueprint has the view to itself there is none of them:
@@ -677,6 +749,37 @@ export function Tools({
   )
 
   const onBoard = view.board !== null
+  const inspiring = view.inspiration
+  // the inspiration board's own: what was noted on its pictures, shown beside each mark
+  // or only when it is pointed at; looking through it; and, in red, what leaves it
+  const inspirationButtons = (
+    <>
+      <Switch
+        label="Notes"
+        shortcut="N"
+        on={notesShown}
+        onChange={setNotesShown}
+      >
+        <LetterTextIcon />
+      </Switch>
+      <Switch
+        label="Search"
+        shortcut={MAC ? "⌘F" : "Ctrl F"}
+        on={finding}
+        onChange={(on) => find(on ? "" : null)}
+      >
+        <SearchIcon />
+      </Switch>
+      <Press
+        label="Exit Inspiration Board"
+        shortcut="Esc"
+        onClick={() => setView({ inspiration: false })}
+        className="bg-destructive text-white ring-destructive hover:bg-destructive/85 hover:text-white"
+      >
+        <XIcon />
+      </Press>
+    </>
+  )
   // how a board is looked at, in PCB mode: one way at a time, and always one
   const boardButtons = (
     <>
@@ -740,7 +843,7 @@ export function Tools({
             other as the buttons in the middle do */}
         {loaded && (
           <div className="relative">
-            <Geared away={onBoard} delay={0}>
+            <Geared away={onBoard || inspiring} delay={0}>
               <Downloads loaded={loaded} projectId={projectId} />
             </Geared>
             {board && (
@@ -750,6 +853,11 @@ export function Tools({
                 </Geared>
               </div>
             )}
+            <div className="absolute inset-0">
+              <Geared away={!inspiring} delay={SHIFT_MS}>
+                <InspirationDownloads projectId={projectId} />
+              </Geared>
+            </div>
           </div>
         )}
       </Stack>
@@ -757,13 +865,14 @@ export function Tools({
       {/* how the model is looked at, or in PCB mode how the board is */}
       {loaded && !locked && (
         <Gears
-          onBoard={onBoard}
+          shown={onBoard ? "board" : inspiring ? "inspiration" : "model"}
           board={boardButtons}
+          inspiration={inspirationButtons}
           model={
             <>
               {/* lit while the list is up, and while not all of the model is showing:
-              something picked in the list is all that is, or parts are out of sight.
-              Pressing it brings the list back, to pick again or to bring them back */}
+          something picked in the list is all that is, or parts are out of sight.
+          Pressing it brings the list back, to pick again or to bring them back */}
               <Switch
                 label="Parts"
                 shortcut="P"
@@ -786,7 +895,7 @@ export function Tools({
               </Switch>
               <div className="relative">
                 {/* while the model is cut open, alongside: the cut put back to where it
-                starts from, and which half of the model to show */}
+            starts from, and which half of the model to show */}
                 {section && (
                   <div className="absolute top-0 right-full mr-1.5 flex gap-1.5">
                     <Press
@@ -845,9 +954,9 @@ export function Tools({
                 <UnfoldVerticalIcon />
               </Switch>
               {/* things of a known size for the model to be seen beside: the button brings
-              up the scenes there are, and is lit while the list is up and while the
-              model is set in one. (The key sets it in whichever suits it, at once.)
-              There is none for the cube that stands in for a model */}
+          up the scenes there are, and is lit while the list is up and while the
+          model is set in one. (The key sets it in whichever suits it, at once.)
+          There is none for the cube that stands in for a model */}
               {!loaded.standIn && (
                 <Switch
                   label="Reference"
@@ -861,8 +970,8 @@ export function Tools({
                 </Switch>
               )}
               {/* the circuit boards that go in the thing: the button brings up the list of
-              them, and a board picked there takes the view's place, in PCB mode. Where
-              the project has none yet, the list says how one comes. Lit while it is up */}
+          them, and a board picked there takes the view's place, in PCB mode. Where
+          the project has none yet, the list says how one comes. Lit while it is up */}
               <Switch
                 label="PCB"
                 shortcut={MAC ? "⇧P" : "Shift P"}
@@ -873,8 +982,8 @@ export function Tools({
                 <BoardIcon />
               </Switch>
               {/* the model drawn flat, from each of its sides and from its corners, on
-              sheets that take the view's place: there is nothing to draw of the cube
-              that stands in for one */}
+          sheets that take the view's place: there is nothing to draw of the cube
+          that stands in for one */}
               {!loaded.standIn && (
                 <Switch
                   label="Blueprint"
@@ -886,7 +995,7 @@ export function Tools({
                 </Switch>
               )}
               {/* how the thing is put together, a step at a time: the guides Claude has
-              written to that, on covers that take the view's place as the sheets do */}
+          written to that, on covers that take the view's place as the sheets do */}
               {!loaded.standIn && (
                 <Switch
                   label="Assembly"
@@ -897,8 +1006,19 @@ export function Tools({
                   <BookOpenIcon />
                 </Switch>
               )}
+              {/* the pictures of what the thing should be like, for the agent to design
+          by: a board of them that takes the view's place, as a circuit board does.
+          It is there before there is any model, when they are most wanted */}
+              <Switch
+                label="Inspiration Board"
+                shortcut={MAC ? "⇧I" : "Shift I"}
+                on={view.inspiration}
+                onChange={(inspiration) => setView({ inspiration })}
+              >
+                <ImagesIcon />
+              </Switch>
               {/* parts and groups looked for by name, in a box at the top of the view: not
-              in the cube that stands in for a model, which has none to find */}
+          in the cube that stands in for a model, which has none to find */}
               {!loaded.standIn && (
                 <Switch
                   label="Search"
@@ -911,10 +1031,10 @@ export function Tools({
                 </Switch>
               )}
               {/* The project's own tools, made for its model and not the app's: so it is
-              the one button here that is painted, blue, off as on, and is there only
-              where the project has some. On, it has a white line round it, which is
-              while the tools are up: put away, they may be at work on the model
-              still, and the button says nothing of that. */}
+          the one button here that is painted, blue, off as on, and is there only
+          where the project has some. On, it has a white line round it, which is
+          while the tools are up: put away, they may be at work on the model
+          still, and the button says nothing of that. */}
               {!loaded.standIn && hasTools && (
                 <Switch
                   label="Tools"

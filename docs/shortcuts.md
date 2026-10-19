@@ -31,6 +31,7 @@ is Ctrl off a Mac.
 | B | [Blueprint](blueprints.md) |
 | A | [Assembly guides](working-with-the-agent.md#assembly-guides) |
 | Shift+P | [Circuit boards](working-with-the-agent.md#circuit-boards), to open one in PCB mode |
+| Shift+I | The [inspiration board](working-with-the-agent.md#the-inspiration-board) |
 | Cmd+F | [Search](parts.md#search) |
 | T | [Tools of the project's own](project-tools.md) |
 | Cmd+Z | [Take back](working-with-the-agent.md#taking-a-change-back) the last change to the model, or what was hidden or shown. What an agent did takes a second press |
@@ -48,6 +49,23 @@ is Ctrl off a Mac.
 | P | The parts on the board |
 | Cmd+1 to 7 | In 3D, the same set views as the model's: the view it opens with, front, back, top, bottom, right, left |
 | Esc | Back to the model |
+
+## The inspiration board
+
+| | |
+|---|---|
+| Click | Go up to a picture, or spread a group out; on a picture gone up to, pin a note there |
+| Shift+Click | Add a picture or a group to what is picked out, or take it back out |
+| Drag | Move what is picked out; across the ground, pick out what the box takes in |
+| Cmd+G | Group what is picked out |
+| Shift+Cmd+G | Take it out of its group |
+| Delete | Take what is picked out off the board, once you say so |
+| Cmd+Delete | Take it off without asking |
+| Cmd+A | Pick out everything |
+| N | Show every note, or only the one pointed at |
+| Cmd+F | Search |
+| Cmd+1 | All of the board |
+| Esc | Step back: out of a note, a picture, a group spread out, then the board |
 
 ## The app
 

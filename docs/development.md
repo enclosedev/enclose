@@ -384,4 +384,6 @@ GitHub, [`electron/github.ts`](../apps/desktop/electron/github.ts) and
   [`kit/board.mjs`](../kit/board.mjs), which builds it, and
   [`kit/board-check.mjs`](../kit/board-check.mjs), which checks it before it is
   ordered from JLCPCB and mends its BOM and placement file.
+- The inspiration board:
+  [`shared/inspiration-format.ts`](../apps/desktop/shared/inspiration-format.ts).
 - The exporter a project copies in: [`kit/enclose.py`](../kit/enclose.py).
