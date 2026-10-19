@@ -4,7 +4,7 @@
 
 | Write | For |
 |---|---|
-| @ | A part of the model |
+| @ | A part of the model, or a picture of the [inspiration board](working-with-the-agent.md#the-inspiration-board) |
 | $ | A skill of the Claude Code on your machine |
 | / | A command, at the start of a message |
 
@@ -13,6 +13,12 @@ through it, and Enter or Tab puts the part in, by its id. While the list is up t
 shows where each part is: the one the list is on is drawn solid and everything else
 see-through, whatever the shading, and the view goes back to how it was when the list
 goes.
+
+Above the parts are the pictures of the project's
+[inspiration board](working-with-the-agent.md#the-inspiration-board), large enough to
+tell apart, the newest first; what is written after the @ looks through them by name.
+Choosing one puts it on the message in place of the @, as if it were
+[pasted there](#pictures): "like [Image 1], but smaller".
 
 $ does the same for the skills of the Claude Code on your machine (your own, the
 project's, a plugin's), and Claude loads the skill you name before it starts on the

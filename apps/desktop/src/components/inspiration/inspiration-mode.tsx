@@ -16,7 +16,8 @@
 // what is round it is pushed aside to give it room. A click on it then pins a note to
 // the place clicked, a dot, with what the user says of that place. Cmd+G puts what is
 // picked out in a group, which they say the title of: its pictures lie in one pile, under
-// the title, and a click on the pile spreads them out, pushing the rest aside. Delete
+// the title, and a click on the pile spreads them out, pushing the rest aside. Pictures
+// dragged over a group open its pile up, and let go there they go into it. Delete
 // takes what is picked out off the board, once it is asked whether to; Cmd+Delete takes
 // it off without asking. O organizes the board, everything in tidy rows. Esc steps back
 // out of each of these, the last first, and then out of the board.
@@ -75,6 +76,12 @@ const DRAG_FROM = 4
 const GLIDE_MS = 520
 /** How far apart what is pushed aside is kept from what it makes room for, in units. */
 const ROOM = 48
+/**
+ * How much further a pile fans out while pictures are held over it, to go in: and how
+ * much bigger its pictures are then.
+ */
+const OPEN_FAN = 2.4
+const OPEN_GROW = 1.06
 
 const NONE: string[] = []
 
@@ -174,6 +181,8 @@ function Board({
     leftwards: boolean
   } | null>(null)
   const [naming, setNaming] = React.useState<Naming | null>(null)
+  /** the group that pictures being dragged are held over, to go into it on release */
+  const [over, setOver] = React.useState<string | null>(null)
 
   useBoardFinding()
 
@@ -199,18 +208,21 @@ function Board({
         )
         continue
       }
+      // (held over, to be gone into, it opens up: fanned out further, and bigger)
+      const fan = group.id === over ? OPEN_FAN : 1
+      const width = group.id === over ? PILE_WIDTH * OPEN_GROW : PILE_WIDTH
       pileOf(pictures.length).forEach((laid, index) => {
         const image = pictures[index]
         out.push({
           image,
           key: `g:${group.id}`,
           box: {
-            x: group.at[0] + laid.dx,
-            y: group.at[1] + laid.dy,
-            w: PILE_WIDTH,
-            h: heightOf(image.pixels, PILE_WIDTH),
+            x: group.at[0] + laid.dx * fan,
+            y: group.at[1] + laid.dy * fan,
+            w: width,
+            h: heightOf(image.pixels, width),
           },
-          turn: laid.turn,
+          turn: laid.turn * fan,
           // the first on top
           z: 1 + (pictures.length - index) / (pictures.length + 1),
           pile: group.id,
@@ -283,7 +295,7 @@ function Board({
         if (keys.has(one.key) || keys.has(`g:${one.image.group}`)) one.z += 3
     }
     return out
-  }, [board, spread, focused, moving])
+  }, [board, spread, focused, moving, over])
 
   /** What can be picked out, each as the box it takes: a picture, or a pile. */
   const units = React.useMemo(() => {
@@ -462,8 +474,8 @@ function Board({
     const to = back.current.pop()
     if (to) glide(to)
   }
-  const spreadOut = (groupId: string) => {
-    const group = board.groups.find((one) => one.id === groupId)
+  const spreadOut = (groupId: string, on = board) => {
+    const group = on.groups.find((one) => one.id === groupId)
     const at = camera.current
     if (!group || !at) return
     // (another spread out is put back first: the camera goes back to before it)
@@ -472,7 +484,7 @@ function Board({
     setFocused(null)
     setWriting(null)
     setSelected([])
-    const all = boundsOf(spreadOf(picturesOf(board.images, group), group.at))
+    const all = boundsOf(spreadOf(picturesOf(on.images, group), group.at))
     // brought into view where it does not fit as the board is seen
     if (all) glide(closeTo(all, SPREAD_FILL, Math.max(at.zoom, 0.6)))
   }
@@ -544,6 +556,52 @@ function Board({
         wanted.has(`g:${group.id}`) ? { ...group, at: shift(group.at) } : group
       ),
     })
+  }
+
+  /**
+   * The group a place on the board is over, for pictures being dragged there to go into
+   * it: its pile, or its pictures spread out. Only pictures that lie by themselves go
+   * into one, and none while a group is among them.
+   */
+  const groupAt = (dragging: Key[], at: [number, number]): string | null => {
+    if (!dragging.every((key) => key.startsWith("i:"))) return null
+    for (const group of board.groups) {
+      const all = boundsOf(
+        shown
+          .filter((one) => one.image.group === group.id)
+          .map((one) => one.box)
+      )
+      if (
+        all &&
+        Math.abs(at[0] - all.x) <= all.w / 2 &&
+        Math.abs(at[1] - all.y) <= all.h / 2
+      )
+        return group.id
+    }
+    return null
+  }
+
+  /** Put pictures that lie by themselves in a group, on top of its pile, and open it. */
+  const putInGroup = (keys: Key[], groupId: string) => {
+    const wanted = setOf(keys)
+    const going = board.images.filter(
+      (image) => image.group === null && wanted.has(`i:${image.id}`)
+    )
+    if (going.length === 0) return
+    const rest = board.images.filter((image) => !going.includes(image))
+    // (the first of a group's pictures is on top)
+    const first = rest.findIndex((image) => image.group === groupId)
+    const at = first < 0 ? rest.length : first
+    const next = {
+      ...board,
+      images: [
+        ...rest.slice(0, at),
+        ...going.map((image) => ({ ...image, group: groupId })),
+        ...rest.slice(at),
+      ],
+    }
+    changed(next)
+    spreadOut(groupId, next)
   }
 
   const groupPicked = () => {
@@ -1046,6 +1104,9 @@ function Board({
     frame.current = requestAnimationFrame(() => {
       if (pressed.dragging) {
         setMoving({ keys: pressed.dragging, by: [dx / at.zoom, dy / at.zoom] })
+        setOver(
+          groupAt(pressed.dragging, boardAt(event.clientX, event.clientY))
+        )
       } else if (!pressed.key) {
         const to: [number, number] = [event.clientX, event.clientY]
         const within = stage.current?.getBoundingClientRect()
@@ -1083,12 +1144,18 @@ function Board({
     if (pressed.pan) return
     if (pressed.moved) {
       const at = camera.current
-      if (pressed.dragging && at)
+      // let go over a group, they go into it; anywhere else, they lie where they are
+      const into =
+        pressed.dragging &&
+        groupAt(pressed.dragging, boardAt(event.clientX, event.clientY))
+      if (pressed.dragging && into) putInGroup(pressed.dragging, into)
+      else if (pressed.dragging && at)
         moveBy(pressed.dragging, [
           (event.clientX - pressed.from[0]) / at.zoom,
           (event.clientY - pressed.from[1]) / at.zoom,
         ])
       setMoving(null)
+      setOver(null)
       setBox(null)
       return
     }
@@ -1126,6 +1193,7 @@ function Board({
     press.current = null
     cancelAnimationFrame(frame.current)
     setMoving(null)
+    setOver(null)
     setBox(null)
   }
 
@@ -1138,7 +1206,16 @@ function Board({
     const pictures = shown.filter((one) => one.image.group === group.id)
     const all = boundsOf(pictures.map((one) => one.box))
     if (!all) return []
-    return [{ group, count: pictures.length, top: all.y - all.h / 2, x: all.x }]
+    // (and, held over it, with what is about to go into it)
+    const coming = over === group.id && moving ? moving.keys.length : 0
+    return [
+      {
+        group,
+        count: pictures.length + coming,
+        top: all.y - all.h / 2,
+        x: all.x,
+      },
+    ]
   })
 
   return (
@@ -1184,6 +1261,7 @@ function Board({
                 (moving.keys.includes(one.key) ||
                   moving.keys.includes(`g:${one.image.group}` as Key))
               }
+              going={over !== null && moving?.keys.includes(one.key) === true}
               analysing={looking.has(one.image.id)}
               notesShown={notesShown}
               writing={writing?.image === one.image.id ? writing : null}

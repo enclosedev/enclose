@@ -2,7 +2,7 @@
 // inspiration-mode.tsx.
 import * as React from "react"
 import { cn } from "cn"
-import { Trash2Icon } from "lucide-react"
+import { XIcon } from "lucide-react"
 
 import {
   inspirationUrl,
@@ -58,6 +58,7 @@ export const Card = React.memo(function Card({
   focused,
   dim,
   moving,
+  going = false,
   analysing,
   notesShown,
   writing,
@@ -73,6 +74,8 @@ export const Card = React.memo(function Card({
   focused: boolean
   dim: boolean
   moving: boolean
+  /** being dragged, and held over a group it is to go into */
+  going?: boolean
   analysing: boolean
   notesShown: boolean
   writing: Writing | null
@@ -93,6 +96,10 @@ export const Card = React.memo(function Card({
         "absolute top-0 left-0 rounded-[calc(10px/max(var(--zoom),0.6))] bg-foreground/5 shadow-[0_10px_40px_-8px_rgba(0,0,0,0.45)] will-change-transform",
         !moving &&
           "transition-[translate,rotate,width,height,opacity] duration-450 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none",
+        // (with the pointer, but smaller as it goes into a group)
+        moving &&
+          "transition-[scale,opacity] duration-200 ease-out motion-reduce:transition-none",
+        going && "scale-75 opacity-80",
         focused ? "cursor-crosshair" : "cursor-pointer",
         // (over its neighbours while the pointer is on it, its notes' words with it)
         "hover:z-450!",
@@ -183,7 +190,7 @@ function NoteMark({
       />
       <div
         className={cn(
-          "pointer-events-none absolute top-0 left-3 w-max max-w-56 -translate-y-1/2 rounded-xl bg-background/85 px-2.5 py-1.5 text-xs/snug text-foreground shadow-md ring-1 ring-foreground/10 backdrop-blur-sm",
+          "pointer-events-none absolute top-0 left-3.5 w-max max-w-60 -translate-y-1/2 rounded-xl bg-background/85 px-3.5 py-2.5 text-xs/snug font-medium text-foreground shadow-md ring-1 ring-foreground/10 backdrop-blur-sm",
           shown
             ? "line-clamp-3"
             : "hidden group-hover/note:block group-hover/note:animate-in group-hover/note:fade-in"
@@ -222,7 +229,21 @@ function NoteWriting({
       onDoubleClick={(event) => event.stopPropagation()}
     >
       <div className="absolute size-4 -translate-1/2 rounded-full bg-primary shadow-[0_1px_4px_rgba(0,0,0,0.5)] ring-2 ring-white" />
-      <div className="absolute top-0 left-4 flex w-64 -translate-y-1/2 animate-in flex-col gap-1.5 rounded-2xl bg-background/90 p-2 shadow-xl ring-1 ring-foreground/10 backdrop-blur-md duration-150 zoom-in-95 fade-in">
+      <div className="absolute top-0 left-5 flex w-72 -translate-y-1/2 animate-in flex-col gap-3 rounded-2xl bg-background/90 p-3.5 shadow-xl ring-1 ring-foreground/10 backdrop-blur-md duration-150 zoom-in-95 fade-in">
+        {/* a note already pinned can be taken off, from the corner: under the pointer a
+            red disc with the cross in white, as a project's card has it */}
+        {onDrop && (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Delete note"
+            title="Delete note"
+            className="absolute top-2 right-2 text-muted-foreground transition-[color,background-color] hover:bg-red-600 hover:text-white dark:hover:bg-red-600"
+            onClick={onDrop}
+          >
+            <XIcon />
+          </Button>
+        )}
         <textarea
           autoFocus
           rows={3}
@@ -241,28 +262,17 @@ function NoteWriting({
               onWritten()
             }
           }}
-          className="w-full resize-none bg-transparent px-1.5 py-1 text-sm outline-none placeholder:text-muted-foreground"
+          className={cn(
+            "w-full resize-none bg-transparent px-1 text-sm/relaxed outline-none placeholder:text-muted-foreground",
+            // (clear of the cross in the corner)
+            onDrop && "pr-6"
+          )}
         />
-        <div className="flex items-center justify-between gap-2 pl-1.5">
-          <span className="text-xs text-muted-foreground">
-            Enter to pin, Esc to leave
-          </span>
-          <div className="flex items-center gap-1">
-            {onDrop && (
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label="Delete note"
-                className="text-muted-foreground hover:text-destructive"
-                onClick={onDrop}
-              >
-                <Trash2Icon />
-              </Button>
-            )}
-            <Button size="xs" onClick={onWritten}>
-              Pin
-            </Button>
-          </div>
+        {/* (Enter and Esc go without saying) one already pinned is saved */}
+        <div className="flex justify-end">
+          <Button size="xs" onClick={onWritten}>
+            {writing.note ? "Save" : "Pin"}
+          </Button>
         </div>
       </div>
     </div>

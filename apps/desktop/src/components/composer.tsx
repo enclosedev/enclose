@@ -55,6 +55,7 @@ import {
   chosenModel,
   EFFORT_WORDS,
 } from "@/lib/manner"
+import { useInspiration } from "@/lib/inspiration"
 import { matching, putIn, tokenAt } from "@/lib/mentions"
 import { isPicture } from "@/lib/pictures"
 import { inLine } from "@/lib/quotes"
@@ -83,6 +84,7 @@ import {
   pictureName,
   PICTURE_TYPES,
 } from "@shared/pictures"
+import { inspirationUrl } from "@shared/inspiration-format"
 import { useBoards } from "./pcb/boards"
 import { bridge } from "./viewport/bridge"
 
@@ -715,6 +717,8 @@ const NO_QUOTES: Quoted[] = []
 const NO_CALLED: Called[] = []
 const NO_PICTURES: Attached[] = []
 const NO_CHOICES: Choice[] = []
+/** What a picture of the inspiration board's goes by in the list: never a part's id. */
+const PICTURE_CHOICE = "inspiration:"
 
 /** How many times the message box has taken the typing for being asked to. */
 let answered = 0
@@ -806,6 +810,29 @@ export const Composer = React.memo(function Composer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [kind, naming, project?.revision]
   )
+  // and before them the pictures of the project's inspiration board, the newest first,
+  // to be put in what is written as a picture pasted there is (see `paste`)
+  const inspiration = useInspiration((state) =>
+    projectId ? state.boards[projectId] : undefined
+  )
+  React.useEffect(() => {
+    if (projectId && kind === "part")
+      void useInspiration.getState().load(projectId)
+  }, [projectId, kind])
+  const boardPictures = React.useMemo(
+    () =>
+      kind === "part" && projectId && inspiration
+        ? [...inspiration.images]
+            .sort((a, b) => b.added - a.added)
+            .map((image) => ({
+              name: `${PICTURE_CHOICE}${image.id}`,
+              also: image.name,
+              detail: "",
+              picture: inspirationUrl(projectId, image.file),
+            }))
+        : NO_CHOICES,
+    [kind, projectId, inspiration]
+  )
   const all: Choice[] =
     kind === "part"
       ? parts
@@ -815,7 +842,10 @@ export const Composer = React.memo(function Composer({
           ? (has?.commands ?? NO_CHOICES)
           : NO_CHOICES
   const query = calling?.query ?? ""
-  const offered = React.useMemo(() => matching(all, query), [all, query])
+  const offered = React.useMemo(
+    () => [...matching(boardPictures, query), ...matching(all, query)],
+    [boardPictures, all, query]
+  )
   // the keys start at the top of the list each time what is written changes
   const [chosen, setChosen] = React.useState({ of: "", index: 0 })
   const written = `${naming}:${query}`
@@ -832,6 +862,7 @@ export const Composer = React.memo(function Composer({
   }, [text])
   const pick = (choice: Choice) => {
     if (!calling) return
+    if (choice.picture) return void pickPicture(choice.picture, choice.also)
     const put = putIn(text, calling, choice.name)
     caretTo.current = put.caret
     setText(put.text)
@@ -861,6 +892,22 @@ export const Composer = React.memo(function Composer({
     caretTo.current = before.length + marks.length
     setText(before + marks + after)
     setCaret(caretTo.current)
+  }
+  // A picture of the inspiration board's, chosen after @, takes the place of what was
+  // written for it: as if it had been pasted there.
+  const pickPicture = async (url: string, name = "image") => {
+    if (!calling) return
+    caretTo.current = calling.from
+    setText(text.slice(0, calling.from) + text.slice(calling.to))
+    setCaret(calling.from)
+    const blob = await fetch(url)
+      .then((response) => (response.ok ? response.blob() : null))
+      .catch(() => null)
+    if (!blob)
+      return useStore.setState({
+        pictureTrouble: "That image could not be read.",
+      })
+    await paste([new File([blob], name, { type: blob.type })])
   }
   // The mark of a picture is one thing: the key that would take its last letter takes
   // all of it, and the picture with it. Whether it did.
@@ -918,7 +965,10 @@ export const Composer = React.memo(function Composer({
   const hover = useStore((state) => state.hover)
   const seek = useStore((state) => state.seek)
   const seeking = kind === "part"
-  const lit = seeking ? (offered[active]?.name ?? null) : null
+  const lit =
+    seeking && !offered[active]?.picture
+      ? (offered[active]?.name ?? null)
+      : null
   React.useEffect(() => {
     if (!seeking) return
     seek(true)

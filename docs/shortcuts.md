@@ -113,7 +113,7 @@ settings follows what they are set to.
 |---|---|
 | Enter | In the box at a part: keep what you wrote for the next message |
 | Cmd+Enter | In the box at a part: send at once, with everything gathered |
-| @ | [A part by name](messages.md#parts-skills-and-commands-by-name) |
+| @ | [A part by name, or a picture of the inspiration board](messages.md#parts-skills-and-commands-by-name) |
 | $ | A skill by name, where it is Claude that answers |
 | / | A command, at the start of a message, where it is Claude that answers |
 
