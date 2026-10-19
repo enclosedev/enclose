@@ -1247,6 +1247,30 @@ export function BoardMode({
   const job = useJobOn(projectId, board)
   const partsOpen = useStore((state) => state.boardPartsOpen)
 
+  // While the board is being made it is drawn as it is made, where what changes is
+  // seen first (the 3D is only as of its last full build); and once the work on it is
+  // over, the way it was looked at before comes back, unless another was chosen
+  // meanwhile. Over is when nothing is building it and no agent is at work in the
+  // project, so that the drawing does not go back and forth between one build and the
+  // next of a turn.
+  const atWork = useStore((state) =>
+    state.projects
+      .find((project) => project.id === projectId)
+      ?.conversations.some((conversation) => conversation.status !== "idle")
+  )
+  const before = React.useRef<BoardAs | null>(null)
+  React.useEffect(() => {
+    const { view, setView } = useStore.getState()
+    if (making && before.current === null) {
+      before.current = view.boardAs
+      if (view.boardAs !== "pcb") setView({ boardAs: "pcb" })
+    } else if (!making && !atWork && before.current !== null) {
+      const back = before.current
+      before.current = null
+      if (view.boardAs === "pcb" && back !== "pcb") setView({ boardAs: back })
+    }
+  }, [making, atWork])
+
   return (
     // (its ground comes in over the model as the buttons change over)
     <div

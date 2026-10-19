@@ -226,8 +226,10 @@ round the step. In the technical view, each trace a build brings draws itself in
 its way as the build comes in, and while the board is being checked a line scans across
 it.
 
-For as long as a board is still being made, it looks it: a light goes across it, over
-and over, in each of the three views and on its card in the list; and **Working**
+For as long as a board is still being made, PCB mode shows it in the technical view,
+where what changes is seen first, and goes back to the view you had once nothing is at
+work on it any more (unless you picked another meanwhile). It looks it too: a light goes
+across it, over and over, in each of the three views and on its card in the list; and **Working**
 stands in place of **Unfinished**, on its card and beside its name in PCB mode. A board with
 nothing of it to show yet turns round slowly in its place. When the light stops, the
 board is done.
