@@ -950,14 +950,29 @@ function Model({ project }: { project: Project }) {
   // A board that Claude builds, at work in the project, is opened in PCB mode the first
   // time it is built in that turn: what is made there is there to be watched, as each
   // build of it comes in. Once PCB mode is left it is not opened again in the same turn.
+  // And once the work is over, with nothing building, the model comes back: unless
+  // another board was picked meanwhile, or PCB mode was left and come back to.
   const boardsBuilt = React.useRef<Map<string, number | null> | null>(null)
   const openedInTurn = React.useRef(false)
+  // (the board PCB mode was opened on, for as long as it is still the one on screen)
+  const openedOn = React.useRef<string | null>(null)
+  React.useEffect(() => {
+    if (view.board !== openedOn.current) openedOn.current = null
+  }, [view.board])
   React.useEffect(() => {
     if (!boards) return
     const was = boardsBuilt.current
     boardsBuilt.current = new Map(boards.map((one) => [one.id, one.built]))
     if (!atWorkHere) {
       openedInTurn.current = false
+      if (
+        openedOn.current !== null &&
+        boards.every((one) => one.building === null)
+      ) {
+        const { view, setView } = useStore.getState()
+        if (view.board === openedOn.current) setView({ board: null })
+        openedOn.current = null
+      }
       return
     }
     // (as they were found when the project was opened is not their having been built)
@@ -968,7 +983,9 @@ function Model({ project }: { project: Project }) {
     if (!built) return
     openedInTurn.current = true
     const { view, setView } = useStore.getState()
-    if (view.board === null) setView({ board: built.id })
+    if (view.board !== null) return
+    openedOn.current = built.id
+    setView({ board: built.id })
   }, [boards, atWorkHere])
   // Meanwhile the view is Claude's: the camera goes round the model by itself, and
   // nothing in the view answers the hand or the keys. When it is through, the camera
