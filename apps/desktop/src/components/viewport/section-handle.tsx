@@ -9,6 +9,7 @@ import { calculateScaleFactor, Edges, Line } from "@react-three/drei"
 
 import type { Vec3 } from "@shared/api"
 import type { ThemeColors } from "@/lib/css-color"
+import { nearestOn } from "@/lib/cuts"
 import type { Turn } from "@/lib/orient"
 import type { Section } from "@/lib/store"
 import { bridge } from "./bridge"
@@ -351,16 +352,27 @@ function Tilt({
   section,
   frame,
   sized,
+  stands,
   colors,
   onChange,
   onLit,
+  onHold,
   onLetGo,
 }: Piece & {
   tilt: (typeof TILTS)[number]
   /** the part of the handle that is kept the same size on the screen */
   sized: React.RefObject<THREE.Group | null>
+  /** where the handle stands on the cut, which is what the cut is tilted about */
+  stands: Vec3
+  /** the handle is to stand here while it is tilted (or, with null, as it would) */
+  onHold: (at: Vec3 | null) => void
 }) {
+  const letGo = () => {
+    onHold(null)
+    onLetGo()
+  }
   const { over, grip } = useGrip((press, size) => {
+    onHold(stands)
     const standing = frame.current!.matrixWorld
     const middle = new THREE.Vector3().setFromMatrixPosition(standing)
     const stood = (way: THREE.Vector3) =>
@@ -396,11 +408,11 @@ function Tilt({
         .clone()
         .multiply(new THREE.Quaternion().setFromAxisAngle(tilt.about, by))
       onChange({
-        position: section.position,
+        position: stands,
         turn: [next.x, next.y, next.z, next.w],
       })
     }
-  }, onLetGo)
+  }, letGo)
 
   const drawn = React.useMemo(() => {
     const between = (from: number, to: number, steps: number) =>
@@ -463,6 +475,10 @@ function Tilt({
  * handle, or has hold of it, and not otherwise, when it would only be in the way of the
  * model.
  *
+ * It stands on the cut where that comes nearest the middle of what is on show of the
+ * model, which is what it is there to cut open: where some of the model is put out of
+ * sight, it keeps to the rest. It tilts the cut about where it stands.
+ *
  * Once it has been dragged and let go of, the cut is where it was wanted, and the handle
  * goes, for as long as the cut stays there: it stands in the middle of what was cut open
  * to be looked at. A click on nothing puts it away as well. A cut chosen afresh brings
@@ -470,12 +486,16 @@ function Tilt({
  */
 export function SectionHandle({
   section,
+  middle,
   reach,
   colors,
   onChange,
   ref,
 }: {
   section: Section
+  /** the middle of what is on show of the model */
+  middle: Vec3
+  /** how far what is on show reaches from its middle */
   reach: number
   colors: ThemeColors
   onChange: (moved: Moved) => void
@@ -483,14 +503,21 @@ export function SectionHandle({
 }) {
   const frame = React.useRef<THREE.Group>(null)
   const sized = React.useRef<THREE.Group>(null)
+  // Held where it stood while the cut is tilted about there: the place nearest the
+  // middle would go on moving as the cut turned, and the ring with it, under the hand.
+  const [held, setHeld] = React.useState<Vec3 | null>(null)
+  const stands = React.useMemo(
+    () => held ?? nearestOn(section, middle),
+    [held, section, middle]
+  )
   const matrix = React.useMemo(
     () =>
       new THREE.Matrix4().compose(
-        new THREE.Vector3(...section.position),
+        new THREE.Vector3(...stands),
         new THREE.Quaternion(...section.turn),
         new THREE.Vector3(1, 1, 1)
       ),
-    [section.position, section.turn]
+    [stands, section.turn]
   )
 
   const at = React.useMemo(() => new THREE.Vector3(), [])
@@ -560,7 +587,14 @@ export function SectionHandle({
       <group ref={sized}>
         <Push {...piece} />
         {TILTS.map((tilt, index) => (
-          <Tilt key={index} tilt={tilt} sized={sized} {...piece} />
+          <Tilt
+            key={index}
+            tilt={tilt}
+            sized={sized}
+            stands={stands}
+            onHold={setHeld}
+            {...piece}
+          />
         ))}
       </group>
     </group>

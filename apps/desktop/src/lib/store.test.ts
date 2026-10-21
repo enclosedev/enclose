@@ -152,6 +152,16 @@ describe("what the view is put into", () => {
     expect(view().section?.position).toEqual([0, 0, 0])
   })
 
+  it("cuts open afresh where the cut it was left with no longer fits", () => {
+    state().setView({ section: cut })
+    state().setView({ section: null })
+    state().cutOpen(
+      () => ({ ...cut, position: [0, 0, 0] }),
+      () => false
+    )
+    expect(view().section?.position).toEqual([0, 0, 0])
+  })
+
   it("opens another project as a model is first looked at, with nothing gone into", () => {
     state().setView({ section: cut, exploded: true, assembly: true })
     state().activate("stool")

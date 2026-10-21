@@ -1,5 +1,9 @@
 // The cut each project was last left with, so that cutting it open again shows it as it
-// was. Kept by the window, like the rest of how a model is looked at.
+// was. Kept by the window, like the rest of how a model is looked at. And where a cut
+// stands to what is on show of the model.
+import * as THREE from "three"
+
+import type { Vec3 } from "@shared/api"
 import type { Section } from "@/lib/store"
 
 const numbers = (value: unknown, count: number) =>
@@ -41,3 +45,20 @@ export function cutsOf(
     ? cuts
     : Object.fromEntries(kept)
 }
+
+/** The flat a cut lies in, in the model's frame. */
+const planeOf = ({ position, turn }: Section) =>
+  new THREE.Plane().setFromNormalAndCoplanarPoint(
+    new THREE.Vector3(0, 0, 1).applyQuaternion(new THREE.Quaternion(...turn)),
+    new THREE.Vector3(...position)
+  )
+
+/** Whether a cut goes through a box of the model, with some of it either side. */
+export const passesThrough = (cut: Section, box: THREE.Box3) =>
+  planeOf(cut).intersectsBox(box)
+
+/** The place on a cut nearest a point: where its handle stands, for a point it is to keep to. */
+export const nearestOn = (cut: Section, point: Vec3): Vec3 =>
+  planeOf(cut)
+    .projectPoint(new THREE.Vector3(...point), new THREE.Vector3())
+    .toArray()

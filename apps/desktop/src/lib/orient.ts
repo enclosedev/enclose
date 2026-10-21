@@ -119,6 +119,34 @@ export function carriedRound(
   return target.clone().sub(about).applyQuaternion(turn).add(about)
 }
 
+/**
+ * What to turn a camera about, in place of what it looks at, `looked`, with only some of
+ * the model on show, which fills `shown`: where `looked` is not in that, there is none of
+ * it there to turn about. Where the line the camera looks along, `along`, goes through
+ * what is on show, the place on it half way through, which stays in the middle of the
+ * picture as what the camera looks at would; where it passes by, the middle of what is
+ * on show, which stays where it is in the picture. Null where `looked` is in it.
+ */
+export function turnedWithin(
+  looked: THREE.Vector3,
+  along: THREE.Vector3,
+  shown: THREE.Box3
+): THREE.Vector3 | null {
+  if (shown.containsPoint(looked)) return null
+  const middle = shown.getCenter(new THREE.Vector3())
+  // from far enough along the line either way to be out of the box: in at one end, out at the other
+  const far =
+    shown.getSize(new THREE.Vector3()).length() + looked.distanceTo(middle)
+  const way = along.clone().normalize()
+  const into = (sign: number) =>
+    new THREE.Ray(
+      looked.clone().addScaledVector(way, -sign * far),
+      way.clone().multiplyScalar(sign)
+    ).intersectBox(shown, new THREE.Vector3())
+  const [enters, leaves] = [into(1), into(-1)]
+  return enters && leaves ? enters.add(leaves).multiplyScalar(0.5) : middle
+}
+
 /** `to`, shifted by whole turns to be as near `from` as it can get: the short way round. */
 export function nearestTurn(from: number, to: number): number {
   const full = Math.PI * 2

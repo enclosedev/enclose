@@ -34,6 +34,7 @@ import {
   facingFrom,
   lowestPolar,
   nearestTurn,
+  turnedWithin,
   viewFrom,
   type Axis,
   type Sign,
@@ -127,10 +128,14 @@ const DRAG_ZOOM = 0.2
 /**
  * What a turn of the view goes about, as the user has it: the middle of what is picked
  * out; or the place on the model under the pointer, `at`, where there is a pointer. Null
- * for what the camera looks at, which is what the controls turn it about themselves.
+ * for what the camera looks at, which is what the controls turn it about themselves: but
+ * where only some of the model is on show, and none of it is there, a turn keeps to what
+ * is (see turnedWithin).
  */
 function turnedAbout(
   at: { clientX: number; clientY: number } | null,
+  /** what the camera looks at, and the line it looks along, in the view's own frame */
+  sight: { looked: THREE.Vector3; along: THREE.Vector3 },
   /** it is the model's view that is turned: what is picked out, and under the pointer, are its */
   bridged = true
 ): THREE.Vector3 | null {
@@ -138,11 +143,19 @@ function turnedAbout(
   const { pivot } = usePreferences.getState()
   if (pivot === "selection") {
     const box = bridge.picked?.()
-    return box ? toWorld(box.getCenter(new THREE.Vector3())) : null
+    if (box) return toWorld(box.getCenter(new THREE.Vector3()))
   }
-  if (pivot === "pointer" && at)
-    return bridge.under?.(at.clientX, at.clientY) ?? null
-  return null
+  if (pivot === "pointer" && at) {
+    const under = bridge.under?.(at.clientX, at.clientY)
+    if (under) return under
+  }
+  const shown = bridge.shown?.()
+  if (!shown) return null
+  const within = new THREE.Box3().setFromPoints([
+    toWorld(shown.min),
+    toWorld(shown.max),
+  ])
+  return turnedWithin(sight.looked, sight.along, within)
 }
 
 /** What ties the lens to the turn of the camera, while something does. */
@@ -781,6 +794,14 @@ function direct(stage: {
       stage.redraw()
     },
 
+    /** What the camera looks at this instant, and the line it looks along. */
+    sight() {
+      return {
+        looked: controls.getTarget(new THREE.Vector3(), false),
+        along: facing(),
+      }
+    },
+
     /** A drag that turns the view has hold of it by this point, or (null) has let go. */
     hold(point: THREE.Vector3 | null) {
       held = point
@@ -1140,7 +1161,11 @@ export function Rig({
     // what the axis gizmo, the section planes and the keyboard move the camera with
     bridge.lookFrom = (axis, sign) => made.lookFrom(axis, sign)
     bridge.orbit = (dx, dy) =>
-      made.orbit(dx * TURN.axes, dy * TURN.axes, turnedAbout(null))
+      made.orbit(
+        dx * TURN.axes,
+        dy * TURN.axes,
+        turnedAbout(null, made.sight())
+      )
     bridge.eye = () => made.eye()
     bridge.flat = () => made.isFlat()
     bridge.focus = (box, covered) => made.focus(box, covered)
@@ -1298,7 +1323,8 @@ export function Rig({
       const does = dragOf(buttons, button, held)
       if (does === "zoom")
         zooming = { x: event.clientX, y: event.clientY, last: event.clientY }
-      else if (does === "turn") made.hold(turnedAbout(event, bridging.current))
+      else if (does === "turn")
+        made.hold(turnedAbout(event, made.sight(), bridging.current))
     }
     const drag = (event: PointerEvent) => {
       const made = director.current
@@ -1326,7 +1352,7 @@ export function Rig({
       if (now - swipe.at > SCROLL_PAUSE) {
         swipe.travel = 0
         swipe.sends = made.sends()
-        swipe.about = turnedAbout(event, bridging.current)
+        swipe.about = turnedAbout(event, made.sight(), bridging.current)
       }
       swipe.at = now
       // Fingers drift as they pinch, and a swipe coasts on after they lift. Neither

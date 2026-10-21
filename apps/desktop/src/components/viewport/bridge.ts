@@ -38,6 +38,11 @@ export const bridge: {
   /** the box that what is picked out fills, in the model's frame: null with nothing picked out */
   picked: (() => THREE.Box3 | null) | null
   /**
+   * the box that what is on show of the model fills where it stands, in the model's
+   * frame: null with all of it on show
+   */
+  shown: (() => THREE.Box3 | null) | null
+  /**
    * true while a handle in the view is being dragged, or a box drawn across it: not the
    * moment to pick the part under the pointer
    */
@@ -64,6 +69,7 @@ export const bridge: {
   goTo: null,
   under: null,
   picked: null,
+  shown: null,
   handling: false,
   board: null,
 }

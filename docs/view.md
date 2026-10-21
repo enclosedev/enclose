@@ -26,7 +26,11 @@ What is out of sight is nothing to the camera: the view a model opens with, Cmd+
 set views and how far it zooms go by the parts on show, and what is picked out but out
 of sight is not turned about or gone to. When the project's own
 [tools](project-tools.md) put parts out of sight or back, the camera takes in what is on
-show then, from the side it is on; parts hidden by hand leave it where it is.
+show then, from the side it is on; parts hidden by hand leave it where it is. With some
+of the model out of sight, a turn that would go about a place where none of what is on
+show is goes about what is on show instead: about its middle, which stays where it is
+in the view, or, where the camera looks through it, about the place half way through it
+in the middle of the view.
 
 A trackpad and a wheel send the same scroll, so which one it was is read from how the
 scroll moves ([`scroll.ts`](../apps/desktop/src/lib/scroll.ts)). Holding Ctrl makes any

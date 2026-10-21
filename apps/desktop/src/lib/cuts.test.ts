@@ -1,6 +1,9 @@
+import * as THREE from "three"
 import { describe, expect, it } from "vitest"
 
-import { cutsOf, readCuts } from "./cuts"
+import type { Vec3 } from "@shared/api"
+import type { Section } from "@/lib/store"
+import { cutsOf, nearestOn, passesThrough, readCuts } from "./cuts"
 
 const cut = {
   position: [1, 2, 3],
@@ -48,5 +51,44 @@ describe("cutsOf", () => {
 
   it("is the same cuts while every project is still there", () => {
     expect(cutsOf(cuts, [{ id: "a" }, { id: "b" }])).toBe(cuts)
+  })
+})
+
+describe("where a cut stands", () => {
+  // across Z, 30 up, and the same tilted an eighth of a turn about X
+  const level: Section = {
+    position: [0, 0, 30],
+    turn: [0, 0, 0, 1],
+    flipped: false,
+  }
+  const tilt = Math.PI / 8
+  const tilted: Section = {
+    ...level,
+    turn: [Math.sin(tilt), 0, 0, Math.cos(tilt)],
+  }
+  const box = (from: Vec3, to: Vec3) =>
+    new THREE.Box3(new THREE.Vector3(...from), new THREE.Vector3(...to))
+
+  it("goes through a box with some of it either side, and not one it misses", () => {
+    expect(passesThrough(level, box([-5, -5, 20], [5, 5, 40]))).toBe(true)
+    expect(passesThrough(level, box([-5, -5, 40], [5, 5, 60]))).toBe(false)
+    expect(passesThrough(tilted, box([-5, 100, 20], [5, 110, 40]))).toBe(false)
+  })
+
+  it("has its handle where it comes nearest a point, anywhere along it", () => {
+    expect(nearestOn(level, [8, -2, 50])).toEqual([8, -2, 30])
+    const on = new THREE.Vector3(...nearestOn(tilted, [8, -2, 50]))
+    // on the cut, and straight across it from the point
+    const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(
+      new THREE.Quaternion(...tilted.turn)
+    )
+    expect(
+      on
+        .clone()
+        .sub(new THREE.Vector3(0, 0, 30))
+        .dot(normal)
+    ).toBeCloseTo(0, 9)
+    const across = new THREE.Vector3(8, -2, 50).sub(on)
+    expect(across.clone().cross(normal).length()).toBeCloseTo(0, 9)
   })
 })

@@ -3,6 +3,7 @@ import { cn } from "cn"
 
 import type { Vec3 } from "@shared/api"
 import { Letter } from "@/components/mark"
+import { passesThrough } from "@/lib/cuts"
 import { nearestAxis, normalOf, turnTo, type Axis } from "@/lib/orient"
 import { useStore } from "@/lib/store"
 import { bridge, useOrientation } from "./bridge"
@@ -65,11 +66,22 @@ export function sectionAcross(axis: Axis, middle: Vec3) {
 
 /**
  * The section to start with: across the axis the camera faces most squarely, which opens
- * the model up towards you.
+ * the model up towards you, through the middle of `box`, what is on show of it.
  */
 export function sectionFacing(box: THREE.Box3) {
   const { axis } = nearestAxis(bridge.eye?.() ?? [0, -1, 0])
   return sectionAcross(axis, box.getCenter(new THREE.Vector3()).toArray())
+}
+
+/**
+ * Cut the model open through what is on show of it, `box`: the way it was last left cut,
+ * where that still goes through it, or else as sectionFacing has it.
+ */
+export function cutOpenThrough(box: THREE.Box3) {
+  useStore.getState().cutOpen(
+    () => sectionFacing(box),
+    (cut) => passesThrough(cut, box)
+  )
 }
 
 /**

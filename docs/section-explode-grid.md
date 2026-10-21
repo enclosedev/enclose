@@ -12,9 +12,15 @@ has been dragged and let go of, or a click lands on nothing, the arrow and arcs 
 as not to stand in the middle of what was cut open; a cut chosen afresh brings them back
 (S off and on again, Esc and S, an axis, or Reset cut).
 
+It is what is on show that is cut open. With some of the model out of sight, by hand
+(H), by the project's own [tools](project-tools.md), or with the view cut down to a part
+or a group, a cut chosen afresh goes through the middle of the rest, and the arrow and
+arcs stand on the cut where it comes nearest that, at a size to go with it.
+
 Two more buttons appear to the left of this one: one shows the other half, the other
 starts the cut again. A cut is kept as it is left: cut open again, the model is cut the
-same way, until it is started again. While the model is cut open a tap of Z is the cut
+same way, until it is started again, or until it would miss all that is on show, when
+it is chosen afresh. While the model is cut open a tap of Z is the cut
 across Z, and holding the key, or flicking with it down, brings up the shading.
 
 Where the cut passes through a solid part it leaves a face in the part's colour, with

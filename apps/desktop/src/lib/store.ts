@@ -811,10 +811,10 @@ type State = {
   removeProject(id: string): Promise<void>
   setView(patch: Partial<View>): void
   /**
-   * Cut the model open: the way it was last left cut, or, if it never was, the way
-   * `fresh` gives.
+   * Cut the model open: the way it was last left cut, where that still `fits`; or, if it
+   * never was, or that does not, the way `fresh` gives.
    */
-  cutOpen(fresh: () => Section): void
+  cutOpen(fresh: () => Section, fits?: (cut: Section) => boolean): void
   goHome(): void
   select(selection: Selection | null): void
   /** Pick parts out together, in place of whatever was picked out; or none, with none. */
@@ -1423,9 +1423,10 @@ export const useStore = create<State>()((set, get) => ({
       if (!before.includes(name)) window.cad.analytics.used(name)
   },
 
-  cutOpen(fresh) {
+  cutOpen(fresh, fits) {
     const { activeId, cuts, setView } = get()
-    setView({ section: (activeId && cuts[activeId]) || fresh() })
+    const kept = activeId ? cuts[activeId] : undefined
+    setView({ section: kept && (!fits || fits(kept)) ? kept : fresh() })
   },
 
   goHome() {

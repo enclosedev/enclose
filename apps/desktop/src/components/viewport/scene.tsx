@@ -1977,6 +1977,7 @@ export function Scene({
   reference = null,
   projectId,
   view,
+  through,
   selectedId,
   selectedWith,
   several,
@@ -2010,6 +2011,11 @@ export function Scene({
   reference?: LoadedReference | null
   projectId: string
   view: View
+  /**
+   * What is on show of the model, where it stands: what a cut is chosen through the
+   * middle of, and the section's handle keeps to.
+   */
+  through: THREE.Box3
   /** what has been said of parts and not yet sent */
   notes: Note[]
   /** the colours the user has given parts, by part */
@@ -2086,6 +2092,15 @@ export function Scene({
     []
   )
   const radius = loaded.box.getSize(new THREE.Vector3()).length() / 2
+  // the section's handle stands on the cut nearest the middle of what is on show, and
+  // is as big as that
+  const handleTo = React.useMemo(
+    () => ({
+      middle: through.getCenter(new THREE.Vector3()).toArray(),
+      reach: through.getSize(new THREE.Vector3()).length() / 2,
+    }),
+    [through]
+  )
   const explode = view.exploded ? view.spread : 0
   // what is on show of the model, out of all of it: what the camera frames and keeps
   // to, as it turns and zooms. All of it, where none of it is.
@@ -2409,7 +2424,8 @@ export function Scene({
           <SectionHandle
             ref={handle}
             section={view.section}
-            reach={radius}
+            middle={handleTo.middle}
+            reach={handleTo.reach}
             colors={colors}
             onChange={onSection}
           />

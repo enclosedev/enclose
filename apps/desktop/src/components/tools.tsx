@@ -47,8 +47,9 @@ import { usePreferences, type Format } from "@/lib/preferences"
 import { savedAs } from "@/lib/saved"
 import { BOARD_AS, SPREAD, useStore, type BoardAs } from "@/lib/store"
 import type { BoardSummary } from "@shared/api"
+import type { Box3 } from "three"
 import type { LoadedModel } from "./viewport/load"
-import { sectionFacing } from "./viewport/section-planes"
+import { cutOpenThrough, sectionFacing } from "./viewport/section-planes"
 
 /**
  * What every button floating over the view is: a frosted circle of its own. And it
@@ -680,6 +681,7 @@ const BOARD_WAYS: Record<BoardAs, { label: string; icon: React.ReactNode }> = {
  */
 export function Tools({
   loaded,
+  through,
   projectId,
   locked = false,
   hasTools = false,
@@ -687,6 +689,11 @@ export function Tools({
   boards = null,
 }: {
   loaded: LoadedModel | null
+  /**
+   * What a cut chosen afresh goes through the middle of: what is on show of the model,
+   * where it stands. Null with no model.
+   */
+  through: Box3 | null
   projectId: string
   /** the view is not the hand's to change for now: how it is looked at is put away */
   locked?: boolean
@@ -705,7 +712,6 @@ export function Tools({
   // a blueprint is of the model whole: the cut is the view's, and comes back with it
   const section = away ? null : view.section
   const setView = useStore((state) => state.setView)
-  const cutOpen = useStore((state) => state.cutOpen)
   const threadOpen = useStore((state) => state.threadOpen)
   const setThreadOpen = useStore((state) => state.setThreadOpen)
   const partsOpen = useStore((state) => state.partsOpen)
@@ -902,7 +908,9 @@ export function Tools({
                       label="Reset cut"
                       side="top"
                       onClick={() =>
-                        setView({ section: sectionFacing(loaded.box) })
+                        setView({
+                          section: sectionFacing(through ?? loaded.box),
+                        })
                       }
                     >
                       <RotateCcwIcon />
@@ -930,7 +938,7 @@ export function Tools({
                   // cut open again, it is as it was left
                   onChange={(on) =>
                     on
-                      ? cutOpen(() => sectionFacing(loaded.box))
+                      ? cutOpenThrough(through ?? loaded.box)
                       : setView({ section: null })
                   }
                 >

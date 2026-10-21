@@ -63,6 +63,7 @@ import {
   type Note,
   type Only,
   type Selection,
+  type View,
 } from "@/lib/store"
 import { objectsOf, pieceWith, wholeOf } from "./apart"
 import { ARRIVAL, newIn, type Arriving } from "./arriving"
@@ -85,7 +86,7 @@ import { appearance, onShow, Scene } from "./scene"
 import { Search } from "./search"
 import { ShadingPie } from "./shading-pie"
 import { useThumbnails } from "./thumbnails"
-import { sectionAcross, sectionFacing, SectionPlanes } from "./section-planes"
+import { cutOpenThrough, sectionAcross, SectionPlanes } from "./section-planes"
 
 /** Stable when a project has nothing said of its parts, or no colours given. */
 const NO_NOTES: Note[] = []
@@ -157,6 +158,23 @@ function shownOf(ids: string[]): string[] {
     ...useTools.getState().looks.hidden,
   ])
   return ids.filter((id) => !hidden.has(id))
+}
+
+/**
+ * The box round what is on show of the model, where it is with the model pulled this far
+ * apart: null, where all of it is on show (or none of it).
+ */
+function boxOnShow(
+  loaded: LoadedModel | null,
+  shown: Pick<View, "only" | "hidden">,
+  explode: number
+) {
+  const ids = (loaded?.parts ?? [])
+    .filter((part) => onShow(part, shown))
+    .map((part) => part.part.id)
+  return ids.length === loaded?.parts.length
+    ? null
+    : boxRound(loaded, ids, explode)
 }
 
 /** How much of the view's right side the list of parts lies over, in pixels. */
@@ -1055,10 +1073,34 @@ function Model({ project }: { project: Project }) {
           }
         : null
 
-  const middle = React.useMemo(
-    () => loaded?.box.getCenter(loaded.box.min.clone()).toArray() ?? null,
-    [loaded]
+  // What is on show of the model, where it stands with the model pulled apart as far as
+  // it is, where some of it is out of sight: a cut chosen afresh goes through the middle
+  // of it, the section's handle keeps to it, and so does a turn of the view that would
+  // go about nothing on show. All of the model otherwise.
+  const explode = view.exploded ? view.spread : 0
+  const shownAt = React.useMemo(
+    () =>
+      boxOnShow(
+        loaded,
+        {
+          only: cutTo,
+          hidden: outOfSight === "" ? NO_PARTS : outOfSight.split("\n"),
+        },
+        explode
+      ),
+    [loaded, cutTo, outOfSight, explode]
   )
+  const through = shownAt ?? loaded?.box ?? null
+  const middle = React.useMemo(
+    () => through?.getCenter(through.min.clone()).toArray() ?? null,
+    [through]
+  )
+  React.useEffect(() => {
+    bridge.shown = () => shownAt
+    return () => {
+      bridge.shown = null
+    }
+  }, [shownAt])
 
   // Picking parts out. A click picks one, at the place on it that was clicked, and what
   // can be done with that part is shown there. A box drawn across the view picks every
@@ -1433,7 +1475,7 @@ function Model({ project }: { project: Project }) {
         return
       }
       if (!loaded || !middle || event.repeat || spokenFor(event.target)) return
-      const { view, setView, cutOpen } = useStore.getState()
+      const { view, setView } = useStore.getState()
       const letter = event.key.toLowerCase()
       if (letter === "b") {
         // there is no blueprint of the cube that stands in for a model
@@ -1467,7 +1509,7 @@ function Model({ project }: { project: Project }) {
         return
       } else if (letter === "s") {
         if (view.section) setView({ section: null })
-        else cutOpen(() => sectionFacing(loaded.box))
+        else if (through) cutOpenThrough(through)
       } else if (letter === "e") setView(exploding(view, loaded.further))
       else if (letter === "i") {
         const wanted = pickedOut()
@@ -1524,6 +1566,7 @@ function Model({ project }: { project: Project }) {
   }, [
     goHome,
     loaded,
+    through,
     middle,
     lookingOver,
     groupThem,
@@ -1541,7 +1584,6 @@ function Model({ project }: { project: Project }) {
     () => nearOf(view.only, loaded),
     [view.only, loaded]
   )
-  const explode = view.exploded ? view.spread : 0
 
   // The blueprint takes the view's place: the model drawn flat, from each of its sides
   // and from its corners, as much of it as the view had on show and pulled apart as far. The view is still
@@ -1771,6 +1813,7 @@ function Model({ project }: { project: Project }) {
             notes={notes}
             colours={shownColours}
             view={shownView}
+            through={through ?? loaded.box}
             selectedId={selection?.part.id ?? null}
             selectedWith={selectedWith}
             several={several}
@@ -1869,6 +1912,7 @@ function Model({ project }: { project: Project }) {
       )}
       <Tools
         loaded={loaded}
+        through={through}
         projectId={project.id}
         locked={lookingOver}
         hasTools={hasTools}

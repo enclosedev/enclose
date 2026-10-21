@@ -8,6 +8,7 @@ import {
   nearestAxis,
   nearestTurn,
   normalOf,
+  turnedWithin,
   turnTo,
   viewFrom,
   VIEWS,
@@ -205,5 +206,49 @@ describe("carriedRound", () => {
       facingFrom(2, 0.3)
     )
     close(moved.toArray(), target.toArray())
+  })
+})
+
+describe("turnedWithin", () => {
+  // what is on show: a box above where the whole model was looked at
+  const shown = new THREE.Box3(
+    new THREE.Vector3(-10, -10, 40),
+    new THREE.Vector3(10, 10, 60)
+  )
+
+  it("leaves a turn about what the camera looks at where that is on show", () => {
+    expect(
+      turnedWithin(
+        new THREE.Vector3(5, 0, 50),
+        new THREE.Vector3(1, 0, 0),
+        shown
+      )
+    ).toBeNull()
+  })
+
+  it("turns about the middle of what is on show, where the camera looks past it", () => {
+    const about = turnedWithin(
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, 1, 0),
+      shown
+    )
+    close(about!.toArray(), [0, 0, 50])
+  })
+
+  it("turns about the place half way through it, where the camera looks through it", () => {
+    // looking down on it from straight above, at a point well under it, to one side
+    const about = turnedWithin(
+      new THREE.Vector3(4, -3, 0),
+      new THREE.Vector3(0, 0, 1),
+      shown
+    )
+    close(about!.toArray(), [4, -3, 50])
+  })
+
+  it("goes by the line, whichever way along it the camera is", () => {
+    const looked = new THREE.Vector3(4, -3, 0)
+    const up = turnedWithin(looked, new THREE.Vector3(0, 0, 1), shown)
+    const down = turnedWithin(looked, new THREE.Vector3(0, 0, -5), shown)
+    close(down!.toArray(), up!.toArray())
   })
 })
