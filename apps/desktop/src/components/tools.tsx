@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 
 import { BoardIcon, ReferenceIcon, SectionIcon } from "@/components/icons"
+import { BoardAtWorkRing } from "@/components/pcb/at-work"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -685,6 +686,7 @@ export function Tools({
   locked = false,
   hasTools = false,
   board = null,
+  boards = null,
 }: {
   loaded: LoadedModel | null
   projectId: string
@@ -694,6 +696,9 @@ export function Tools({
   hasTools?: boolean
   /** the circuit board PCB mode has, while it is in PCB mode */
   board?: BoardSummary | null
+  /** the project's boards, while an agent is at work in it: for the PCB button to say
+   * when it is at one */
+  boards?: readonly BoardSummary[] | null
 }) {
   const view = useStore((state) => state.view)
   const { blueprint, assembly } = view
@@ -980,16 +985,22 @@ export function Tools({
               )}
               {/* the circuit boards that go in the thing: the button brings up the list of
           them, and a board picked there takes the view's place, in PCB mode. Where
-          the project has none yet, the list says how one comes. Lit while it is up */}
-              <Switch
-                label="PCB"
-                shortcut={MAC ? "⇧P" : "Shift P"}
-                opens="boards"
-                on={boardsOpen}
-                onChange={() => setBoardsOpen(!boardsOpen)}
-              >
-                <BoardIcon />
-              </Switch>
+          the project has none yet, the list says how one comes. Lit while it is up;
+          and while an agent is at one of them, a ring goes round it */}
+              <div className="relative">
+                <Switch
+                  label="PCB"
+                  shortcut={MAC ? "⇧P" : "Shift P"}
+                  opens="boards"
+                  on={boardsOpen}
+                  onChange={() => setBoardsOpen(!boardsOpen)}
+                >
+                  <BoardIcon />
+                </Switch>
+                {boards && (
+                  <BoardAtWorkRing projectId={projectId} boards={boards} />
+                )}
+              </div>
               {/* the model drawn flat, from each of its sides and from its corners, on
           sheets that take the view's place: there is nothing to draw of the cube
           that stands in for one */}

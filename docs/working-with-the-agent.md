@@ -210,9 +210,12 @@ change when it is done. Cmd+Z waits for the board too, and so does what is said 
 another conversation, which goes on once the board is done or stopped. What was made
 of a stopped board stays in its files.
 
-When the agent builds a board, PCB mode opens on it, and the model comes back once the
-agent is done (unless you picked another board or left PCB mode meanwhile). A detailed
-board is built in steps: its parts placed, then connected, then routed. Each build shows
+When the agent builds a board on the way to a change you asked of the model, the view
+stays on the model: a ring goes round the **PCB** button, and **Checking the PCB** (or
+**Making the PCB**, for a board not built before) floats at the foot of the view, with
+**Show**, which opens the board in PCB mode. A board made in detail in the background
+opens in PCB mode by itself the first time it is built. A detailed board is built in
+steps: its parts placed, then connected, then routed. Each build shows
 as it comes in, and as the agent writes the board the app makes a quick look at it by itself, unrouted,
 so that its parts appear as they are put on it: even while what is written breaks
 tscircuit's rules, as a board half written does. While it is routed, the line under the

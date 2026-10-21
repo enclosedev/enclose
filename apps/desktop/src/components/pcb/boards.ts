@@ -7,6 +7,7 @@ import {
   BOARD_HOST,
   MODEL_SCHEME,
   type BoardSummary,
+  type ConversationSummary,
   type Project,
 } from "@shared/api"
 import { builtOf } from "@shared/board-format"
@@ -165,4 +166,50 @@ export function useJobOn(
  */
 export function useBeingMade(projectId: string, board: BoardSummary): boolean {
   return useJobOn(projectId, board) !== null || board.building !== null
+}
+
+/**
+ * How long after the last sign of it an agent is still taken to be at a board, ms: it
+ * looks over what one build made before it writes or builds the board again, and what
+ * says it is at it is not to come and go in between.
+ */
+export const AT_BOARD_MS = 10_000
+
+/**
+ * The board an agent at work in the project is at just now, `now`, in a turn of a
+ * conversation: one it is building, or has written or built since the turn began, until
+ * a while after the last of that. Where it is at several, the one it was at last. A
+ * board made in detail in the background is not counted, as its card in the
+ * conversation says how that is going.
+ */
+export function boardAtWork(
+  boards: readonly BoardSummary[],
+  conversations: readonly ConversationSummary[],
+  now: number
+): BoardSummary | null {
+  const turns = conversations.flatMap((conversation) =>
+    conversation.status !== "idle" && conversation.since !== null
+      ? [conversation.since]
+      : []
+  )
+  if (turns.length === 0) return null
+  const began = Math.min(...turns)
+  const inDetail = new Set(
+    conversations.flatMap((conversation) =>
+      conversation.job ? [conversation.job.board] : []
+    )
+  )
+  let found: BoardSummary | null = null
+  let latest = -Infinity
+  for (const board of boards) {
+    if (inDetail.has(board.id)) continue
+    const last =
+      board.building !== null
+        ? Infinity
+        : Math.max(board.built ?? -Infinity, board.preview ?? -Infinity)
+    if (last < began || now - last > AT_BOARD_MS || last <= latest) continue
+    found = board
+    latest = last
+  }
+  return found
 }

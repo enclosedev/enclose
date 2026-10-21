@@ -24,6 +24,7 @@ import { Logo } from "@/components/mark"
 import { atWork } from "@/lib/steps"
 import { duration, useNow } from "@/lib/time"
 import { PartsPanel } from "@/components/parts-panel"
+import { BoardAtWork } from "@/components/pcb/at-work"
 import { BoardMode } from "@/components/pcb/board-mode"
 import { BoardSteps } from "@/components/pcb/board-steps"
 import { useBoards } from "@/components/pcb/boards"
@@ -947,46 +948,39 @@ function Model({ project }: { project: Project }) {
     if (!boards || view.board === null) return
     if (!boards.some((one) => one.id === view.board)) setView({ board: null })
   }, [boards])
-  // A board that Claude builds, at work in the project, is opened in PCB mode the first
-  // time it is built in that turn: what is made there is there to be watched, as each
-  // build of it comes in. Once PCB mode is left it is not opened again in the same turn.
-  // And once the work is over, with nothing building, the model comes back: unless
-  // another board was picked meanwhile, or PCB mode was left and come back to.
+  // A board made in detail in the background, as was asked for, is opened in PCB mode
+  // the first time it is built: what is made there is there to be watched, as each build
+  // of it comes in. Once PCB mode is left it is not opened again while Claude is at work.
+  // A board that Claude builds in a turn, on the way to the model it was asked about, is
+  // not: the PCB button and the foot of the view say that it is at the board, and the
+  // view stays on the model (see components/pcb/at-work.tsx).
   const boardsBuilt = React.useRef<Map<string, number | null> | null>(null)
   const openedInTurn = React.useRef(false)
-  // (the board PCB mode was opened on, for as long as it is still the one on screen)
-  const openedOn = React.useRef<string | null>(null)
-  React.useEffect(() => {
-    if (view.board !== openedOn.current) openedOn.current = null
-  }, [view.board])
+  const madeInDetail = project.conversations
+    .flatMap((c) => (c.job ? [c.job.board] : []))
+    .join("\n")
   React.useEffect(() => {
     if (!boards) return
     const was = boardsBuilt.current
     boardsBuilt.current = new Map(boards.map((one) => [one.id, one.built]))
     if (!atWorkHere) {
       openedInTurn.current = false
-      if (
-        openedOn.current !== null &&
-        boards.every((one) => one.building === null)
-      ) {
-        const { view, setView } = useStore.getState()
-        if (view.board === openedOn.current) setView({ board: null })
-        openedOn.current = null
-      }
       return
     }
     // (as they were found when the project was opened is not their having been built)
     if (!was || openedInTurn.current) return
+    const inDetail = madeInDetail.split("\n")
     const built = boards.find(
-      (one) => one.built !== null && one.built !== was.get(one.id)
+      (one) =>
+        inDetail.includes(one.id) &&
+        one.built !== null &&
+        one.built !== was.get(one.id)
     )
     if (!built) return
     openedInTurn.current = true
     const { view, setView } = useStore.getState()
-    if (view.board !== null) return
-    openedOn.current = built.id
-    setView({ board: built.id })
-  }, [boards, atWorkHere])
+    if (view.board === null) setView({ board: built.id })
+  }, [boards, atWorkHere, madeInDetail])
   // Meanwhile the view is Claude's: the camera goes round the model by itself, and
   // nothing in the view answers the hand or the keys. When it is through, the camera
   // goes back to where a model opens, as Cmd+1 would take it.
@@ -1893,6 +1887,7 @@ function Model({ project }: { project: Project }) {
         locked={lookingOver}
         hasTools={hasTools}
         board={board}
+        boards={atWorkHere ? boards : null}
       />
       {loaded &&
         partsOpen &&
@@ -1984,6 +1979,9 @@ function Model({ project }: { project: Project }) {
                 // (short enough to be said whole: the words have only so much room)
                 meanwhile="Working out the steps"
               />
+            )}
+            {atWorkHere && boards && !board && (
+              <BoardAtWork projectId={project.id} boards={boards} />
             )}
             {inspiring && (
               <>

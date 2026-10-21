@@ -294,8 +294,8 @@ one, where there is one: keep its outline, holes and the parts the thing was sha
 round where they were, unless the user agrees to move them, and say what moved.
 
 A detailed board takes a while, and the user watches it come together in PCB mode,
-which the app opens on the board when it is first built in a turn. So build it in
-steps, and build after each one, rather than once at the end:
+which the app opens on a board made in the background when it is first built. So build
+it in steps, and build after each one, rather than once at the end:
 
 1. placing: its outline, holes and every part, placed where it goes;
 2. connecting: every connection, still unrouted, which the drawing shows as straight lines;
