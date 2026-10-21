@@ -252,6 +252,35 @@ describe("what Esc steps back through", () => {
     expect(view().section).toBeNull()
   })
 
+  it("brings back what was hidden last by itself, and then all the rest", () => {
+    state().setHidden(["base"])
+    state().setHidden(["base", "lid", "lid_screws"])
+    expect(esc()).toBe(true)
+    expect(view().hidden).toEqual(["base"])
+    expect(esc()).toBe(true)
+    expect(view().hidden).toEqual([])
+    expect(esc()).toBe(false)
+  })
+
+  it("brings back all of it at once where it was all hidden together", () => {
+    state().setHidden(["base", "lid"])
+    esc()
+    expect(view().hidden).toEqual([])
+  })
+
+  it("brings back what was hidden last of what is still out of sight", () => {
+    state().setHidden(["base"])
+    state().setHidden(["base", "lid", "foot"])
+    // one of them brought back from the list of parts
+    state().setHidden(["base", "foot"])
+    esc()
+    expect(view().hidden).toEqual(["base"])
+    // and hidden again after the first Esc, that is what comes back first again
+    state().setHidden(["base", "lid"])
+    esc()
+    expect(view().hidden).toEqual(["base"])
+  })
+
   it("puts a sheet back among the others before it leaves the blueprint", () => {
     state().setView({ blueprint: true, sheet: 1 })
     esc()

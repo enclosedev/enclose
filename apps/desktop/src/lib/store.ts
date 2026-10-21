@@ -770,6 +770,12 @@ type State = {
    */
   history: Record<string, History>
   /**
+   * The parts that went out of sight the last time some were put out of sight: what Esc
+   * brings back by itself, before all the rest. None once it has, and in a project just
+   * opened.
+   */
+  hidLast: string[]
+  /**
    * What the app has to say of something just done that would otherwise go unsaid: what
    * Cmd+Z took back, or why it could not. It is shown at the foot of the view for a
    * moment, or as long as `ms` says. `key` tells one such thing from the next.
@@ -1240,6 +1246,7 @@ export const useStore = create<State>()((set, get) => ({
   ...savedArranged(),
   naming: NONE,
   history: {},
+  hidLast: NONE,
   saying: null,
   homeRequests: 0,
   writeRequests: 0,
@@ -1267,6 +1274,7 @@ export const useStore = create<State>()((set, get) => ({
       boardWriting: null,
       view: homeView(),
       entered: enteredNow(homeView(), state.entered),
+      hidLast: NONE,
     }))
   },
 
@@ -1758,6 +1766,7 @@ export const useStore = create<State>()((set, get) => ({
     const change = rehidden(view.hidden, hidden, Date.now())
     if (!change) return
     setView({ hidden: hidden.length > 0 ? hidden : NONE })
+    if (change.hid.length > 0) set({ hidLast: change.hid })
     if (activeId)
       set({
         history: {
@@ -2073,8 +2082,16 @@ export const useStore = create<State>()((set, get) => ({
     const last = entered.at(-1)
     if (!last) return false
     if (last === "section") setView({ section: null })
-    else if (last === "hidden") get().setHidden(NONE)
-    else if (last === "blueprint") setView({ blueprint: false })
+    else if (last === "hidden") {
+      // what went out of sight last comes back first, by itself: what was hidden to see
+      // what was under it, say. And then all the rest at once
+      const { view, hidLast, setHidden } = get()
+      const back = hidLast.filter((id) => view.hidden.includes(id))
+      set({ hidLast: NONE })
+      setHidden(
+        back.length > 0 ? view.hidden.filter((id) => !back.includes(id)) : NONE
+      )
+    } else if (last === "blueprint") setView({ blueprint: false })
     else if (last === "assembly") setView({ assembly: false })
     else if (last === "reference") setView({ reference: null })
     else if (last === "tools") setView({ tools: false })

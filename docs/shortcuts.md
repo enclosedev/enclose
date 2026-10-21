@@ -125,7 +125,8 @@ together, at once, whatever else was gone into and whenever; and then a blueprin
 sheet that has the view to itself back among the others. Then it gets back out of the
 section, the blueprint, the reference scene, the tools' hold on the model, whatever is
 showing on its own and whatever was put out of sight, one press each, starting with
-whichever you went into last.
+whichever you went into last. What was put out of sight takes two: the first brings
+back what was hidden last, and the second the rest.
 
 ## With the view cleared
 
