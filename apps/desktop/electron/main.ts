@@ -2280,6 +2280,9 @@ if (!app.requestSingleInstanceLock()) {
     // it is given the app's mark on another colour, which tells it from the app that is
     // installed. An app made into a package has the icon in it, and macOS draws that one.
     if (!app.isPackaged) app.dock?.setIcon(path.join(ICONS, "icon-dev.png"))
+    // A run that only takes a picture of itself, with its window hidden, is not in the
+    // Dock at all: beside the app being worked on, it would be taken for that one.
+    if (CAPTURE) app.dock?.hide()
     // What a Mac's About says is Electron's own too, down to the version, twice over.
     // (A version given here is shown just as it is given, so the word goes with it.)
     if (!app.isPackaged && process.platform === "darwin")

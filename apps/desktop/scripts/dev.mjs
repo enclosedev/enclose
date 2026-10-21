@@ -3,6 +3,7 @@
 //   npm run dev                 open the app
 //   npm run dev -- <folder>     ...with that folder added as a project
 import { spawn } from "node:child_process"
+import path from "node:path"
 
 import { context } from "esbuild"
 import { createServer } from "vite"
@@ -12,7 +13,14 @@ import { namedElectron } from "./electron-name.mjs"
 
 const electron = namedElectron()
 
-const server = await createServer()
+// A run with somewhere else to keep its state (ENCLOSE_USER_DATA, see electron/main.ts)
+// keeps Vite's copies of the packages there as well. Otherwise they are made again in
+// the folder every dev loop shares, whenever two are run differently: under the feet of
+// one that is serving its window from them.
+const elsewhere = process.env.ENCLOSE_USER_DATA
+const server = await createServer(
+  elsewhere ? { cacheDir: path.join(elsewhere, "vite") } : {}
+)
 await server.listen()
 const url = server.resolvedUrls.local[0]
 
