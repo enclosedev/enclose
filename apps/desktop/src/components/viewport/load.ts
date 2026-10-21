@@ -395,10 +395,6 @@ function creases(skins: Skin[]): Float32Array {
 }
 
 /**
- * Load every part. `revision` is stamped on each request, so a rebuilt model is never
- * served from a stale copy.
- */
-/**
  * Where the surfaces of a part are, in the model, taken all together: the middle of
  * them, each triangle counting for its size, and how much of them there is.
  */
@@ -442,6 +438,10 @@ function measured(part: LoadedPart): { centre: THREE.Vector3; area: number } {
   return { centre, area }
 }
 
+/**
+ * Load every part. `revision` is stamped on each request, so a rebuilt model is never
+ * served from a stale copy.
+ */
 export async function loadModel(
   model: Model,
   baseUrl: string,

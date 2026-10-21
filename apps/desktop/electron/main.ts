@@ -1170,7 +1170,7 @@ const mannerSaid = ({ provider, model, effort, access }: Manner) => ({
 const minutesOf = (ms: number | null) =>
   ms === null ? null : Math.round(ms / 6_000) / 10
 
-/** The same, for the window: it is told when nothing came of what it gave. */
+/** `open`, for the window: it is told when nothing came of what it gave. */
 async function openFor(paths: string[]): Promise<Project | null> {
   let id: string | null = null
   let trouble: string | null = null

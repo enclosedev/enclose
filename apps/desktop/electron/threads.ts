@@ -2312,7 +2312,7 @@ export class Threads {
       project.name ?? null,
       project.standIn === true,
       // The tool that asks the user things is Claude Code's, and the app has a form for
-      // it. Codex and Grok ask in what they say; and nothing is asked on looking over.
+      // it. The other agents ask in what they say; and nothing is asked on looking over.
       provider === "claude" && asked.arrange === undefined,
       asked.arrange === undefined,
       this.deps.projects.hasMeshes(projectId),

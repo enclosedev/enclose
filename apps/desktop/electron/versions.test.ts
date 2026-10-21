@@ -21,8 +21,8 @@ afterEach(() => {
   fs.rmSync(dir, { recursive: true, force: true })
 })
 
-/** Write a file of the project's, as a turn would: later than whatever was there. */
 let clock = 1_700_000_000
+/** Write a file of the project's, as a turn would: later than whatever was there. */
 function write(file: string, text: string) {
   const at = path.join(folder, file)
   fs.mkdirSync(path.dirname(at), { recursive: true })

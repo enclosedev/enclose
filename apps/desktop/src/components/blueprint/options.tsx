@@ -1,9 +1,8 @@
 // At the foot of a blueprint: how its sheets show the model. Pulled apart or put
-// together; and saying how big it is, or not. Each is a switch in a bar of its own, and
-// next to it, while it is on, is what goes with it, in a bar of its own again: how far
-// apart the parts are pulled, and what the sizes are said in. So there are two pairs of
-// them, a little apart from one another. And after them, what takes all the sheets away
-// at once.
+// together; saying how big it is, or not; and naming its parts, or not. Each is a switch
+// in a bar of its own. Next to the first two, while they are on, is what goes with them,
+// in a bar of its own again: how far apart the parts are pulled, and what the sizes are
+// said in. And after them all, what takes all the sheets away at once.
 import * as React from "react"
 import { cn } from "cn"
 import { DownloadIcon } from "lucide-react"

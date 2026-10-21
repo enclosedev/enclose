@@ -52,13 +52,13 @@ export function normalOf(turn: Turn): Vec3 {
   return [v.x, v.y, v.z]
 }
 
+const TOP = { azimuth: 0, polar: 0 }
+
 /**
  * The camera angles for looking at the model from the end of one of its axes: the angle
  * round the vertical, and the angle down from straight above, as three.js measures them
  * (its vertical is Y, so the model's Z).
  */
-const TOP = { azimuth: 0, polar: 0 }
-
 export function viewFrom(
   axis: Axis,
   sign: Sign

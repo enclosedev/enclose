@@ -1,7 +1,7 @@
-// Talking to an agent that is not Claude Code. Codex and Grok are each run as a process
-// that speaks JSON-RPC on its standard input and output, a message to a line: the app
-// asks things of it, is told things by it, and is asked things in turn (may it run this
-// command?). This is that line, with nothing in it of what either of them says on it.
+// Talking to an agent that is not Claude Code. Codex, Grok and opencode are each run as
+// a process that speaks JSON-RPC on its standard input and output, a message to a line:
+// the app asks things of it, is told things by it, and is asked things in turn (may it
+// run this command?). This is that line, with nothing in it of what any of them says.
 import { spawn, type ChildProcess } from "node:child_process"
 import readline from "node:readline"
 

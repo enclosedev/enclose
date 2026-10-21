@@ -177,7 +177,6 @@ export function turnedOver(markup: string): string {
     .replace(/<\/svg>\s*$/, "</g></svg>")
 }
 
-/** A board drawn the one way or the other, on the ground it is seen on. */
 /**
  * A line nobody sees, from the middle of the board a millimetre along each way: where it
  * comes out in the drawing says how the board's millimetres lie in the drawing's own
@@ -202,6 +201,7 @@ function placeMark(elements: AnyCircuitElement[]): AnyCircuitElement[] {
   ]
 }
 
+/** A board drawn the one way or the other, on the ground it is seen on. */
 export function drawingOf(
   circuit: Circuit,
   as: "pcb" | "schematic",

@@ -733,12 +733,6 @@ export const FEATURES = [
 export type Feature = (typeof FEATURES)[number]
 
 /**
- * Where the app is with a newer version of itself. There is none that it knows of; or
- * there is one to be had, which is fetched when it is asked for; or it is on its way,
- * with this much of it here (0 to 1); or it is here, and is what the app is once it has
- * been started again, which it is about to be when that has been asked for.
- */
-/**
  * GitHub, as the app backs projects up to it (electron/github.ts). unavailable: this
  * build of the app has no GitHub app of its own to connect through. off: not connected.
  * code: the user is to type `code` at `uri` on GitHub's site. install: signed in, but
@@ -772,6 +766,12 @@ export type GitHubState = {
   failures: BackupFailure[]
 }
 
+/**
+ * Where the app is with a newer version of itself. There is none that it knows of; or
+ * there is one to be had, which is fetched when it is asked for; or it is on its way,
+ * with this much of it here (0 to 1); or it is here, and is what the app is once it has
+ * been started again, which it is about to be when that has been asked for.
+ */
 export type Update =
   | { state: "none" }
   | {
