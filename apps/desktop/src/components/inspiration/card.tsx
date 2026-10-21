@@ -91,7 +91,9 @@ export const Card = React.memo(function Card({
       data-key={key}
       data-image={image.id}
       className={cn(
-        "absolute top-0 left-0 rounded-[calc(10px/max(var(--zoom),0.6))] bg-foreground/5 shadow-[0_10px_40px_-8px_rgba(0,0,0,0.45)] will-change-transform",
+        // (and no will-change: a layer of its own is drawn at the zoom it was first seen
+        // at, and only stretched as the board is zoomed into, the picture and dots blurred)
+        "absolute top-0 left-0 rounded-[calc(10px/max(var(--zoom),0.6))] bg-foreground/5 shadow-[0_10px_40px_-8px_rgba(0,0,0,0.45)]",
         !moving &&
           "transition-[translate,rotate,width,height,opacity] duration-450 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none",
         moving &&
