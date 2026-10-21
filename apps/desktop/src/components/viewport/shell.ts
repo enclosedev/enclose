@@ -40,7 +40,6 @@ export function shellOf(meshes: Mesh[]): {
         u[0] * v[1] - u[1] * v[0],
       ]
       const area = Math.hypot(...normal)
-      // a triangle with no area is the side of nothing
       if (area === 0 || new Set(points).size < 3) continue
       triangles++
       for (let corner = 0; corner < 3; corner++) {

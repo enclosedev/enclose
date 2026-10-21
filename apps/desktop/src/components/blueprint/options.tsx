@@ -119,7 +119,6 @@ export function Options({
         setKept(null)
       }}
     >
-      {/* the words are as much the switch as the switch is */}
       <label className={cn(SWITCH, "gap-3")}>
         Exploded
         <Switch
@@ -165,7 +164,6 @@ export function Options({
                 key={unit}
                 value={unit}
                 size="sm"
-                // the chosen one is lit the way a button that is on is
                 className="aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary/85 aria-pressed:hover:text-primary-foreground"
               >
                 {unit}
@@ -181,15 +179,12 @@ export function Options({
           onCheckedChange={(labels) => setView({ labels })}
         />
       </label>
-      {/* Every sheet at once, each a file, in a folder of their own: not while any of
-          them is still being drawn. */}
       <Button
         variant="ghost"
         disabled={!saveAll}
         onClick={() => saveAll?.()}
         className={cn(
           SWITCH,
-          // under the pointer it lightens a little, and its edge with it
           "ml-2 cursor-pointer gap-2 pr-5 pl-4 hover:bg-foreground/8 hover:ring-foreground/20 dark:hover:bg-foreground/8"
         )}
       >

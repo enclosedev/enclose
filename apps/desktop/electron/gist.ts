@@ -165,8 +165,6 @@ export async function askOnce(
         cwd: os.tmpdir(),
         ...running(claude),
         abortController: abort,
-        // the quickest model, answering straight off, with nothing to do it with but
-        // what it is given, and none of it kept
         model: "haiku",
         thinking: { type: "disabled" },
         tools: [],

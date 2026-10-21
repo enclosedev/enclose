@@ -110,7 +110,6 @@ function Written({
           {when && !news && <span className="app__when">{when}</span>}
         </span>
         <span className="app__said">{said}</span>
-        {/* the branch, for a folder that is kept in git: a line more on its card */}
         {branch && (
           <span className="app__branch">
             <GitBranchIcon strokeWidth={1.5} />
@@ -249,7 +248,6 @@ export function Window() {
         <div className="app__main">
           <canvas className="app__canvas" data-app="canvas" />
 
-          {/* the model's drawings, which take the view's place */}
           <div className="app__sheets" data-app="sheets">
             <div className="app__row-of-sheets" data-app="sheet-row">
               {SHEETS.map((sheet) => (
@@ -364,7 +362,6 @@ export function Window() {
               </div>
             </div>
 
-            {/* the tools made for this project's model, which are the project's own */}
             <div className="app__panel" data-app="panel">
               <div className="app__tabs">
                 <span>Arm</span>

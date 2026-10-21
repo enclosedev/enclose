@@ -83,7 +83,6 @@ describe("offeredModels", () => {
       "opus",
       "claude-next",
     ])
-    // every one there is to list: its own, then what the user told it of, each once
     expect(listedModels(one).map((m) => m.id)).toEqual([
       "opus",
       "sonnet",

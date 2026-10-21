@@ -45,11 +45,9 @@ export type Writing = {
 }
 
 /**
- * One picture on the board, as it lies: in a pile, by itself, or gone up to. Over it at
- * its top left, while the agent looks at it, a small turning ring, on a shade that fades
- * out from the corner so that it shows on a white picture. And on it the user's notes,
- * each a dot at its place: what it says is shown beside it while the pointer is over it,
- * or always where the notes are to be shown.
+ * One picture on the board, as it lies: in a pile, by itself, or gone up to. And on it
+ * the user's notes, each a dot at its place: what it says is shown beside it while the
+ * pointer is over it, or always where the notes are to be shown.
  */
 export const Card = React.memo(function Card({
   projectId,
@@ -96,7 +94,6 @@ export const Card = React.memo(function Card({
         "absolute top-0 left-0 rounded-[calc(10px/max(var(--zoom),0.6))] bg-foreground/5 shadow-[0_10px_40px_-8px_rgba(0,0,0,0.45)] will-change-transform",
         !moving &&
           "transition-[translate,rotate,width,height,opacity] duration-450 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none",
-        // (with the pointer, but smaller as it goes into a group)
         moving &&
           "transition-[scale,opacity] duration-200 ease-out motion-reduce:transition-none",
         going && "scale-75 opacity-80",
@@ -133,7 +130,6 @@ export const Card = React.memo(function Card({
           />
         )}
       </div>
-      {/* the agent looking at it, said beside it: at the size it is read at whatever the zoom */}
       {analysing && (
         <Spinner className="pointer-events-none absolute top-0 right-full mr-[calc(8px/var(--zoom))] size-[calc(20px/var(--zoom))] text-foreground/80" />
       )}
@@ -230,8 +226,6 @@ function NoteWriting({
     >
       <div className="absolute size-4 -translate-1/2 rounded-full bg-primary shadow-[0_1px_4px_rgba(0,0,0,0.5)] ring-2 ring-white" />
       <div className="absolute top-0 left-5 flex w-72 -translate-y-1/2 animate-in flex-col gap-3 rounded-2xl bg-background/90 p-3.5 shadow-xl ring-1 ring-foreground/10 backdrop-blur-md duration-150 zoom-in-95 fade-in">
-        {/* a note already pinned can be taken off, from the corner: under the pointer a
-            red disc with the cross in white, as a project's card has it */}
         {onDrop && (
           <Button
             variant="ghost"
@@ -268,7 +262,6 @@ function NoteWriting({
             onDrop && "pr-6"
           )}
         />
-        {/* (Enter and Esc go without saying) one already pinned is saved */}
         <div className="flex justify-end">
           <Button size="xs" onClick={onWritten}>
             {writing.note ? "Save" : "Pin"}

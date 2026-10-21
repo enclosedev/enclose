@@ -48,7 +48,6 @@ describe("comingFrom", () => {
     )
     expect(from("lid", 1)).toEqual([0, 0, 60])
     expect(from("screws", 1)).toEqual([0, 0, 60])
-    // and has nowhere to come from in a step that does not bring it
     expect(from("lid", 0)).toBeUndefined()
   })
 

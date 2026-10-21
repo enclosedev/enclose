@@ -225,7 +225,6 @@ on("session/prompt", async (params) => {
         },
       ],
     })
-    // the user says no to the command
     fake.turn.ask = async (wanted) => {
       fake.asked.push(wanted)
       return "deny"
@@ -355,7 +354,6 @@ on("session/prompt", async () => {
       manner: { ...opencode, access: "edits" },
     })
     await runOpencode(fake.turn)
-    // it is a command, and is asked about rather than let go as the app's own tool
     expect(fake.asked.map((wanted) => wanted.title)).toEqual([
       "Run this command?",
     ])

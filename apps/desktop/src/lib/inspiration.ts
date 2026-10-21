@@ -295,7 +295,6 @@ function took(projectId: string, state: InspirationState) {
 export function connectInspiration(chosenForCodex: () => string | null) {
   codexModel = chosenForCodex
   window.cad.inspiration.onChange(took)
-  // what is waiting to be written is written before the window goes
   window.addEventListener("pagehide", () => {
     for (const projectId of [...timers.keys()]) saveNow(projectId)
   })

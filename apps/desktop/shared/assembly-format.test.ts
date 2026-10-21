@@ -103,7 +103,6 @@ describe("readGuide", () => {
       null,
     ])
     expect(steps.map((step) => step.fits)).toEqual([[], [], [], ["Outer ring"]])
-    // and writes it as it read it
     const written = JSON.parse(writtenAs(readGuide(clock)))
     expect(written.steps[1]).toMatchObject({ sub: "Outer ring" })
     expect(written.steps[3]).toMatchObject({ fits: ["Outer ring"] })

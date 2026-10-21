@@ -147,7 +147,6 @@ export function spreadOf(
     ({ pixels }) => (SPREAD_HEIGHT * pixels[0]) / pixels[1]
   )
   const total = widths.reduce((all, width) => all + width + SPREAD_GAP, 0)
-  // about square: as wide as the rows it makes are tall, together
   const across = Math.max(
     Math.max(...widths),
     Math.sqrt(total * (SPREAD_HEIGHT + SPREAD_GAP)) * 1.25
@@ -243,7 +242,6 @@ export function organized(
   const left = bounds.x - bounds.w / 2
   let top = bounds.y - bounds.h / 2
 
-  // the piles, as many to a row as fit
   let x = left
   let tallest = 0
   for (const pile of piles) {

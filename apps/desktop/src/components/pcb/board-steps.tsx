@@ -70,7 +70,6 @@ function Steps({
         <li key={step.name} className="flex items-center gap-3">
           <Mark
             step={step}
-            // while it is routed, how far that has got goes round the step
             share={
               step.state === "now" &&
               step.name === "Routing" &&

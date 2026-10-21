@@ -139,7 +139,6 @@ export function sortOpened(
           ? path.parse(loose[0]).name
           : path.basename(path.dirname(loose[0])),
       files: loose.map((from) => {
-        // two of the same name, from different folders: the second is numbered
         const { name, ext } = path.parse(from)
         let as = name + ext
         for (let n = 2; taken.has(as.toLowerCase()); n++)
@@ -238,7 +237,6 @@ export function arrange(
     const { label: asked, group } = wanted.get(one.id) ?? one
     if (!groups.has(slug(group)))
       groups.set(slug(group), { label: group, shell: false })
-    // no two parts go by one name, or by one id: the later of them is numbered
     let label = asked
     for (let n = 2; labels.has(label.toLowerCase()); n++)
       label = `${asked} ${n}`
@@ -252,7 +250,6 @@ export function arrange(
     what: named(given.what),
     name: named(given.name) || null,
     reference: scenes.find((scene) => scene === given.reference) ?? null,
-    // a group with nothing put in it is not listed
     groups: [...groups.values()].filter((group) =>
       parts.some((part) => part.group === group.label)
     ),
@@ -391,7 +388,6 @@ export function bringIn(
     for (const file of bundle.files) {
       const to = path.join(dir, SOURCE, file.as)
       fs.mkdirSync(path.dirname(to), { recursive: true })
-      // where the disk can, a copy that shares the original's blocks: no wait, no room
       fs.copyFileSync(file.from, to, fs.constants.COPYFILE_FICLONE)
     }
     fs.copyFileSync(kit, path.join(dir, "enclose.py"))

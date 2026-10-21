@@ -37,7 +37,6 @@ describe("the names of the parts on a sheet", () => {
     )
     expect(left).toMatchObject({ said: "Left foot", text: { side: "left" } })
     expect(right).toMatchObject({ said: "Right foot", text: { side: "right" } })
-    // the names are in columns at either edge of the sheet, and end at the drawing's side
     expect(left.text.x).toBeLessThan(SHEET.width / 2 - 40)
     expect(right.text.x).toBe(SHEET.width - left.text.x)
   })
@@ -47,7 +46,6 @@ describe("the names of the parts on a sheet", () => {
     // the part's left side, on the sheet: and level with the middle of it
     expect(label.at[0]).toBeCloseTo(SHEET.width / 2 - 45, 9)
     expect(label.line.slice(-2)).toEqual(label.at)
-    // it begins beside the name, clear of it, and goes level before it turns
     expect(label.line[0]).toBeGreaterThan(label.text.x)
     expect(label.line[1]).toBe(label.line[3])
     expect(label.line[1]).toBeLessThan(label.text.y)
@@ -107,7 +105,6 @@ describe("the names of the parts on a sheet", () => {
     const said = labels.map((label) => label.said)
     expect(said).toContain("Part 399")
     expect(said).not.toContain("Part 0")
-    // and each side has no more than fit one under another
     for (const side of ["left", "right"]) {
       const feet = labels
         .filter((label) => label.text.side === side)

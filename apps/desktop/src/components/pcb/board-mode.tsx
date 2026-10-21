@@ -84,7 +84,6 @@ export function readDrawing(
   const read = new DOMParser().parseFromString(markup, "image/svg+xml")
   const svg = read.documentElement
   if (!(svg instanceof SVGSVGElement)) return null
-  // its style, kept to itself: each drawing goes by a mark of its own
   const mark = String(++drawings)
   svg.setAttribute("data-drawing", mark)
   cleanDrawing(svg, `svg[data-drawing="${mark}"]`)
@@ -155,7 +154,6 @@ function sweptOver(
   }
   const id = `sweep-${++sweeps}`
   const { width, height } = size
-  // a band, leaning a little, across the drawing's own units
   const light = make("linearGradient", {
     id,
     gradientUnits: "userSpaceOnUse",
@@ -323,14 +321,11 @@ function Drawing({
     place.current = placeOf(svg)
     sweep.current = sweptOver(svg, size, dark)
     within.replaceChildren(svg)
-    // the traces it has that the drawing before it had not: what a build brought, drawn
-    // in, while the board is being made
     const drawn = [...svg.querySelectorAll<SVGGeometryElement>(".pcb-trace")]
     const had = lastTraces.get(id)
     lastTraces.set(id, new Set(drawn.map(traceOf)))
     const now = performance.now()
     const fresh = had ? drawn.filter((trace) => !had.has(traceOf(trace))) : []
-    // (or the same drawing again, while what it brought is still being drawn in)
     const earlier = layingSince.get(id)
     const going =
       fresh.length === 0 && earlier && now - earlier.at < LAYING_ALL_MS
@@ -399,7 +394,6 @@ function Drawing({
       show()
     }
 
-    // a board drawn again, or the other way, starts whole; and so it does the first time
     if (looking.current === null) fit()
     else show()
     const sized = new ResizeObserver(() => (looking.current ? show() : fit()))
@@ -467,8 +461,6 @@ function Drawing({
     }
   }, [id, markup, dark])
 
-  // what the router is trying, over the board, while it is routed: drawn afresh each
-  // time it says, over whichever drawing is there
   React.useLayoutEffect(() => {
     const svg = holder.current?.firstElementChild
     if (!(svg instanceof SVGSVGElement)) return
@@ -477,7 +469,6 @@ function Drawing({
       svg.append(routingOver(routing, place.current))
   }, [routing, markup])
 
-  // the light, while the board is being made: as the 3D's, a frame at a time
   React.useEffect(() => {
     const laid = sweep.current
     if (!laid) return
@@ -568,7 +559,6 @@ function newSweep(): Sweep {
 
 /** Give a board's faces the light that goes across it (see Sweep), out until it is lit. */
 function sweepable(material: THREE.Material, sweep: Sweep) {
-  // (after whatever else is done to it as it is drawn)
   const before = material.onBeforeCompile.bind(material)
   const key = material.customProgramCacheKey.bind(material)
   material.onBeforeCompile = (shader, renderer) => {
@@ -914,7 +904,6 @@ function partsBox(
     )
   }
   if (box.isEmpty()) return null
-  // with some of the board round them, to be seen where they are on it
   const size = box.getSize(new THREE.Vector3())
   return box.expandByScalar(Math.max(size.x, size.y) * AROUND)
 }
@@ -1103,7 +1092,6 @@ function InThreeD({
       had?.dispose()
     }
   }, [url])
-  // what is on the board, by the names it has there: what a click picks out
   const names = React.useMemo(
     () =>
       new Set(
@@ -1126,8 +1114,6 @@ function InThreeD({
       resize={{ debounce: 0 }}
       dpr={[1, 2]}
       gl={{ antialias: true, alpha: true }}
-      // a click on nothing of the board lets go of what was picked out of it
-
       camera={{
         fov: FOV,
         near: (radius * REACH.nearest) / 4,
@@ -1363,10 +1349,8 @@ export function BoardMode({
 }) {
   const as: BoardAs = useStore((state) => state.view.boardAs)
   const { dark, backdrop, pcb } = useThemeColors()
-  // on the view's own ground, as the model is
   const ground = `#${backdrop.getHexString()}`
   const { circuit, trouble } = useCircuit(projectId, board)
-  // (the side matters only to the board drawn as it is made)
   const side = useStore((state) => state.view.boardSide)
   const turned = as === "pcb" && side === "bottom"
   const markup = useDrawn(
@@ -1414,7 +1398,6 @@ export function BoardMode({
   }, [making, atWork])
 
   return (
-    // (its ground comes in over the model as the buttons change over)
     <div
       className="absolute inset-0 animate-in overflow-hidden duration-300 fade-in motion-reduce:animate-none"
       style={{ background: ground }}

@@ -52,10 +52,8 @@ describe("beside", () => {
     expect(
       beside({ ...atEdge, left: 100, right: 110 }, size, within, "under").left
     ).toBe(100)
-    // words that have gone out of sight: it stays at the edge they went past
     const gone = { ...words, top: -80, bottom: -60 }
     expect(beside(gone, size, within, "under").top).toBe(0)
-    // and with room neither way, it is the way it would sooner be, as far as it can
     const tall = { ...words, top: 50, bottom: 560 }
     expect(beside(tall, size, within, "under").top).toBe(500)
     expect(beside(tall, size, within, "over").top).toBe(0)

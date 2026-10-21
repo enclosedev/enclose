@@ -125,7 +125,6 @@ export const usePreferences = create<
   ...saved(),
   change(patch) {
     set(patch)
-    // all that is kept of it is what was chosen: not the way of changing it
     const kept = Object.fromEntries(
       Object.entries(get()).filter(([key]) => key in DEFAULTS)
     )

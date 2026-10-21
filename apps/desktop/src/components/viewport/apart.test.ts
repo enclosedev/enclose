@@ -292,7 +292,6 @@ describe("waysOut", () => {
     expect(ways[1].y).toBe(0)
     const [low, high] = pulled(pieces, ways)
     expect(high.min.z - low.max.z).toBeCloseTo(120 * 0.03, 6)
-    // the one nearer the middle is the one that stays nearer it
     expect(Math.abs(ways[1].z)).toBeLessThan(Math.abs(ways[0].z))
   })
 
@@ -318,7 +317,6 @@ describe("waysOut", () => {
     ]
     const ways = waysOut(pieces, MIDDLE, 125)
     expect(anyInAnother(pulled(pieces, ways))).toBe(false)
-    // and they are in the order they were, from the bottom up
     const heights = pulled(pieces, ways)
       .slice(0, 4)
       .map((box) => box.min.z)
@@ -429,9 +427,7 @@ describe("waysOut", () => {
     const ways = waysOut(pieces, MIDDLE, across)
     const boxes = pulled(pieces, ways)
     expect(anyInAnother(boxes)).toBe(false)
-    // none is sent off out of sight, as one that needs went round and round for was
     for (const way of ways) expect(way.length()).toBeLessThan(across)
-    // the rings of the face are over the case they are let into, and over the works
     const at = (name: string) => boxes[clock.findIndex(([id]) => id === name)]
     for (const ring of ["outer_ring", "middle_ring", "seconds_disc"])
       for (const under of ["body", "outer_carrier", "hour_carrier"])

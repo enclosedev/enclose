@@ -200,7 +200,6 @@ export function stlOf(parts: Meshed[]): Buffer {
   for (const { triangles } of parts)
     for (let i = 0; i < triangles.length; i += 9) {
       const [ax, ay, az, bx, by, bz, cx, cy, cz] = triangles.subarray(i, i + 9)
-      // the way it faces, from the order of its corners
       const [ux, uy, uz, vx, vy, vz] = [
         bx - ax,
         by - ay,

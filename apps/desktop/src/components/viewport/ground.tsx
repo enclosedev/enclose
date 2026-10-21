@@ -197,7 +197,6 @@ export function Ground({
   const dpr = useThree((state) => state.viewport.dpr)
   const ground = React.useRef<THREE.Mesh>(null)
 
-  // Where the model's frame is, to the camera drawing it.
   const sight = React.useMemo(
     () => ({
       /** from the model's frame to the screen, with how far off */

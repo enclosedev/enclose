@@ -24,7 +24,6 @@ const RESTS = rests(REST, choreograph(LOOP.seed, LOOP.moves))
 function useTurning(moving: boolean): View {
   const [view, setView] = React.useState(REST)
   React.useEffect(() => {
-    // someone who has asked for less movement is shown the mark at rest
     if (!moving || matchMedia("(prefers-reduced-motion: reduce)").matches)
       return
     let frame = 0
@@ -70,7 +69,6 @@ export function Letter({
   const stroke = MARK.labelWeight * height
   const bar = minus ? MINUS.bar * height : 0
   const before = minus ? bar + MINUS.gap * height : 0
-  // the two are set round the middle together
   const left = x - (before + LETTER_WIDTH * height) / 2
   return (
     <path

@@ -17,7 +17,6 @@ const pages = fs
 const elsewhere = ['/download', '/download/intel', '/llms.txt', '/sitemap.xml']
 
 test('llms.txt is laid out as llmstxt.org has it', () => {
-  // an H1 with the name, then a blockquote that sums it up
   assert.equal(lines[0], '# Enclose')
   const firstText = lines.slice(1).find((line) => line.trim() !== '')
   assert.ok(firstText?.startsWith('> '), 'a blockquote after the H1')
@@ -49,7 +48,6 @@ test('every link to the site in llms.txt leads to something the site has', () =>
       pages.includes(href) || files.has(href) || elsewhere.includes(href) || fs.existsSync(path.join(root, 'public', href))
     assert.ok(known, `${href} is on the site`)
   }
-  // and every page is listed in it, in Markdown
   for (const page of pages) assert.ok(llms.includes(`https://enclose.dev${markdownFile(page)}`), `${page} is listed`)
 })
 

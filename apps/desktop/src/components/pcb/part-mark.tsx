@@ -79,7 +79,6 @@ export function BoardPartMark({ circuit }: { circuit: Circuit | null }) {
             onKeep={(text, now) => {
               const { keepBoardNote, send, setThreadOpen } = useStore.getState()
               if (!keepBoardNote(text, label)) return
-              // where it has gone is on show
               setThreadOpen(true)
               if (now) send()
             }}
@@ -88,7 +87,6 @@ export function BoardPartMark({ circuit }: { circuit: Circuit | null }) {
         </div>
       ) : (
         <div onPointerDown={held} className="relative flex -translate-1/2">
-          {/* its name, beside the button and of a piece with it; a long one is cut short */}
           <span className="pointer-events-none absolute top-1/2 right-full mr-1.5 flex h-9 max-w-56 -translate-y-1/2 items-center rounded-full bg-foreground px-3.5 text-xs font-medium whitespace-nowrap text-background shadow-sm ring-1 ring-background/25">
             <span className="truncate">{label}</span>
           </span>

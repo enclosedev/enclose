@@ -584,7 +584,6 @@ export class ToolServer {
         )
       )
     ).filter((answer) => answer !== null)
-    // nothing in it wanted an answer
     if (answers.length === 0) {
       response.writeHead(202).end()
       return

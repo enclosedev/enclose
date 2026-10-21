@@ -202,7 +202,6 @@ function useGrip(
   end: () => void
 ) {
   const get = useThree((state) => state.get)
-  // lit while the pointer is on it, and for as long as it is held, wherever that takes it
   const [over, setOver] = React.useState(false)
   const [holding, setHolding] = React.useState(false)
   const held = React.useRef<{
@@ -367,7 +366,6 @@ function Tilt({
     const stood = (way: THREE.Vector3) =>
       way.clone().transformDirection(standing)
     const [from, to] = [stood(tilt.from), stood(tilt.to)]
-    // where on the ring it was taken hold of, and which way the ring goes there
     const out = press.point.clone().sub(middle)
     const angle = Math.atan2(out.dot(to), out.dot(from))
     const radius = RING * sized.current!.scale.x

@@ -186,7 +186,6 @@ export function laidOut(parts: LoadedPart[], apart: number) {
     contours: part.contours,
     place: places[index].elements,
   }))
-  // the room they take up between them, where they are
   const all = new THREE.Box3()
   parts.forEach(({ box }, index) =>
     all.union(box.clone().applyMatrix4(places[index]))
@@ -194,7 +193,6 @@ export function laidOut(parts: LoadedPart[], apart: number) {
   const room: Room = all.isEmpty()
     ? { min: [0, 0, 0], max: [0, 0, 0] }
     : { min: all.min.toArray(), max: all.max.toArray() }
-  // every corner of every part's box, as each side sees it
   const corner = new THREE.Vector3()
   const rooms = SIDES.map(({ looking }) => {
     const right = new THREE.Vector3(...looking.right)
@@ -399,7 +397,6 @@ export function Lines({
       context.strokeStyle = PENCIL
       context.fillStyle = PENCIL
       context.textBaseline = "alphabetic"
-      // the names of the parts: a line from each to its part, a dot where it ends
       if (labels) {
         context.font = `600 ${WRITING * per}px "Inter Variable", sans-serif`
         // (the line is of dots: no nearer one another than three of them would lie)
@@ -462,7 +459,6 @@ export function Lines({
         near = seen.isIntersecting
         again()
       },
-      // (as far to either side of the view as the view is wide)
       { rootMargin: "0px 100% 0px 100%" }
     )
     sight.observe(paper)
@@ -513,17 +509,12 @@ function Sheet({
   const paper = paperOf(drawing?.placing ?? { middle: [0, 0], by: 1 })
   return (
     <section
-      // The sheets come in one after another along the row as the blueprint comes up:
-      // each out of nothing, and up a little into its place.
       className={cn(
         "flex shrink-0 animate-in flex-col duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] fill-mode-both fade-in slide-in-from-bottom-6 motion-reduce:animate-none",
-        // (opened out, a sheet is at the place a page turns to)
         paged && "snap-start"
       )}
       style={{ animationDelay: `${place * AFTER_MS}ms` }}
     >
-      {/* what it is of, and the way to take it away: put away while the sheets are
-          opened out, closing up to nothing over the paper */}
       <header
         inert={open}
         className={cn(
@@ -560,10 +551,7 @@ function Sheet({
         </Tooltip>
       </header>
       {/* Four wide to five high: as tall as the view has room for, clear of what is at
-          its top and its foot, and no taller than it is at a pixel to the point.
-          Pressed, the sheets come up to the view as they are (see Blueprint), and
-          once there are opened out, each to the size of the view: its paper is all of
-          the view then, and its corners square. */}
+          its top and its foot, and no taller than it is at a pixel to the point. */}
       <button
         type="button"
         data-paper
@@ -589,9 +577,6 @@ function Sheet({
             stale && "opacity-25 delay-200"
           )}
         >
-          {/* The drawing's own paper, all of it, as big as the sheet has room for: in
-              the row that is the drawing seen small, what is written on it and all,
-              and opened out the same drawing at a size to be read. */}
           {drawing && (
             <div
               className="relative shrink-0"
@@ -753,7 +738,6 @@ export function Blueprint({
         { transform: `translate(${over}px, ${under}px) scale(${less})` },
       ])
     }
-    // (for anyone who has asked for less to move it is there at once)
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches
     moving.current = true
     zoom.current = [strip, drawing].flatMap((part, index) =>
@@ -827,7 +811,6 @@ export function Blueprint({
       watch.disconnect()
     }
   }, [paged, setView, turnTo])
-  // While they are, the arrow keys go to the sheet before and the one after.
   React.useEffect(() => {
     if (!open) return
     const key = (event: KeyboardEvent) => {
@@ -925,7 +908,6 @@ export function Blueprint({
       }
       return out
     }
-    // each sheet's drawing: of the model as it is on show, or of it as it was
     const found = SIDES.map((_, index) => {
       const of = now?.sides[index] ? now : was?.sides[index] ? was : null
       const as = of?.sides[index] ?? null
@@ -968,7 +950,6 @@ export function Blueprint({
       const { drawing, measures, labels: names, stale } = sides[index]
       if (!now || !drawing || stale) return null
       const side = SIDES[index].name.toLowerCase()
-      // each part's lines under its name, and under its group's as the model has it now
       const lines = new Map(
         now.parts.map((id, place) => [id, drawing.strokes[place]])
       )
@@ -1033,7 +1014,6 @@ export function Blueprint({
           paged ? "gap-0 pr-0 pl-0" : "gap-10 pr-25 pl-68",
           // (a page at a time, once they are at rest: and not under a hand that pulls)
           paged && !pulling && "snap-x snap-mandatory",
-          // a hand over it, which closes on it while it is pulled: whatever it is over
           pulling ? "cursor-grabbing [&_*]:cursor-grabbing" : "cursor-grab"
         )}
         aria-busy={!whole}
@@ -1041,7 +1021,6 @@ export function Blueprint({
           if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return
           if (!open)
             return void (event.currentTarget.scrollLeft += event.deltaY)
-          // opened out, a turn of the wheel turns one page, however far it is turned
           const at = useStore.getState().view.sheet
           if (at === null || moving.current) return
           if (event.timeStamp - turned.current < 450) return
@@ -1071,7 +1050,6 @@ export function Blueprint({
           const moved = event.clientX - from.x
           if (!from.pulled && Math.abs(moved) < PULLED_PX) return
           if (!from.pulled) {
-            // it has the pointer from here on, wherever that goes
             from.pulled = true
             event.currentTarget.setPointerCapture(event.pointerId)
             setPulling(true)

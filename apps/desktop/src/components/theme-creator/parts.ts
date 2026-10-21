@@ -20,7 +20,6 @@ export function shapeOf(name: PaletteName): THREE.BufferGeometry {
     case "lime":
       return new THREE.ConeGeometry(0.75, 1.4, 48)
     case "green":
-      // the boards' colour, on a board
       return new THREE.BoxGeometry(1.7, 0.12, 1.2)
     case "cyan":
       return new THREE.TorusGeometry(0.55, 0.22, 24, 64)

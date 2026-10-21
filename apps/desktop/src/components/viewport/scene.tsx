@@ -641,7 +641,6 @@ const PartModel = React.memo(function PartModel({
   }, [loaded.home])
 
   const planes = React.useMemo(() => [plane], [plane])
-  // what it is drawn in to be told apart, on each occasion it is hinted at for
   const told = React.useMemo(
     () =>
       [
@@ -683,7 +682,6 @@ const PartModel = React.memo(function PartModel({
     [lines]
   )
 
-  // what its faces are ruled into squares with
   const ruled = React.useMemo(() => {
     if (!patterned) return null
     rule(loaded)
@@ -1284,7 +1282,6 @@ function Hint({
       const half = (how.width * renderer.getPixelRatio()) / 2
       material.uniforms.reach.value.set(half / size.x, half / size.y)
       if (moving) {
-        // across the view and a little down it, as far along as the time makes it
         const lean = THREE.MathUtils.degToRad(GLINT.lean)
         const apart = GLINT.apart * renderer.getPixelRatio()
         material.uniforms.going.value.set(
@@ -2336,7 +2333,6 @@ export function Scene({
               look={look}
               cover={anyGlass}
               cut={places[index]}
-              // the part that is looked for is the one thing picked out, while it is
               hovered={!seeking && !sweeping && under.has(id)}
               selected={seeking ? hoveredId === id : lit.has(id)}
               hint={hintedAt.get(id) ?? null}

@@ -15,7 +15,6 @@ const TWO = [0, 1, 2, 0, 2, 3]
 describe("ruledOf", () => {
   it("rules a square face into eight squares each way", () => {
     const { at, across } = ruledOf(flat(8, 8), TWO, [0, 0])
-    // the four corners, from one end of the face to the other
     expect([...at]).toEqual([0, 0, 0.5, 8, 0, 0.5, 8, 8, 0.5, 0, 8, 0.5])
     expect([...across.slice(0, 3)]).toEqual([8, 8, 1])
   })
@@ -43,7 +42,6 @@ describe("ruledOf", () => {
   })
 
   it("rules each face of a mesh by itself", () => {
-    // a large face, and a small one beside it and higher up
     const position = [...flat(16, 16), ...flat(4, 1, [20, 0, 3])]
     const index = [...TWO, ...TWO.map((corner) => corner + 4)]
     const { at, across } = ruledOf(position, index, [0, 0, 1, 1])

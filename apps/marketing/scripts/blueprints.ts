@@ -114,7 +114,6 @@ function laidOut(parts: LoadedPart[], apart: number) {
     contours: part.contours,
     place: places[index],
   }))
-  // every corner of every part's box, where it is in the model
   const corners = parts.flatMap(({ box }, index) =>
     box.isEmpty()
       ? []
@@ -129,7 +128,6 @@ function laidOut(parts: LoadedPart[], apart: number) {
           )
         )
   )
-  // the room they take up between them, where they are
   const room: Room =
     corners.length === 0
       ? { min: [0, 0, 0], max: [0, 0, 0] }
@@ -141,7 +139,6 @@ function laidOut(parts: LoadedPart[], apart: number) {
             Math.max(...corners.map((corner) => corner[axis]))
           ) as Room["max"],
         }
-  // and as each side sees it
   const rooms = SIDES.map(({ looking }) => {
     const room = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity }
     for (const corner of corners) {
@@ -189,7 +186,6 @@ function fileOf(
 ): string {
   const side = SIDES[index]
   const measures = dimensionsOf(room, side.looking, side.flat, placing, UNITS)
-  // each part's lines under its name, and under its group's
   const lines = new Map(
     parts.map((part, place) => [part.part.id, strokes[place]])
   )

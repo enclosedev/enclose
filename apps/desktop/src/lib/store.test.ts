@@ -92,11 +92,9 @@ describe("what the view is put into", () => {
     state().setView({ only: { kind: "part", id: "lid" } })
     state().setView({ hidden: ["base"] })
     expect(state().entered).toEqual(["section", "only", "hidden"])
-    // changed while it is on, it is not gone into again
     state().setView({ section: { ...cut, flipped: true } })
     expect(state().entered).toEqual(["section", "only", "hidden"])
     expect(used).toEqual(["section", "only", "hidden"])
-    // and got out of, it is no longer among them
     state().setView({ only: null })
     expect(state().entered).toEqual(["section", "hidden"])
   })
@@ -115,7 +113,6 @@ describe("what the view is put into", () => {
     state().setPartsOpen(true)
     state().setView({ blueprint: true, sheet: 2 })
     expect(view().sheet).toBe(2)
-    // (it has the view clear: the list of parts is put away)
     expect(state().partsOpen).toBe(false)
     state().setView({ assembly: true })
     expect(view().sheet).toBeNull()
@@ -148,10 +145,8 @@ describe("what the view is put into", () => {
     state().setView({ section: cut })
     state().setView({ section: null })
     expect(kept.get("enclose:grid")).toBe("on")
-    // cut open again, it is as it was left, and not as it would be made afresh
     state().cutOpen(() => ({ ...cut, position: [0, 0, 0] }))
     expect(view().section).toEqual(cut)
-    // and another project's model, never cut, is cut afresh
     state().activate("stool")
     state().cutOpen(() => ({ ...cut, position: [0, 0, 0] }))
     expect(view().section?.position).toEqual([0, 0, 0])
@@ -178,15 +173,12 @@ describe("a circuit board, in PCB mode", () => {
       boardSide: "top",
     })
     state().setView({ boardAs: "pcb", boardSide: "bottom" })
-    // another one opened from the list
     state().setView({ board: "power" })
     expect(view()).toMatchObject({ boardAs: "3d", boardSide: "top" })
-    // and the same one again, after the model
     state().setView({ boardAs: "schematic" })
     state().setView({ board: null })
     state().setView({ board: "power" })
     expect(view().boardAs).toBe("3d")
-    // unless it is opened to be seen another way
     state().setView({ board: null })
     state().setView({ board: "main", boardAs: "pcb" })
     expect(view().boardAs).toBe("pcb")
@@ -209,7 +201,6 @@ describe("what Esc steps back through", () => {
     expect(state()).toMatchObject({ finding: null, partsOpen: true })
     expect(esc()).toBe(true)
     expect(state().partsOpen).toBe(false)
-    // and only then anything of the view itself
     expect(view().section).toEqual(cut)
     expect(esc()).toBe(true)
     expect(view().section).toBeNull()
@@ -221,7 +212,6 @@ describe("what Esc steps back through", () => {
     state().setView({ tools: true, toolsQuiet: true })
     expect(esc()).toBe(false)
     expect(view().tools).toBe(true)
-    // brought up, and put away: Esc then lets go of them, as of the rest of the view
     state().setToolsOpen(true)
     expect(view()).toMatchObject({ tools: true, toolsQuiet: false })
     expect(esc()).toBe(true)
@@ -271,11 +261,9 @@ describe("what Esc steps back through", () => {
   it("brings back what was hidden last of what is still out of sight", () => {
     state().setHidden(["base"])
     state().setHidden(["base", "lid", "foot"])
-    // one of them brought back from the list of parts
     state().setHidden(["base", "foot"])
     esc()
     expect(view().hidden).toEqual(["base"])
-    // and hidden again after the first Esc, that is what comes back first again
     state().setHidden(["base", "lid"])
     esc()
     expect(view().hidden).toEqual(["base"])
@@ -356,7 +344,6 @@ describe("Cmd+Z", () => {
     undoable()
     await state().undo()
     state().letUndoGo()
-    // and what it said is no longer said
     expect(state().saying).toBeNull()
     await state().undo()
     vi.advanceTimersByTime(5000)
@@ -400,15 +387,12 @@ describe("words picked out of the conversation", () => {
     expect(quotes()).toMatchObject([
       { id: first, quote: "Which screws?", text: "M3, four of them" },
     ])
-    // where they have gone is pointed out, and the message box takes the typing
     expect(state()).toMatchObject({ quoting: null, noted: first })
     expect(state().writeRequests).toBe(asked + 1)
-    // words alone are something to send
     state().quote({ quote: "Shall it have a lid?" })
     const second = state().keepQuote("")
     expect(quotes().map((one) => one.text)).toEqual(["M3, four of them", ""])
     expect(second).not.toBe(first)
-    // and with none picked out, nothing is kept
     expect(state().keepQuote("Nothing")).toBeNull()
     state().quote({ quote: "" })
     expect(state().quoting).toBeNull()
@@ -424,11 +408,9 @@ describe("words picked out of the conversation", () => {
     expect(quotes()).toMatchObject([
       { id, quote: "Which screws?", text: "M4, on second thoughts" },
     ])
-    // left with nothing said, the words are still quoted
     state().quote({ id })
     state().keepQuote(" ")
     expect(quotes()).toMatchObject([{ id, text: "" }])
-    // one that is not there is not gone back to
     state().quote({ id: "nothing" })
     expect(state().quoting).toBeNull()
     state().quote({ id })
@@ -448,11 +430,8 @@ describe("words picked out of the conversation", () => {
     expect(sent).toHaveLength(1)
     expect(message(0).projectId).toBe("clock")
     expect(message(0).quotes).toEqual([{ quote: "Which screws?", text: "M3" }])
-    // and no circuit board was on screen for it to be about
     expect(message(0).board).toBeNull()
-    // (what was being said of other words when it went is let go of)
     expect(state()).toMatchObject({ quoting: null, quotes: { clock: [] } })
-    // nothing waiting is nothing to send
     state().send()
     expect(sent).toHaveLength(1)
   })
@@ -514,7 +493,6 @@ describe("recolouring a project", () => {
     expect(state()).toMatchObject({ activeId: "lamp", threadOpen: true })
     expect(sent).toHaveLength(1)
     expect(message(0).projectId).toBe("lamp")
-    // in a new conversation, there being none
     expect(message(0).conversationId).toBeNull()
     expect(message(0).text).toBe(RECOLOUR)
   })

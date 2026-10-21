@@ -228,7 +228,6 @@ export function ThemeCreator({
   const under = useThemes((state) => state.defaults)
   const look = useLook()
   const base = making === "defaults"
-  // the look being made: the one asked for, or the one the window is in
   const [mode, setMode] = React.useState<Mode>(given ?? look)
   // what was saved last: for a new theme, nothing at first, from nothing of its own; for
   // one already made, it as it is; for the app's own look, what is changed of it now
@@ -270,7 +269,6 @@ export function ThemeCreator({
     [mode, base, colours]
   )
   const palette = base ? paletteOf(colours) : paletteOf(colours, under[mode])
-  // a board's colours as they are picked, over what they are over
   const boardColours = React.useMemo(
     () =>
       Object.fromEntries(
@@ -279,9 +277,7 @@ export function ThemeCreator({
     [shown]
   )
   const anything = changes(made.light) || changes(made.dark)
-  // what is picked or called that is not as it was saved last
   const unsaved = name.trim() !== kept.name || !same(made, kept.looks)
-  // a theme is saved once it is called something; the app's own look always is
   const named = base || name.trim() !== ""
   // What a colour goes back to: for a theme, none of its own, so the default's; for the
   // default, what was saved of it, which is the default. A colour is marked where it is
@@ -388,7 +384,6 @@ export function ThemeCreator({
       role="dialog"
       aria-modal
       aria-label="Theme creator"
-      // nothing in it is there to be selected, but what is typed in its fields
       className="theme-creator fixed inset-0 z-50 flex animate-in bg-background text-foreground duration-200 fade-in-0 select-none"
     >
       <aside className="no-drag flex w-104 shrink-0 flex-col border-r">
@@ -396,7 +391,6 @@ export function ThemeCreator({
         <div className="drag h-12 shrink-0" />
         <header className="flex items-start justify-between gap-4 px-7 pt-3 pb-6">
           <div className="flex min-w-0 flex-1 flex-col text-xl/[1.2] font-medium">
-            {/* what it is called, changed where it stands */}
             <input
               ref={naming}
               aria-label={
@@ -415,11 +409,9 @@ export function ThemeCreator({
               onKeyDown={(event) => {
                 if (event.key === "Enter") event.currentTarget.blur()
               }}
-              // the app's own look is always called something
               onBlur={() => {
                 if (base && !name.trim()) setName(kept.name)
               }}
-              // as wide as what is in it, or what it asks for
               className="-ml-1.5 field-sizing-content max-w-full min-w-0 cursor-text self-start rounded-md bg-transparent px-1.5 outline-none select-text placeholder:text-muted-foreground hover:bg-muted focus:bg-muted"
             />
             <span className="text-muted-foreground">
@@ -436,7 +428,6 @@ export function ThemeCreator({
             <span className="sr-only">Close the theme creator</span>
           </Button>
         </header>
-        {/* the window's own colours, a board's, or the settings' */}
         <Tabs
           value={tab}
           onValueChange={(value) => setTab(value as Tab)}
@@ -495,8 +486,7 @@ export function ThemeCreator({
                       reset={reset}
                       onReset={() => partColour(part, partBackTo(part))}
                     >
-                      {/* each of the palette's colours, the one being changed lit; a
-                          part in the window opposite picks its colour too */}
+                      {/* a part in the window opposite picks its colour too */}
                       <div className="grid grid-cols-7 gap-1.5">
                         {PALETTE_NAMES.map((name) => (
                           <button
@@ -530,7 +520,6 @@ export function ThemeCreator({
       </aside>
       <main className="relative min-w-0 flex-1">
         <div className="drag absolute inset-x-0 top-0 h-12" />
-        {/* the look being made, the one or the other */}
         <ToggleGroup
           aria-label="Look"
           variant="outline"
@@ -592,7 +581,6 @@ export function ThemeCreator({
         </Fitted>
         <div className="absolute inset-x-0 bottom-8 flex flex-col items-center gap-2">
           {said && <p className="text-sm text-muted-foreground">{said}</p>}
-          {/* out of sight until the theme is called something, and up into it then */}
           <div
             inert={!named}
             className={cn(
@@ -600,7 +588,6 @@ export function ThemeCreator({
               !named && "translate-y-6 opacity-0"
             )}
           >
-            {/* on while there is something not saved yet */}
             <button
               type="button"
               disabled={saving || !unsaved}
@@ -611,7 +598,6 @@ export function ThemeCreator({
             </button>
           </div>
         </div>
-        {/* that it was saved: at the right, level with the button */}
         <div
           aria-live="polite"
           className="pointer-events-none absolute right-10 bottom-8 flex h-9 max-w-[calc(50%-8rem)] items-center justify-end text-right text-sm text-muted-foreground"

@@ -77,7 +77,6 @@ describe("answerTo", () => {
       "tools",
       "tool",
     ])
-    // a hand on a control is passed on as it was given
     expect(
       await answerTo("viewport", trying, {
         id: 1,
@@ -184,7 +183,6 @@ describe("answerTo", () => {
       },
     })
     expect(given).toHaveLength(1)
-    // with what is made up apart, and the step that fits it
     await call({
       title: "Desk lamp",
       needs,
@@ -198,7 +196,6 @@ describe("answerTo", () => {
       steps: [{ sub: "Shade" }, { fits: ["Shade"] }],
     })
     given.pop()
-    // what is wrong with a guide is said to whoever gave it, to be put right
     const cover = { parts: ["base"] }
     expect(
       await call({ title: "Nothing", needs, cover, steps: [step] })
@@ -256,7 +253,6 @@ describe("answerTo", () => {
         content: [{ type: "text", text: "Versions are switched off." }],
       },
     })
-    // and with nothing to begin it with, it is not asked at all
     expect(await call({})).toMatchObject({ result: { isError: true } })
     expect(briefs).toHaveLength(1)
   })
@@ -336,7 +332,6 @@ describe("ToolServer", () => {
       "parts",
     ])
 
-    // nothing in it wanted an answer
     const told = await post(url, {
       jsonrpc: "2.0",
       method: "notifications/initialized",

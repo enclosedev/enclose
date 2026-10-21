@@ -107,7 +107,6 @@ describe("Changes", () => {
     expect(read("model.py")).toBe("box(10)")
     expect(read("build/lid.glb")).toBe("LID")
     expect(read("notes.txt")).toBe("keep me")
-    // what the turn made is gone, and the folder it made for it
     expect(read("build/extra/base.glb")).toBeNull()
     expect(fs.existsSync(path.join(folder, "build", "extra"))).toBe(false)
     expect(changes.last("p1").undo).toBeNull()
@@ -135,7 +134,6 @@ describe("Changes", () => {
       why: "nothing",
       files: [],
     })
-    // and back again, in the order they were made
     expect((await changes.redo("p1", folder)).ok).toBe(true)
     expect(read("model.py")).toBe("box(20)")
     expect((await changes.redo("p1", folder)).ok).toBe(true)
@@ -163,7 +161,6 @@ describe("Changes", () => {
       why: "changed",
       files: ["model.py"],
     })
-    // nothing was done: not to that file, and not to the other
     expect(read("model.py")).toBe("box(20)  # and a note of my own")
     expect(read("build/lid.glb")).toBe("TALLER LID")
     expect(changes.last("p1").undo?.what).toBe("Taller")
@@ -233,7 +230,6 @@ describe("Changes", () => {
     const changes = new Changes(kept)
     write("parts/lid.py", "lid()")
     await turn(changes, "Folders to files", () => {
-      // a file where there was a folder, and a folder where there was a file
       fs.rmSync(path.join(folder, "parts"), { recursive: true })
       write("parts", "lid() and base()")
       fs.rmSync(path.join(folder, "notes.txt"))
@@ -334,7 +330,6 @@ describe("Changes", () => {
     fs.writeFileSync(path.join(kept, "p1", "index.json"), '{"done":[{"id"')
     const again = new Changes(kept)
     expect(again.last("p1").undo).toBeNull()
-    // the copy is kept, with what said what it was, out of the way
     const [aside] = fs
       .readdirSync(kept)
       .filter((name) => name.startsWith("p1.corrupt-"))
@@ -342,7 +337,6 @@ describe("Changes", () => {
     expect(fs.readFileSync(path.join(kept, aside, "index.json"), "utf8")).toBe(
       '{"done":[{"id"'
     )
-    // and what is done from here on is kept as before
     await turn(again, "Wider", () => write("model.py", "box(30)"))
     expect(new Changes(kept).last("p1").undo?.what).toBe("Wider")
   })
@@ -407,7 +401,6 @@ describe("Changes", () => {
     }
     await turnOf("c1", 0)
     for (let n = 0; n < 14; n++) await turnOf("c2", n)
-    // the one of the first is still there, and of the second the last twelve
     expect(changes.last("p1", "c1").undo?.what).toBe("c1 0")
     let taken = 0
     while ((await changes.undo("p1", folder, null, "c2")).ok) taken++
@@ -463,7 +456,6 @@ describe("Changes", () => {
       write("model.py", "box(30)")
       write("build/base.glb", "BASE")
     })
-    // nothing put aside but what the changes keep, and the folder as it was left
     expect(
       fs.readdirSync(path.join(kept, "p1", changes.last("p1").undo!.id)).sort()
     ).toEqual(["after", "before"])
@@ -480,7 +472,6 @@ describe("Changes", () => {
     ])
     expect((await changes.undo("p1", folder)).ok).toBe(true)
     expect(read("model.py")).toBe("box(10)")
-    // and put back again in turn
     for (let n = 0; n < 3; n++)
       expect((await changes.redo("p1", folder)).ok).toBe(true)
     expect([

@@ -93,7 +93,6 @@ export function Marquee({
         right: Math.max(from.x, to.x),
         top: Math.min(from.y, to.y),
         bottom: Math.max(from.y, to.y),
-        // from left to right, only what shows wholly within it
         whole: to.x >= from.x,
       }
     }
@@ -141,7 +140,6 @@ export function Marquee({
     }
 
     const down = (event: PointerEvent) => {
-      // the main button of a mouse, or a pen: not a finger, and not the camera's buttons
       if (event.button !== 0 || event.pointerType === "touch") return
       const at = { x: event.clientX, y: event.clientY }
       press = {
@@ -158,7 +156,6 @@ export function Marquee({
       press.to = { x: event.clientX, y: event.clientY }
       press.add = event.shiftKey
       if (!drawing) {
-        // a handle in the view has the drag, and not the view itself
         if (bridge.handling) return done()
         const gone = Math.hypot(
           press.to.x - press.from.x,
@@ -166,7 +163,6 @@ export function Marquee({
         )
         if (gone <= DRAG_FROM) return
         drawing = true
-        // not the moment to pick the part under the pointer, or to light it up
         bridge.handling = true
         canvas.setPointerCapture(press.pointer)
         box.classList.remove("hidden")

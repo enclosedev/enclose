@@ -264,7 +264,6 @@ export function declared(
         throw new Error(`controls.${id}.${what} is a function.`)
       doing[what].set(id, does as never)
     }
-    // as it was last left, where it can still be that
     if (id in kept && "value" in control) {
       const value = fitted(control, kept[id])
       if (value !== undefined) (control as { value: Value }).value = value

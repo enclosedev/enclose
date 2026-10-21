@@ -234,7 +234,6 @@ function settle(needs: Need[], at: number[], middle: number): number[] {
       if (--waits[need.high] === 0) ready.push(need.high)
     }
   }
-  // each lot of them about its own middle one
   const stays = new Map<number, number>()
   at.forEach((where, index) => {
     const lot = of(index)
@@ -263,7 +262,6 @@ export type Piece = { box: THREE.Box3; centre: THREE.Vector3 }
 export function nearPairs(boxes: THREE.Box3[]): number[] {
   const found = new Set<number>()
   const n = boxes.length
-  // along x, with y or z as well; and then along y, with z as well
   const along = (
     axis: Axis,
     also: (a: THREE.Box3, b: THREE.Box3) => boolean
@@ -327,7 +325,6 @@ export function waysOut(
     )
     const needs: Record<Axis, Need[]> = { x: [], y: [], z: [] }
     let any = false
-    // (every two that could need anything, in the order every two would be gone through)
     const pairs = nearPairs(moved)
     for (let p = 0; p < pairs.length; p += 2) {
       const [a, b] = [pairs[p], pairs[p + 1]]

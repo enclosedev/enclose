@@ -42,7 +42,6 @@ describe("a number on its way", () => {
     // half way in half the time: it is the same going as coming
     expect(at[30]).toBeLessThan(50)
     expect(at[31]).toBeGreaterThan(50)
-    // and the pace never jumps: from one frame to the next it changes a little
     for (let frame = 1; frame < pace.length; frame++)
       expect(Math.abs(pace[frame] - pace[frame - 1])).toBeLessThan(fastest / 8)
   })
@@ -65,7 +64,6 @@ describe("a number on its way", () => {
     const fastest = Math.max(...pace.map(Math.abs))
     for (let frame = 1; frame < pace.length; frame++)
       expect(Math.abs(pace[frame] - pace[frame - 1])).toBeLessThan(fastest / 6)
-    // it goes on a little the way it was going, and never further than it was sent
     expect(Math.max(...at)).toBeGreaterThan(out.at(-1)!)
     expect(Math.max(...at)).toBeLessThan(100)
     expect(at.at(-1)).toBe(0)
@@ -91,7 +89,6 @@ describe("a number on its way", () => {
   })
 
   it("is the same whatever the frames it is drawn in", () => {
-    // something that swings to and fro, followed in frames that come often and seldom
     const swung = (seconds: number) => 100 * Math.sin(seconds * 2)
     const followed = (rate: number) => {
       const glide = new Glide(0, 0.6)

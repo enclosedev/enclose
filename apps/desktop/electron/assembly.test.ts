@@ -93,7 +93,6 @@ describe("fileGuide", () => {
     const next = fileGuide(root, lamp("Felt side down."), MODEL, null, 2000)
     expect(next.id).toBe("desk-lamp-v2")
     expect(findGuides(root)).toEqual(["desk-lamp-v1.json", "desk-lamp-v2.json"])
-    // a guide to something else is counted by itself
     const other = fileGuide(
       root,
       { ...lamp(), title: "Shade" },
@@ -102,7 +101,6 @@ describe("fileGuide", () => {
       3000
     )
     expect(other.id).toBe("shade-v1")
-    // the one written last comes first
     expect(guidesIn(root).map((guide) => [guide.id, guide.version])).toEqual([
       ["shade-v1", 1],
       ["desk-lamp-v2", 2],
@@ -164,7 +162,6 @@ describe("fileGuide", () => {
       '- step 3, "Fix the cover": Base cover, Cover screws, M3 × 10'
     )
     expect(said).toContain('make it a sub-assembly ("sub", then "fits")')
-    // and nothing of it, of a guide that puts one kind on at a time
     const apart = fileGuide(
       root,
       {
@@ -283,7 +280,6 @@ describe("a project's guides", () => {
     projects.refresh(id)
     const first = assembly()
     expect(first).not.toBeNull()
-    // looked at again with nothing written: it is as it was
     projects.refresh(id)
     expect(assembly()).toBe(first)
     fileGuide(root, lamp(), MODEL, null, 2000)

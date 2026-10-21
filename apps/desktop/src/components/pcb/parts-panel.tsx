@@ -68,7 +68,6 @@ export function BoardPartsPanel({
                 type="button"
                 title={part.names.join(", ")}
                 onClick={() => focus(part.names)}
-                // the parts are lit on the board while the pointer is over their square
                 onPointerEnter={() => hover(part.names)}
                 onPointerLeave={() => hover(null)}
                 className={cn(
@@ -85,7 +84,6 @@ export function BoardPartsPanel({
                     className="absolute top-1 left-1/2 size-[72%] -translate-x-1/2"
                   />
                 )}
-                {/* what it is, and under that how many and what they are called */}
                 <span className="absolute inset-x-2 bottom-1.75 flex flex-col items-center text-center text-[11px] leading-4">
                   <span className="max-w-full truncate font-medium">
                     {part.title}

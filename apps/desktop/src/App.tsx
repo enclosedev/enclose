@@ -45,8 +45,6 @@ function useViewportRequests() {
             data: selection?.part ?? null,
           })
         }
-        // The project's own tools, made to work its model with: how they stand, or a
-        // hand on one of their controls.
         if (request.kind === "tools" || request.kind === "tool") {
           const asked =
             request.kind === "tool"
@@ -98,10 +96,8 @@ function useAppKeys() {
         state.setSettingsOpen(!state.settingsOpen)
         return
       }
-      // the rest are for what the settings are over
       if (state.settingsOpen) return
       if (asked === "conversation" || asked === "bare") {
-        // (both are of the project that is open)
         if (!state.activeId) return
         event.preventDefault()
         if (asked === "conversation")
@@ -184,8 +180,6 @@ function useFolderDrop(): "pictures" | "board" | "files" | null {
       inside = 0
       setOver(null)
       const files = [...event.dataTransfer.files]
-      // pictures go with the open project's next message, or on to its board where
-      // that is on screen, and the rest is opened
       const { activeId, attach, openPaths } = useStore.getState()
       const pictures = activeId ? files.filter(isPicture) : []
       const onBoard = useInspiration.getState().dropping
@@ -217,7 +211,6 @@ export function App() {
   const threadOpen = useStore((state) => state.threadOpen)
   const project = useActiveProject()
   const settingsOpen = useStore((state) => state.settingsOpen)
-  // (as the app is worked on: made into a package, it has no theme creator)
   const creating = useThemes((state) => state.creating)
   const creatingIn = useThemes((state) => state.creatingIn)
   const changing = useThemes((state) => state.changing)
@@ -234,7 +227,6 @@ export function App() {
           {/* the top edge of the view is also what the window is dragged by */}
           <div className="drag absolute inset-x-0 top-0 h-3" />
           <Sidebar>
-            {/* the settings, and over them the app's newer version, where there is one */}
             <UpdateButton />
             <Tooltip>
               <TooltipTrigger

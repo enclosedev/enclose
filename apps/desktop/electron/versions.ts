@@ -250,7 +250,6 @@ export class Versions {
     for (const file of standing) {
       if (wanted.has(file.path)) continue
       await fs.promises.rm(path.join(folder, file.path), { force: true })
-      // and the folders that were there for it, where nothing else is in them
       for (
         let above = path.dirname(file.path);
         above !== "." && above !== "";
@@ -276,7 +275,6 @@ export class Versions {
       // conversations the folder has been in between
       if (is && was && is.size === was.size && is.mtimeMs === was.mtimeMs)
         continue
-      // or written since, with what was in it already
       if (
         is &&
         is.size === file.size &&

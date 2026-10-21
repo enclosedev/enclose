@@ -38,7 +38,6 @@ describe("contoursOf", () => {
       [0, 0, 0],
       [0, 1, 0],
     ])
-    // the two triangles face nearly, but not quite, the same way
     const dot = ways[0] * ways[3] + ways[1] * ways[4] + ways[2] * ways[5]
     expect(dot).toBeGreaterThan(0.9)
     expect(dot).toBeLessThan(1)

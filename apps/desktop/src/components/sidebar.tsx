@@ -74,7 +74,6 @@ function newsOf(
 ): News | null {
   if (!conversation) return null
   if (conversation.status !== "idle") return conversation.status
-  // a board being made in the background, beside it
   if (conversation.job) return "board"
   if (!finished.includes(conversation.id)) return null
   return conversation.failed ? "failed" : "done"
@@ -86,7 +85,6 @@ const NEWS: Record<News, { label: string; under: string; className: string }> =
     working: {
       label: "Working",
       under: "Working in an earlier chat",
-      // a light passes along it for as long as Claude is at work
       className: "text-attention shimmer shimmer-color-attention-shimmer",
     },
     board: {
@@ -123,7 +121,6 @@ function When({
   // one there is news of says that instead, across the end of the card
   if (newsOf(conversation, finished)) return null
   return (
-    // the quietest thing on the card: when matters less than what
     <span
       className={cn(SMALL, "shrink-0 text-muted-foreground/60 tabular-nums")}
     >
@@ -269,7 +266,6 @@ function Under({
                 className={cn(
                   SMALL,
                   "min-w-0 truncate",
-                  // here the light passes along quieter words than on a card
                   news === "working"
                     ? "shimmer text-muted-foreground shimmer-color-foreground"
                     : NEWS[news].className
@@ -303,7 +299,6 @@ function ProjectCard({ project, now }: { project: Project; now: number }) {
   const onBoard = useStore((state) => state.view.board !== null)
   const { cover, under, open } = useStack(project, now)
   const [spread, setSpread] = React.useState(false)
-  // its name is being written over, which is asked for from the card's menu
   const [renaming, setRenaming] = React.useState(false)
   const naming = React.useRef<HTMLInputElement>(null)
   // News of one of the conversations under the card, which the card itself has nothing
@@ -312,10 +307,8 @@ function ProjectCard({ project, now }: { project: Project; now: number }) {
   const newsUnder =
     newsOf(under.find((c) => c.status !== "idle") ?? null, finished) ??
     newsOf(under.find((c) => finished.includes(c.id)) ?? null, finished)
-  // the card is lit for its project, unless what is open is spread out under it
   const openUnder = under.some((c) => c.id === open?.id)
   const lit = active && !(spread && openUnder)
-  // which branch it is on is seen while Control is held, and is out of the way otherwise
   const branches = useControlHeld()
   // The card of the project that is opened is brought to where it can be seen: a new
   // one comes in at the top of the list, which may have been scrolled a long way down.
@@ -365,8 +358,6 @@ function ProjectCard({ project, now }: { project: Project; now: number }) {
                 under.length > 0 ? "Start a new session" : "No messages yet"
               }
             />
-            {/* the branch, for a folder that is kept in git: a line more on its
-                card, while Control is held */}
             {project.branch && branches && (
               <span
                 className={cn(
@@ -399,7 +390,6 @@ function ProjectCard({ project, now }: { project: Project; now: number }) {
             size="icon-xs"
             aria-label={`Remove ${project.name}`}
             title="Remove project"
-            // under the pointer it is a red disc with the cross in white: it takes away
             className="pointer-events-auto absolute top-1.5 right-1.5 opacity-0 transition-[opacity,color,background-color] group-hover/card:opacity-100 hover:bg-red-600 hover:text-white focus-visible:opacity-100 dark:hover:bg-red-600"
             onClick={() => void removeProject(project.id)}
           >
@@ -614,7 +604,6 @@ function ProjectMenu({
             Open folder
           </ContextMenuItem>
           <ContextMenuItem onClick={onRename}>Rename</ContextMenuItem>
-          {/* the agent brings its model to the app's colours as they are now */}
           {project.manifest && (
             <ContextMenuItem onClick={() => recolour(project.id)}>
               Recolor
@@ -639,7 +628,6 @@ function ProjectMenu({
 /** One of the app's examples, in the list of what a project is started from. */
 function ExampleItem({ example }: { example: Example }) {
   const startExample = useStore((state) => state.startExample)
-  // how much of it has come, while a project is being made of it
   const received = useStore((state) => state.starting[example.id])
   const starting = received !== undefined
   return (
@@ -648,7 +636,6 @@ function ExampleItem({ example }: { example: Example }) {
       onClick={() => void startExample(example.id)}
     >
       {example.name}
-      {/* what there is of it to fetch, and then how much of that has come */}
       <span className="ml-auto pl-4 text-xs text-muted-foreground tabular-nums">
         {starting && received > 0
           ? `${Math.floor((received / example.bytes) * 100)}%`

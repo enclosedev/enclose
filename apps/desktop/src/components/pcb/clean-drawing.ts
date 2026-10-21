@@ -63,7 +63,6 @@ export function scopedStyle(css: string, scope: string): string {
       continue
     rules.push(`${scope} :is(${chosen}) {${declarations}}`)
   }
-  // (what is left over is no rule that could be read: an at-rule, or broken)
   return rules.join("\n")
 }
 

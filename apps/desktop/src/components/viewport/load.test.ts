@@ -86,7 +86,6 @@ describe("regrouped", () => {
     expect(moved.model.groups).toBe(groups)
     expect(moved.model.parts[0].group).toBe("case")
     expect(moved.parts[0].part).toBe(moved.model.parts[0])
-    // (and what was loaded of the part is the same)
     expect(moved.parts[0].skins).toBe(cube.parts[0].skins)
   })
 

@@ -95,7 +95,6 @@ function Colours({
   /** the ring is done with: a colour was given or taken back, or nothing was */
   onDone: (gave: boolean) => void
 }) {
-  // the colour they have been given, where it is the same one for them all
   const chosen = useStore((state) => {
     const given = state.activeId ? state.colours[state.activeId] : undefined
     const first = given?.[partIds[0]] ?? null
@@ -242,8 +241,6 @@ export function PartMarks({
   }, [choosing, showPlain])
   React.useEffect(() => () => showPlain(false), [showPlain])
 
-  // where that place is on the screen, kept far enough in from the edges of the view
-  // for what is shown there to fit
   const kept = React.useMemo(() => {
     const seen = new THREE.Vector3()
     const fits = written ? WRITING : choosing ? RING : BUTTONS
@@ -267,7 +264,6 @@ export function PartMarks({
   return (
     <Html position={at} calculatePosition={kept} zIndexRange={OVER}>
       {writing !== null ? (
-        // over the place, where the buttons were
         <div
           onPointerDown={held}
           className="-translate-x-1/2"
@@ -318,7 +314,6 @@ export function PartMarks({
           }}
           className="relative flex -translate-1/2 gap-1.5"
         >
-          {/* its name, beside them and of a piece with them; a long one is cut short */}
           <span className="pointer-events-none absolute top-1/2 right-full mr-1.5 flex h-9 max-w-44 -translate-y-1/2 items-center rounded-full bg-foreground px-3.5 text-xs font-medium text-background shadow-sm ring-1 ring-background/25">
             <span className="truncate">{label}</span>
           </span>

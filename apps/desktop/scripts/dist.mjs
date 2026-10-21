@@ -67,7 +67,6 @@ const ROOT = resolve(import.meta.dirname, "..")
 const asked = ["arm64", "x64"].filter((arch) =>
   process.argv.includes(`--${arch}`)
 )
-// On a Mac both kinds are made; on Linux the machine's own, unless asked.
 const host = process.arch === "arm64" ? "arm64" : "x64"
 const archs =
   asked.length > 0
@@ -83,12 +82,10 @@ const notarized = Boolean(
     process.env.APPLE_API_ISSUER)
 )
 
-// The Linux installers, one kind of which can be asked for at a time.
 const linuxKinds = ["AppImage", "deb", "pacman", "rpm"]
 const askedKinds = linuxKinds.filter((kind) =>
   process.argv.includes(`--${kind.toLowerCase()}`)
 )
-// what is made on Linux, unless some kinds were named
 let kinds = linuxKinds
 
 /** the update feed electron-builder writes for a Linux arch */
@@ -134,7 +131,6 @@ const shared = {
       to: "kit",
       filter: ["**/*", "!**/__pycache__", "!**/.DS_Store"],
     },
-    // the themes there are beside the app's own look, which it reads and offers
     { from: "../../themes", to: "themes", filter: ["*.json"] },
     // what of other people's code goes out with the app, and under what terms:
     // written by the build (scripts/licenses.mjs), and opened from the settings
@@ -171,7 +167,6 @@ try {
         ["dmg", "zip"],
         ...archs.map((arch) => Arch[arch])
       ),
-      // (made, and no more: a release is made from a Mac, as docs/development.md says)
       publish: "never",
       config: {
         ...shared,
@@ -231,8 +226,6 @@ try {
         kinds,
         ...archs.map((arch) => Arch[arch])
       ),
-      // (made, and no more: a release is made from a Mac, as docs/development.md says;
-      // the Linux files are uploaded to it afterwards)
       publish: "never",
       config: {
         ...shared,
@@ -310,7 +303,6 @@ try {
   prepareGit(here())
 }
 
-// what goes up with a release
 for (const file of [
   ...made.filter((one) => !/\.(yml|yaml)$/.test(one)),
   ...feeds.map((feed) => resolve(ROOT, `release/${feed}`)),

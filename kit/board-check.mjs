@@ -243,7 +243,6 @@ export function placedParts(circuit) {
       shape[0].type !== "pcb_smtpad"
     if (bareHole) continue
     const centre = placed.center ?? { x: 0, y: 0 }
-    // its pads, from its middle, each with the pin it is of
     const pads = shape
       .filter((one) => one.type !== "pcb_hole")
       .flatMap((one) => {

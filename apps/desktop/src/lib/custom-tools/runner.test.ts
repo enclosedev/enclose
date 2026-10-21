@@ -62,7 +62,6 @@ describe("the runner", () => {
       type: "failed",
       message: expect.stringContaining("fetch") as string,
     })
-    // the tool was never so much as read
     expect(read).not.toHaveBeenCalled()
   })
 

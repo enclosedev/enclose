@@ -17,7 +17,7 @@ const SHELL = query.get("shell") ?? "glass"
 const REPORT = query.has("report") // run.js is driving: post progress and the result back
 const FRAMES = Number(query.get("frames") ?? 40)
 const WARMUP = 5 // shader compiles and buffer uploads land here, not in the timing
-// the viewport in the screenshot the question came with: 1560 x 1552 CSS px on a 2x display
+// the viewport: 1560 x 1552 CSS px on a 2x display
 const SIZE = {
   w: Number(query.get("w") ?? 1560),
   h: Number(query.get("h") ?? 1552),

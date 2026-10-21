@@ -225,7 +225,6 @@ const PartCard = React.memo(function PartCard({
       {file && (
         <Save
           label={`Download ${part.label}`}
-          // there when the part is pointed at, or the keys are on it
           className="absolute right-0 bottom-0.5 -mr-1.5 opacity-0 group-hover/part:opacity-100 focus-visible:opacity-100"
           onClick={() => void file.save()}
         />
@@ -286,11 +285,8 @@ export const PartsPanel = React.memo(function PartsPanel({
   const { model } = loaded
   const format = usePreferences((state) => state.format)
 
-  // what is picked is shown on its own, and the camera brought to it; picked again,
-  // the rest comes back and the camera goes back to where it was
   const pick = (what: Listed) =>
     setView({ only: same(only, what) ? null : { ...what, near: true } })
-  // several picked out together in the view, and shown on their own, are each lit here
   const among = only?.kind === "parts" ? only.ids : NONE
   // (looked up, part by part, and not searched for)
   const amongSet = React.useMemo(() => new Set(among), [among])
@@ -422,14 +418,12 @@ export const PartsPanel = React.memo(function PartsPanel({
           const parts = grouped.get(group.id)
           if (!parts) return null
           const whole: Listed = { kind: "group", id: group.id }
-          // picked by itself, or with others: every part of it is among those shown
           const picked =
             same(only, whole) || parts.every((part) => amongSet.has(part.id))
           const gone = parts.every((part) => hiddenSet.has(part.id))
           // parts in no group are listed as one, but are not one to pick or to name
           const loose = group.id === LOOSE
           const awaited = naming.includes(group.id)
-          // the files of its parts, and how big they are together where that is known
           const saving = savingParts(
             projectId,
             model.downloads,
@@ -442,7 +436,6 @@ export const PartsPanel = React.memo(function PartsPanel({
             const ids = parts.map((part) => part.id)
             if (gone) return show(ids)
             if (!too) return pick(whole)
-            // with a key held, the whole of it joins what is picked, or leaves it
             sweep.current = NO_SWEEP
             showAlone(toggledAll(order, alone(), ids))
           }
@@ -451,7 +444,6 @@ export const PartsPanel = React.memo(function PartsPanel({
               key={group.id}
               aria-label={group.label}
               data-group={group.id}
-              // a press on the card that is on nothing else of it is on the group
               {...(!loose && {
                 tabIndex: 0,
                 title: gone ? "Hidden: click to show it again" : undefined,

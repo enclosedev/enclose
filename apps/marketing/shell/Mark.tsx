@@ -111,7 +111,6 @@ export function Mark() {
     const elapsed = (time - now.since) / 1000
 
     if (scrolled) {
-      // it keeps turning, from wherever it was
       if (now.doing !== 'turning') begin('turning')
       now.turns += delta / 1000 / around
     } else if (now.doing === 'turning') {

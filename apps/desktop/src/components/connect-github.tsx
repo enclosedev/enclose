@@ -28,7 +28,6 @@ export function ConnectGitHub({
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40 duration-150 dark:bg-black/60 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
         <Dialog.Popup
           data-slot="connect-github"
-          // (what it is, said for whoever cannot see it: the mark says it to the rest)
           aria-label={
             connection.state === "install"
               ? "Install Enclose on GitHub"

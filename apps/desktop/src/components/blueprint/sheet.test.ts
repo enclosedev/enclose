@@ -243,7 +243,6 @@ describe("svgOf", () => {
     expect(svg.match(/<path /g)).toHaveLength(3)
     expect(svg).toContain("<title>Screws &#38; nuts</title>")
     expect(svg).toContain("<title>Lid screws</title>")
-    // nothing is written of what has nothing to show
     expect(svg).not.toContain("Not seen from here")
     expect(svg).not.toContain("Nothing of it shows")
   })
@@ -289,7 +288,6 @@ describe("svgOf", () => {
     )
     // (half bold: it is small, and is read against the lines of the drawing)
     expect(labelled).toMatch(/<text x="175"[^>]*font-weight="600"/)
-    // and a sheet without them has no such group
     expect(
       svgOf({ title: "Box", placing: { middle: [0, 0], by: 1 }, groups: [] })
     ).not.toContain("labels")

@@ -62,7 +62,6 @@ export class Pace {
   put(projectId: string, conversationId: string, item: ThreadItem) {
     const key = `${projectId}\n${conversationId}`
     const last = this.told.get(key)
-    // what was held back of another item goes first
     if (last?.held && last.held.id !== item.id) this.release(key, last)
     const state = stateOf(item)
     const at = this.now()

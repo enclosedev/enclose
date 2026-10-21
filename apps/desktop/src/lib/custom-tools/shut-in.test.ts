@@ -70,7 +70,6 @@ describe("shutIn", () => {
     expect(had(scope, "fetch")).toHaveLength(1)
     shutIn(scope)
     expect(scope.fetch).toBeUndefined()
-    // and not only from in front of it, where going up the line would find it still
     expect(had(scope, "fetch")).toEqual([])
     expect(had(scope, "importScripts")).toEqual([])
     expect(Scope.prototype.fetch).toBeUndefined()
@@ -130,7 +129,6 @@ describe("shutIn", () => {
       configurable: false,
     })
     expect(shutIn(scope)).toEqual(["fetch", "navigator.usb"])
-    // it is still there to be had: which is why it is said
     expect(had(scope, "fetch")).toHaveLength(1)
     expect(had(scope, "importScripts")).toEqual([])
     expect(scope.WebSocket).toBeUndefined()

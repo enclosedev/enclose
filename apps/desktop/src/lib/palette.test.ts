@@ -8,7 +8,6 @@ describe("drawnIn", () => {
     expect(drawnIn("blue", 0)).toBe(PALETTE.blue)
     expect(drawnIn(" Grey ", 3)).toBe(PALETTE.grey)
     expect(drawnIn("white", 0)).toBe(PALETTE.white)
-    // spelt either way
     expect(drawnIn("lightgray", 0)).toBe(PALETTE.lightgrey)
   })
 
@@ -46,7 +45,6 @@ describe("drawnIn", () => {
     expect(drawnIn(null, 2, true)).toBe(PALETTE.indigo)
     expect(drawnIn("green", 0, true)).toBe(PALETTE.indigo)
     expect(drawnIn("#00a040", 0, true)).toBe(PALETTE.indigo)
-    // and every other colour as before
     for (let turn = 0; turn < 10; turn++)
       if (turn !== 2)
         expect(drawnIn(null, turn, true)).toBe(drawnIn(null, turn))
@@ -60,9 +58,7 @@ describe("drawnIn", () => {
       expect(drawnIn("blue", 0)).toBe("#336699")
       expect(drawnIn("#4a7fb5", 0)).toBe("#336699")
       expect(drawnIn(null, 0)).toBe("#336699")
-      // (what green gives way to, too)
       expect(drawnIn("green", 0, true)).toBe("#5544aa")
-      // a grey is still its own
       expect(drawnIn("#d9d9d4", 0)).toBe("#d9d9d4")
     } finally {
       setPalettes(PALETTE, PALETTE)

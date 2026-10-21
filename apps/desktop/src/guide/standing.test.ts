@@ -23,9 +23,7 @@ describe("standing", () => {
   it("has a step's parts in place and lit once the step is done, and nothing of the later ones", () => {
     expect(standing(1, SECOND)).toEqual({ there: 1, out: 0, lit: 1, own: 0 })
     expect(standing(1, THIRD).there).toBe(0)
-    // what went on before is on still, and lit no longer
     expect(standing(1, FIRST)).toEqual({ there: 1, out: 0, lit: 0, own: 0 })
-    // and what was there to begin with has been all along
     expect(standing(1, ALREADY)).toEqual({ there: 1, out: 0, lit: 0, own: 0 })
   })
 
@@ -39,21 +37,17 @@ describe("standing", () => {
     expect(begun.there).toBeLessThan(0.2)
     expect(half.there).toBe(1)
     expect(half.lit).toBe(1)
-    // and the ones of the step before go quiet meanwhile
     expect(standing(1.3, SECOND).lit).toBeLessThan(1)
     expect(standing(1.7, SECOND).lit).toBe(0)
   })
 
   it("lets the whole go before the first parts come in, which were there in it", () => {
-    // still whole, a little way in: where it stands, and fading
     const going = standing(-0.8, FIRST)
     expect(going.out).toBe(0)
     expect(going.there).toBeGreaterThan(0)
     expect(going.there).toBeLessThan(1)
-    // gone: and the first parts not yet on their way
     expect(standing(-0.6, FIRST).there).toBe(0)
     expect(standing(-0.6, THIRD).there).toBe(0)
-    // then they come, from where they come from
     const coming = standing(-0.3, FIRST)
     expect(coming.out).toBeGreaterThan(0)
     expect(coming.there).toBeGreaterThan(0)
@@ -119,17 +113,13 @@ describe("stoodIn", () => {
     const [base, ring, dot] = ["base", "ring", "dot"].map((id) =>
       stands.get(id)!
     )
-    // on to the ring: the base goes, where it stands, and then the ring comes
     expect(standing(0.1, base, cuts)).toMatchObject({ out: 0 })
     expect(standing(0.1, base, cuts).there).toBeLessThan(1)
     expect(standing(0.3, base, cuts).there).toBe(0)
     expect(standing(0.3, ring, cuts).there).toBe(0)
     expect(standing(0.7, ring, cuts).out).toBeGreaterThan(0)
-    // within the ring's own steps nothing goes: the dot comes in at once
     expect(standing(1.2, ring, cuts)).toMatchObject({ there: 1, out: 0 })
     expect(standing(1.2, dot, cuts).out).toBeGreaterThan(0)
-    // and back to the thing itself: the base comes back where it stands, while the
-    // ring and its dot go from where they were, and then come in together
     expect(standing(2.1, ring, cuts)).toMatchObject({ out: 0 })
     expect(standing(2.3, ring, cuts).there).toBe(0)
     expect(standing(2.3, base, cuts)).toMatchObject({ there: 1, out: 0 })

@@ -97,7 +97,6 @@ const LOW = "translate-y-1"
 /** How far the box is from the side of the window. */
 const BOX_INSET = 14
 
-// what each choice is a choice of: over its list
 const MODEL_TITLE = "Which model answers"
 const effortTitle = (name: string) => `How hard ${name} thinks`
 const accessTitle = (name: string) => `What ${name} may do without asking`
@@ -145,8 +144,6 @@ function ModelChoice({ provider }: { provider: Provider }) {
       <DropdownMenuContent
         align="start"
         side="top"
-        // there are many of them: the list is no taller than it was, and scrolls. It is
-        // as wide as the longest thing said in it, short of a width to read across
         className="thin-icons max-h-[min(22rem,var(--available-height))] w-max max-w-[min(26rem,var(--available-width))]"
       >
         <DropdownMenuGroup>
@@ -243,7 +240,6 @@ function AccessChoice({ provider }: { provider: Provider }) {
       <DropdownMenuContent
         align="end"
         side="top"
-        // as wide as the longest thing said in it
         className="thin-icons w-max max-w-(--available-width)"
       >
         <DropdownMenuGroup>
@@ -256,8 +252,6 @@ function AccessChoice({ provider }: { provider: Provider }) {
               const ItemIcon = ACCESS_ICON[key]
               return (
                 <DropdownMenuRadioItem key={key} value={key} closeOnClick>
-                  {/* its picture stands left of all that is said of it, half way
-                      down the two lines, and is drawn with a line a pixel wide */}
                   <ItemIcon size={16} absoluteStrokeWidth strokeWidth={1} />
                   <Words
                     name={ACCESS_WORDS[key].label}
@@ -303,7 +297,6 @@ function Manner({
   const access = useStore((state) => state.access)
   const said = [
     model?.short ?? name,
-    // a model that cannot be told how hard to think has nothing to say of it
     ...(model && model.efforts.length > 0
       ? [effort ? EFFORT_WORDS[effort] : "Default effort"]
       : []),
@@ -328,8 +321,6 @@ function Manner({
         <ProviderIcon provider={id} className="shrink-0" />
         <span className="truncate">Using {said}</span>
       </PopoverTrigger>
-      {/* over the middle of the line that opens it, so that it is plain what it belongs
-          to; moved along only where it would otherwise run past the side of the window */}
       <PopoverContent
         align="center"
         side="top"
@@ -352,9 +343,6 @@ function Manner({
             variant="line"
             className="h-11.5! w-full justify-start gap-0 border-b p-0"
           >
-            {/* whose models: every agent there is. One a message cannot be put to is
-                drawn grey and says why; the one answering never is, whatever is to be
-                said of it */}
             {providers.map((one) => {
               const why = one.id === id ? null : barred(one)
               const called = PROVIDER_WORDS[one.id].name
@@ -452,7 +440,6 @@ function Waiting({
       ].sort((a, b) => (of(b).at ?? 0) - (of(a).at ?? 0)),
     [called, notes, quotes]
   )
-  // the row goes back to its start for a new one, should it have been moved along
   const row = React.useRef<HTMLDivElement>(null)
   const first = chips.length > 0 ? of(chips[0]).id : null
   React.useEffect(() => {
@@ -492,8 +479,6 @@ function Waiting({
                 }
                 className="h-6 max-w-44 shrink-0 gap-1 pr-1"
               >
-                {/* a whole object has the sign the list of parts has, and the scene
-                    the sign of its own button */}
                 {part.parts && <BoxesIcon className="shrink-0" />}
                 {part.scene && <ReferenceIcon className="shrink-0" />}
                 <span className="truncate">{part.label}</span>
@@ -529,7 +514,6 @@ function Waiting({
                   className="flex min-w-0 cursor-pointer items-center gap-1.5 outline-none"
                 >
                   <QuoteIcon className="size-3 shrink-0" />
-                  {/* how the words begin, which gives way to what was said of them */}
                   <span
                     className={cn("truncate", one.text && "max-w-20 shrink-0")}
                   >
@@ -561,7 +545,6 @@ function Waiting({
               className={cn(
                 "h-6 max-w-52 shrink-0 gap-1 pr-1",
                 writing === note.id && "ring-1 ring-foreground/30",
-                // one just made has a light go across it: it is new here
                 noted === note.id && "just-noted"
               )}
             >
@@ -765,7 +748,6 @@ export const Composer = React.memo(function Composer({
     project ? (state.pictures[project.id] ?? NO_PICTURES) : NO_PICTURES
   )
   const pictureTrouble = useStore((state) => state.pictureTrouble)
-  // the circuit board on screen, in PCB mode, which a message is then about
   const boards = useBoards(project)
   const onScreen = useStore((state) => state.view.board)
   const board = boards?.find((one) => one.id === onScreen)?.name ?? null
@@ -790,7 +772,6 @@ export const Composer = React.memo(function Composer({
   const token =
     found && (found.kind === "part" || answers === "claude") ? found : null
   const naming = token ? `${token.kind}:${token.from}` : null
-  // a name that was put away is done with once the caret has left it, or it is gone
   if (shut !== null && shut !== naming) setShut(null)
   const calling = token !== null && naming !== shut ? token : null
   const kind = calling?.kind ?? null
@@ -929,7 +910,6 @@ export const Composer = React.memo(function Composer({
     dropPicture(picture.id)
     return true
   }
-  // why a picture was not taken is said for a moment, and then not
   React.useEffect(() => {
     if (!pictureTrouble) return
     const timer = setTimeout(
@@ -1110,7 +1090,6 @@ export const Composer = React.memo(function Composer({
           className="relative max-h-48 min-h-14 pt-3 placeholder-shown:overflow-hidden placeholder-shown:whitespace-nowrap"
         />
       </div>
-      {/* by which model, thinking how hard, asking how much: one line that says so */}
       <InputGroupAddon
         align="block-end"
         // the line has room of its own around its words, which the round button has
@@ -1118,7 +1097,6 @@ export const Composer = React.memo(function Composer({
         className="gap-1 pr-3 pl-1.5"
       >
         <Manner conversation={open ?? null} />
-        {/* a picture to go with the message: it can also be pasted, or dropped here */}
         <input
           ref={picker}
           type="file"

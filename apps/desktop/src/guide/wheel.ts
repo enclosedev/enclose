@@ -24,14 +24,12 @@ export function wheelHeard(): (event: Turned) => "on" | "back" | null {
   const wheel = { turned: -Infinity, heard: -Infinity, by: 0 }
   return (event) => {
     const by = Math.abs(event.deltaY)
-    // afresh: after it has been still, or by more than it was the moment before
     const afresh =
       event.timeStamp - wheel.heard > WHEEL.still ||
       by > wheel.by * 1.4 + 2 ||
       (by === wheel.by && by >= WHEEL.click)
     wheel.heard = event.timeStamp
     wheel.by = by
-    // (turned across, it is not going through the guide)
     if (by < WHEEL.least || Math.abs(event.deltaX) > by) return null
     if (event.timeStamp - wheel.turned < WHEEL.rests || !afresh) return null
     wheel.turned = event.timeStamp

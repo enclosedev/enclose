@@ -43,12 +43,10 @@ describe("lookingAt", () => {
       [0.3, -0.5, 1],
     ] as Vec3[]) {
       const { right, up, back } = lookingAt(from)
-      // what is to the eye's right is level, and the three are square to each other
       expect(right[2]).toBeCloseTo(0)
       expect(dot(right, up)).toBeCloseTo(0)
       expect(dot(right, back)).toBeCloseTo(0)
       expect(dot(up, back)).toBeCloseTo(0)
-      // and the model's up is up the sheet, where it is looked at from above
       if (from[2] > 0) expect(up[2]).toBeGreaterThan(0)
     }
   })

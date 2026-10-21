@@ -80,7 +80,6 @@ async function draw(
     for (const part of parts) {
       if (stopped()) break
       const own = loaded.getObjectByName(part.names[0])
-      // only what is of the part is drawn, where it is on the board
       const shown = new Set<THREE.Object3D>()
       own?.traverse((thing) => shown.add(thing))
       for (const mesh of meshes) mesh.visible = shown.has(mesh)

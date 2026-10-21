@@ -1013,7 +1013,6 @@ function repaint(
     ...state.colours,
     [projectId]: coloured(state.colours[projectId] ?? {}, had),
   }
-  // into the project's folder, all of them as they are now
   void window.cad.colours.save(projectId, colours[projectId])
   useStore.setState({
     colours,
@@ -1048,7 +1047,6 @@ async function turnBack(projectId: string, way: "undo" | "redo") {
     const saying = saidOf(way, await window.cad.changes[way](projectId), MAC)
     if (saying) useStore.getState().say(saying)
   } catch {
-    // (nothing came back to say what came of it)
     useStore
       .getState()
       .say(`It could not be ${way === "undo" ? "undone" : "redone"}`)
@@ -1287,7 +1285,6 @@ export const useStore = create<State>()((set, get) => ({
   },
 
   load(projectId, conversationId) {
-    // asked for again, it is among the latest to have been
     const at = lately.indexOf(conversationId)
     if (at >= 0) lately.splice(at, 1)
     lately.unshift(conversationId)
@@ -1320,7 +1317,6 @@ export const useStore = create<State>()((set, get) => ({
   },
 
   async startExample(id) {
-    // one that is on its way is not asked for again
     if (id in get().starting) return
     set({ starting: { ...get().starting, [id]: 0 } })
     const project = await window.cad.projects.example(id).catch(() => null)
@@ -1342,7 +1338,6 @@ export const useStore = create<State>()((set, get) => ({
       localStorage.setItem(DIMENSIONS_KEY, patch.dimensions ? "on" : "off")
     if (patch.labels !== undefined)
       localStorage.setItem(LABELS_KEY, patch.labels ? "on" : "off")
-    // a cut is kept as it is left, for the next time its project is cut open
     const { activeId, cuts } = get()
     const kept =
       patch.section && activeId ? { ...cuts, [activeId]: patch.section } : cuts
@@ -1368,20 +1363,16 @@ export const useStore = create<State>()((set, get) => ({
         view.blueprint = false
         view.assembly = false
         view.inspiration = false
-        // a board that is opened is first seen whole, in 3D, from above, unless it is
-        // asked for another way
         if (patch.board !== state.view.board) {
           view.boardAs = patch.boardAs ?? "3d"
           view.boardSide = patch.boardSide ?? "top"
         }
       }
-      // (a sheet is shown by itself only while it is the blueprint that is looked at)
       if (!view.blueprint) view.sheet = null
       return {
         view,
         cuts: kept,
         entered: enteredNow(view, state.entered),
-        // the list of what is on a board is of that board: another, or none, puts it away
         ...(view.board !== state.view.board && {
           boardPartsOpen: false,
           boardFocus: null,
@@ -1389,11 +1380,8 @@ export const useStore = create<State>()((set, get) => ({
           boardPicked: null,
           boardWriting: null,
         }),
-        // a sheet that takes the view to itself has it clear: the list of parts is put away
         ...(view.sheet !== null &&
           state.view.sheet === null && { partsOpen: false }),
-        // nothing is picked out of a blueprint: what was, in the view, is let go of,
-        // and the list of scenes to set the model in is put away, with its tools
         ...(patch.blueprint &&
           !state.view.blueprint && {
             referenceOpen: false,
@@ -1404,7 +1392,6 @@ export const useStore = create<State>()((set, get) => ({
             hoveredId: null,
             writing: null,
           }),
-        // The guides are not of what is on show, and the lists are put away for them.
         // What is picked out is kept: a guide can be asked for of that alone.
         ...(view.assembly &&
           !state.view.assembly && {
@@ -1416,9 +1403,7 @@ export const useStore = create<State>()((set, get) => ({
             hoveredId: null,
             writing: null,
           }),
-        // A board is no view of the model at all, nor is the inspiration board: what is
-        // picked out of the model is let go of, and the lists are put away for it, the
-        // list of boards among them.
+        // A board is no view of the model at all, nor is the inspiration board.
         ...(((view.board !== null && state.view.board === null) ||
           (view.inspiration && !state.view.inspiration)) && {
           partsOpen: false,
@@ -1434,7 +1419,6 @@ export const useStore = create<State>()((set, get) => ({
         }),
       }
     })
-    // what the view has just been put into is counted, where the app counts its use
     for (const name of get().entered)
       if (!before.includes(name)) window.cad.analytics.used(name)
   },
@@ -1449,8 +1433,6 @@ export const useStore = create<State>()((set, get) => ({
   },
 
   select(selection) {
-    // picking another part, or none, is done with what was being written of the last:
-    // and picking one is done with looking for it
     set({
       selection,
       several: NONE,
@@ -1499,7 +1481,6 @@ export const useStore = create<State>()((set, get) => ({
       set({ writing: selection ? note : null })
       return
     }
-    // back to one already made: its part is picked out again, where it was clicked
     const made = (activeId ? notes[activeId] : undefined)?.find(
       (one) => one.id === note
     )
@@ -1579,7 +1560,6 @@ export const useStore = create<State>()((set, get) => ({
               ),
       },
       quoting: null,
-      // new ones are pointed out on the message box, which takes the typing from here
       ...(quoting.id === null && {
         noted: id,
         writeRequests: state.writeRequests + 1,
@@ -1824,7 +1804,6 @@ export const useStore = create<State>()((set, get) => ({
     if (!asked) return
     const { said: key } = asked
     asked = null
-    // what it said is no longer so
     set((state) => (state.saying?.key === key ? { saying: null } : {}))
   },
 
@@ -1933,7 +1912,6 @@ export const useStore = create<State>()((set, get) => ({
       set({ boardWriting: boardPicked ? note : null })
       return
     }
-    // back to one already made: its board is gone to, and its part picked out again
     const made = (activeId ? notes[activeId] : undefined)?.find(
       (one) => one.id === note
     )
@@ -2125,8 +2103,6 @@ export const useStore = create<State>()((set, get) => ({
     const { activeId, projects, picked } = get()
     const project = projects.find((p) => p.id === activeId)
     if (!project) return
-    // the parts called on from the view go ahead of what is written, by name: and the
-    // whole objects go beside it, each as one thing
     const called = get().called[project.id] ?? []
     const message = callingOn(
       (get().drafts[project.id] ?? "").trim(),
@@ -2135,8 +2111,6 @@ export const useStore = create<State>()((set, get) => ({
     const objects = called.flatMap(({ label, parts }): ObjectRef[] =>
       parts ? [{ label, parts }] : []
     )
-    // and with the reference scene called on, it is the scene the message is about;
-    // written in PCB mode, it is about the board on screen
     const reference = called.find((one) => one.scene)?.scene ?? null
     const board = get().view.board
     const notes = get().notes[project.id] ?? []
@@ -2265,7 +2239,6 @@ export const useStore = create<State>()((set, get) => ({
       seen,
       mannerIn(get(), null)
     )
-    // what comes of it is what the conversation panel shows, when it is brought up
     if (id) set((state) => ({ picked: { ...state.picked, [projectId]: id } }))
   },
 
@@ -2282,7 +2255,6 @@ export const useStore = create<State>()((set, get) => ({
     void window.cad.assembly
       .make(project.id, open?.id ?? null, of, mannerIn(get(), open))
       .then((id) => {
-        // stay with the conversation it was asked in, as with one a message began
         if (id)
           set((state) => ({ picked: { ...state.picked, [project.id]: id } }))
         else get().say("The guide could not be asked for just now")
@@ -2458,7 +2430,6 @@ function reconcile(listed: Project[]) {
   })
   tally(before)
   if (activeId && projects.some((p) => p.id === activeId)) return
-  // the open project is gone, or nothing was open yet: fall back to one that exists
   const wanted = /^#project=(.+)$/.exec(location.hash)?.[1] ?? saved(ACTIVE_KEY)
   const next = projects.find((p) => p.id === wanted) ?? projects[0]
   if (next) activate(next.id)
@@ -2611,7 +2582,6 @@ export function connect() {
   const { cad } = window
   cad.projects.onChange(reconcile)
   connectInspiration(() => useStore.getState().model.codex ?? null)
-  // a cut left a moment before the window goes is kept all the same
   window.addEventListener("pagehide", cutsSettled)
   adoptColours()
   // what is waiting to be sent is kept as it changes, so that the window can be loaded

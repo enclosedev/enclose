@@ -56,7 +56,6 @@ describe("SaveFolder", () => {
     )
     expect(() => saving.savedIn(parts)).not.toThrow()
     expect(saving.folder()).toBe(parts)
-    // and the next time the app is opened, nothing was kept
     expect(
       new SaveFolder(
         path.join(blocked, "save-folder"),

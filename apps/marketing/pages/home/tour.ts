@@ -289,7 +289,6 @@ export function runTour({
     // ── the buttons down the edge of the view ─────────────────────────────
     const talk = one('[data-app="talk"]')
     const button = (id: string) => one(`[data-switch="${id}"]`)
-    // the conversation is put away, which leaves the view the whole window
     press(talk, 0, AT.projects[1] + 0.5)
     tl.to(app, { '--shut': 1, duration: 4 }, AT.projects[1] + 1.5)
     go('parts', AT.projects[1], { azimuth: -58, elevation: 30 })
@@ -335,7 +334,6 @@ export function runTour({
     const [menu, menuEnds] = AT.menu
     press(button('grid'), 1, menu)
     tl.to(look, { grid: 1, duration: 2 }, menu + 0.8)
-    // pulled apart, and looked at from further off as it grows; then put back
     press(button('explode'), 1, menu + 4, 3)
     tl.to(look, { apart: 1, distance: stops.menu.apart, duration: 6, ease: 'power2.inOut' }, menu + 4.8)
     tl.to(look, { azimuth: -18, elevation: 24, duration: 13, ease: 'sine.inOut' }, menu + 4.8)
@@ -355,11 +353,9 @@ export function runTour({
     go('chat', menuEnds, { azimuth: -40, elevation: 34 })
     caption(2, 'chat')
 
-    // Scrolling the page scrolls what was said, down to the last of it.
     const [chat, chatEnds] = AT.chat
     tl.to(messages, { y: 0, duration: 9, ease: 'none' }, chat)
 
-    // Then something more is written: of a part, which goes with it as a chip.
     const typed = one('[data-app="typed"]')
     const chip = one('[data-app="typed-part"]')
     const written = { letters: 0 }
@@ -369,7 +365,6 @@ export function runTour({
     tl.to(one('[data-app="placeholder"]'), { opacity: 0, duration: 0.3 }, chat + 10)
     tl.to(one('[data-app="send"]'), { '--on': 1, duration: 0.3 }, chat + 10)
     tl.to(written, { letters: TYPED.text.length, duration: 4, ease: 'none', onUpdate: write }, chat + 10)
-    // and sent: the box is empty again, and what was written is the last thing said
     const sent = chat + 14.6
     tl.to(written, { letters: 0, duration: 0.05, ease: 'none', onUpdate: write }, sent)
     tl.to(one('[data-app="placeholder"]'), { opacity: 1, duration: 0.3 }, sent)
@@ -408,7 +403,6 @@ export function runTour({
     // the cables are drawn where they lie at rest: moved, the arm would leave them behind
     tl.to(look, { cables: 0, duration: 1 }, chatEnds + 4)
 
-    // The slider is taken along, and the arm goes through its routine as it is.
     const [tools, toolsEnds] = AT.tools
     const slider = one('[data-app="slider"]')
     const set = { along: 0 }
@@ -446,7 +440,6 @@ export function runTour({
     go('sheets', toolsEnds, { azimuth: -45, elevation: 35 })
     caption(4, 'sheets')
     press(button('blueprint'), 1, toolsEnds + 1.6, 2.6)
-    // the cards of the other projects close up out of the sheets' way
     tuck(others, false, toolsEnds + 2.4, 2.4)
     tl.to(others, { marginBottom: -6, duration: 2.4, immediateRender: false }, toolsEnds + 2.4)
     const giveWay = [
@@ -475,7 +468,6 @@ export function runTour({
       { opacity: 1, y: 0, duration: 1.2, ease: 'power2.out' },
       toolsEnds + 4.4,
     )
-    // The sheets stand in a row that is gone along sideways.
     const [drawings, drawingsEnd] = AT.sheets
     const inSight = (wide - Math.max(0, to.sheets.x)) / to.sheets.s
     tl.to(

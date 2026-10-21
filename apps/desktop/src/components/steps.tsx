@@ -109,7 +109,6 @@ function StepLine({
           className={cn(
             "shrink-0 font-medium",
             failed ? "text-attention" : "text-foreground/80",
-            // a step done to nothing in particular has only its name to light
             live && !step.detail && LIVE
           )}
         >
@@ -230,7 +229,6 @@ export const Steps = React.memo(
           )}
         >
           {busy && !open ? (
-            // each step takes the place of the one before it, with no show made of it
             <span className="flex min-w-0 items-center gap-2">
               {meanwhile ? (
                 <Meanwhile doing={meanwhile} among />

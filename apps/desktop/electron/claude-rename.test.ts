@@ -44,7 +44,6 @@ describe("followRename", () => {
     note("/Users/me/Projects/lamp", "the lamp's notes")
     followRename("/Users/me/Projects/clock", "/Users/me/Projects/lamp", home)
     expect(noted("/Users/me/Projects/lamp")).toBe("the lamp's notes")
-    // and what was the clock's is left where it was
     expect(noted("/Users/me/Projects/clock")).toBe("the clock's notes")
   })
 

@@ -59,7 +59,6 @@ export function Miniature({
       aria-hidden
       data-theme-preview={colours ? "" : undefined}
       strokeWidth={1}
-      // lines are a pixel wide however small the picture is
       className={cn(
         "block w-full **:[vector-effect:non-scaling-stroke]",
         className

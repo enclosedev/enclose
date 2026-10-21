@@ -130,7 +130,6 @@ export function startPeer(
     if (typeof message !== "object" || message === null) return
     const { id, method } = message
     if (typeof method === "string") {
-      // told something
       if (id === undefined || id === null) {
         // (what it says that cannot be made sense of is no reason to stop listening)
         try {
@@ -140,7 +139,6 @@ export function startPeer(
         }
         return
       }
-      // asked something
       Promise.resolve()
         .then(() => options.onRequest(method, message.params))
         .then(
@@ -156,7 +154,6 @@ export function startPeer(
         )
       return
     }
-    // an answer to something asked
     const asked = typeof id === "number" ? waiting.get(id) : undefined
     if (!asked || typeof id !== "number") return
     waiting.delete(id)
@@ -177,7 +174,6 @@ export function startPeer(
     })
     child.once("exit", (code, signal) => {
       const left = () => {
-        // what it last said to stderr is why, where it said anything
         end(
           new Error(
             said.trim() ||

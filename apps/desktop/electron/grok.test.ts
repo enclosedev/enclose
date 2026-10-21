@@ -181,7 +181,6 @@ on("session/prompt", async (params) => {
         },
       ],
     })
-    // the user says no to the command
     fake.turn.ask = async (wanted) => {
       fake.asked.push(wanted)
       return "deny"

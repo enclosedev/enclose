@@ -143,7 +143,6 @@ describe("Connection", () => {
     await done
     expect(installsAsked()).toBe(4)
     expect(connection.state.state).toBe("on")
-    // kept only now, with the app installed
     expect(given.save).toHaveBeenCalledOnce()
     expect(given.onConnected).toHaveBeenCalledOnce()
   })

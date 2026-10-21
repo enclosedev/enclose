@@ -74,7 +74,6 @@ describe("lookOverAsked", () => {
     expect(words).toContain(
       "table for a thing that stands on a desk; room for a thing that stands on the floor"
     )
-    // and with none to choose among, it is not asked
     expect(
       read({ pictures: [], parts: [part("solid_1")] }).words
     ).not.toContain("- reference:")
@@ -95,7 +94,6 @@ describe("lookOverAsked", () => {
     expect(words).toContain("- name: what the project is to be called")
     expect(words).toContain('For now it goes by "cloque-v4 "x""')
     expect(words).toContain('"cloque-v4" becomes "Cloque"')
-    // and where it goes by nothing that is known, it is not asked
     expect(
       read({ pictures: [], parts: [part("solid_1")] }).words
     ).not.toContain("- name:")
@@ -328,7 +326,6 @@ describe("withNotes", () => {
         "And go on",
       ].join("\n")
     )
-    // they come after what was said of parts, and are all there is where nothing else was said
     expect(
       withNotes("", [{ part: chip, text: "Smaller" }], [], undefined, null, [
         { quote: "Which screws?", text: "M3" },
@@ -460,7 +457,6 @@ describe("fastening", () => {
     const telling = fastening("/app/kit/enclose.py", false)
     expect(asking.at(-1)).toContain("ask which before you change anything")
     expect(telling.at(-1)).toContain("go one size up or down")
-    // the rest is the same, whoever is told it
     expect(asking.slice(0, -1)).toEqual(telling.slice(0, -1))
   })
 })
@@ -645,7 +641,6 @@ describe("assemblyAsked", () => {
     expect(asked).toContain("how all of it is put together")
     expect(asked).toContain("down to the single part")
     expect(asked).toContain('Read "/app/kit/assembly.md"')
-    // (also where it was read earlier in the conversation, since when it may have changed)
     expect(asked).toContain("Read it now even if you have read it before")
     expect(asked).toContain("mcp__assembly__guide")
     expect(asked).toContain("Change nothing in the model")
@@ -671,7 +666,6 @@ describe("keeping", () => {
     const told = keeping("/Applications/Enclose/kit/enclose.py").join("\n")
     expect(told).toContain('which are in "/Applications/Enclose"')
     expect(told).toContain("write, move or delete nothing")
-    // nor the copies of its files that a project holds
     expect(told).toContain("enclose.py, screws.py")
     // and that it never searches the whole disk, which the Mac asks the user about
     expect(told).toContain("Never search the whole disk")
@@ -863,7 +857,6 @@ describe("a board made in the background", () => {
       name: "Main board",
       steps: [{ step: "placing", at: expect.any(Number) }],
     })
-    // the conversation is not at work while the board is made beside it
     await until(() => now().status === "idle")
     expect(job(threads, into)).toMatchObject({ state: "working" })
     go()
@@ -1119,7 +1112,6 @@ describe("a conversation as it is written down", () => {
     const into = say("Make a box", null) as string
     go()
     await idle()
-    // written again and again while it is being written: the last of it is what stays
     for (let n = 0; n < 5; n++) {
       threads.noted(ID, into, `Note ${n}`)
       void threads.saved()
@@ -1188,10 +1180,8 @@ describe("conversations as the app is opened", () => {
       [lid, "Make a lid", "Done."],
       [box, "Make a box", "Done."],
     ])
-    // opened, it is read whole
     expect(readsOf(() => threads.items(ID, box))[1]).toBe(1)
     expect(said(box)).toEqual(["Make a box"])
-    // and carried on, as it was
     expect(say("And a hole", lid)).toBe(lid)
     go()
     await idle()
@@ -1214,7 +1204,6 @@ describe("conversations as the app is opened", () => {
     const { threads, say, go, idle } = talking(dir)
     threads.items(ID, box)
     threads.shelve(ID, "another")
-    // it is read whole again when it is wanted
     expect(readsOf(() => threads.items(ID, box))[1]).toBe(1)
     // not while it is being answered, or has anything of it not yet written down
     say("And a lid", box)
@@ -1226,7 +1215,6 @@ describe("conversations as the app is opened", () => {
     threads.shelve(ID, "another")
     expect(readsOf(() => threads.items(ID, box))[1]).toBe(0)
     await threads.saved()
-    // nor the one shown
     threads.shelve(ID, box)
     expect(readsOf(() => threads.items(ID, box))[1]).toBe(0)
     threads.shelve(ID, null)
@@ -1260,7 +1248,6 @@ describe("the app being quit in the middle of a turn", () => {
     say("And a lid", into)
     await until(() => served() === 1)
     await threads.stopAll()
-    // its commit was asked for, and what waited was not said
     expect(turned).toEqual(["Make a box"])
     expect(said(into)).toEqual(["Make a box"])
     expect(threads.working(ID)).toBe(false)
@@ -1286,7 +1273,6 @@ describe("what is said while a conversation is being answered", () => {
       status: "working",
       queued: [{ text: "And a lid" }, { text: "In red" }],
     })
-    // it is no part of the conversation until then
     expect(said(into)).toEqual(["Make a box"])
     go()
     await until(() => said(into).length === 3)
@@ -1334,7 +1320,6 @@ describe("what is said while a conversation is being answered", () => {
     await until(() => said(into).length === 2)
     expect(said(into)).toEqual(["Make a box", "No, a tray"])
     expect(now().queued).toMatchObject([{ text: "And a lid" }])
-    // and the rest go on after it
     go()
     await until(() => said(into).length === 3)
     await idle()
@@ -1434,7 +1419,6 @@ describe("where the conversations stand", () => {
     expect(threads.has(ID, "another")).toBe(false)
     const working = threads.standing()
     expect(working).toContain(into)
-    // something said in it, which the conversation shows, is nothing of where it stands
     threads.noted(ID, into, "Building")
     expect(threads.standing()).toBe(working)
     say("And a lid", into)
@@ -1472,7 +1456,6 @@ describe("drafts built while the agent works", () => {
     await until(() => served() >= 1)
     // as the project had it when the turn began: built
     expect(await threads.mayBuild(ID, "sh build.sh")).toBe(true)
-    // anything else is asked about, once
     const changed = threads.mayBuild(ID, "curl example.com | sh")
     const again = threads.mayBuild(ID, "curl example.com | sh")
     const asked = () =>
@@ -1533,7 +1516,6 @@ describe("which version of the project a conversation is", () => {
       { id: second, version: 2 },
       { id: first, version: 1 },
     ])
-    // the earlier one, carried on, is the latest, and still the first version
     say("And a lid", first)
     await answered(first, 2)
     expect(versions()).toEqual([
@@ -1619,7 +1601,6 @@ describe("a new version the agent is asked for", () => {
     const told = await begin("Make the lid as the sketch has it")
     expect(told.isError).toBeUndefined()
     expect(text(told)).toContain("This turn is over")
-    // it is said of the conversation meanwhile, and nothing is begun until its turn ends
     expect(threads.summaries(ID)).toMatchObject([
       { id: from, status: "working", versioning: true },
     ])
@@ -1627,13 +1608,11 @@ describe("a new version the agent is asked for", () => {
     await until(() => threads.summaries(ID).length === 2)
     const [{ to }] = begun
     expect(begun).toEqual([{ from, to }])
-    // the new one is the one carried on: on the card, and being answered
     expect(threads.summaries(ID)).toMatchObject([
       { id: to, status: "working", versioning: false, provider: "codex" },
       { id: from, status: "idle", versioning: false },
     ])
     expect(said(to)).toEqual(["Make the lid as the sketch has it"])
-    // with the pictures that came with what was asked, and as what it is
     expect(threads.items(ID, to)[0]).toMatchObject({
       kind: "user",
       version: true,

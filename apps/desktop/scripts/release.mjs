@@ -186,8 +186,6 @@ async function attachLinux() {
     `[release] ready: the tree is clean, ${tag} is checked out, and it is there to attach to`
   )
 
-  // what goes up: one installer of each kind, under versioned names, and what an
-  // installed app updates itself from
   const files = [
     `Enclose-${version}-${names.appimage}.AppImage`,
     `Enclose-${version}-${names.deb}.deb`,
@@ -436,8 +434,6 @@ async function publishMac() {
     }
   }
 
-  // what goes up: the disk images, under the names the site's download goes to, what an
-  // installed app updates itself from, and the source of its git
   const archives = fs
     .readdirSync(RELEASE)
     .filter(

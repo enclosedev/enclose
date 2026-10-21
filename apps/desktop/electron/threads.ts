@@ -921,7 +921,6 @@ function guide(
     ...referring(tool, kit, scenes),
     ...(trying && inspired ? inspiring(canAsk) : []),
     ...(trying ? tooling(tool, kit) : []),
-    // (there is nothing to write a guide to until there is a model)
     ...(trying && manifest ? assembling(tool, kit) : []),
     ...(trying ? wiring(tool, kit, canAsk) : []),
     ...(job ? locked(tool, job) : []),
@@ -1015,7 +1014,6 @@ export function withNotes(
     told[how].length > 0
       ? [
           `<${how}>`,
-          // in one line, and nothing in it that would end the name early
           ...told[how].map(
             (what) =>
               `<turn asked="${what.replace(/"/g, "'").replace(/\s+/g, " ")}" />`
@@ -1269,11 +1267,8 @@ function saidLast(items: ThreadItem[]): string {
 
 /** What a user's message says, for the places that show it in a line. */
 function wordsOf(item: Extract<ThreadItem, { kind: "user" | "assistant" }>) {
-  // of what Claude said, the part it said outright: the rest is for whoever asks
   if (item.kind === "assistant") return replyOf(item.text).said
   if (item.text) return item.text
-  // nothing but what was said of parts, and of words picked out: or, with nothing said
-  // at all, what it is about
   const said = [
     ...(item.notes ?? []).map((note) => note.text),
     ...(item.quotes ?? []).flatMap((one) => (one.text ? [one.text] : [])),
@@ -1487,7 +1482,6 @@ export class Threads {
       this.again.add(conversation.id)
       return
     }
-    // (never only what its card needs)
     this.full(projectId, conversation)
     try {
       writeConversation(this.deps.dir, projectId, conversation)
@@ -1610,7 +1604,6 @@ export class Threads {
           this.writeSoon(projectId, conversation)
     while (this.writing.size > 0)
       await Promise.allSettled([...this.writing.values()])
-    // and their summaries
     for (const projectId of [...this.summing.keys()]) this.sum(projectId)
     while (this.summarising.size > 0)
       await Promise.allSettled([...this.summarising.values()])
@@ -1723,7 +1716,6 @@ export class Threads {
       .sort(
         (a, b) =>
           lastAt(b) - lastAt(a) ||
-          // of two carried on in the same instant, the one being answered is the later
           Number(b === run?.conversation) - Number(a === run?.conversation)
       )
       .map((conversation) => {
@@ -1797,7 +1789,6 @@ export class Threads {
         return
       }
       const text = await gistOf(claude, message.kind, wordsOf(message))
-      // nothing came back, or the project has been taken off the list meanwhile
       if (
         !text ||
         this.books.get(projectId)?.conversations.get(conversation.id) !==
@@ -1850,7 +1841,6 @@ export class Threads {
       (run && run.conversation !== book.waiting[index].conversation)
     )
       return
-    // ahead of whatever else waits there
     const [one] = book.waiting.splice(index, 1)
     book.waiting.unshift(one)
     if (!run) return void this.next(projectId, book, one.conversation)
@@ -2154,7 +2144,6 @@ export class Threads {
     const elsewhere =
       book.job && book.job.conversation.id !== conversationId ? book.job : null
     if (elsewhere) {
-      // (a new conversation is begun, with what was said in it waiting)
       const waiting =
         conversationId === null
           ? newConversation(manner.provider)
@@ -2217,9 +2206,6 @@ export class Threads {
         "info",
         `${AGENTS[conversation.provider]} cannot see images. It got only your words.`
       )
-    // Claude hears with the message of any of this conversation's turns that had what
-    // they did taken back, or put back, since it was last told
-    // and, with what the user says, the inspiration board where it changed since
     const content =
       typeof asked.content === "function"
         ? asked.content(
@@ -2546,7 +2532,6 @@ export class Threads {
       const latest = conversation.items.at(-1)
       const failed = latest?.kind === "notice" && latest.tone === "error"
       this.write(projectId, conversation)
-      // a board it asked to have made in detail is begun now, in the background
       if (run.boardJob && !abort.signal.aborted && !book.job)
         this.track(
           this.startJob(
@@ -2576,7 +2561,6 @@ export class Threads {
         this.safely("projects", () =>
           this.deps.projects.christen(projectId, this.deps.onRenamed)
         )
-      // and what it left is kept in the project's history, where the app keeps that
       if (this.books.get(projectId) === book)
         this.deps.onTurned(
           projectId,
@@ -2648,7 +2632,6 @@ export class Threads {
     }
     show(job.item)
     this.deps.onSummary()
-    // what it does and says goes into its card, as a turn's goes into the conversation
     const putIn = (inner: ThreadItem) => {
       const items = [...job.item.items]
       const index = items.findIndex((one) => one.id === inner.id)
@@ -2688,7 +2671,6 @@ export class Threads {
         (wanted) => this.deps.viewport(projectId, wanted),
         false
       ),
-      // which step of making the board it is at, which the window shows
       [BOARDS]: makingTools((step) => {
         if (following.say(step)) this.deps.onSummary()
       }),
@@ -2715,7 +2697,6 @@ export class Threads {
         }),
       // (the card says how long it has been at the board, and what it did last)
       doing: () => {},
-      // what it wants leave for is put to the user in the conversation, as a turn's is
       ask: (wanted, signal) =>
         new Promise<PermissionAnswer>((resolve) => {
           const id = `ask-${++this.counter}-${Date.now()}`
@@ -2817,7 +2798,6 @@ export class Threads {
           : "done"
       const ended = Date.now()
       show({ ...job.item, state: outcome, ended })
-      // as it was left
       following.look()
       let toBeMade = false
       try {
@@ -2846,7 +2826,6 @@ export class Threads {
           conversation.name ?? null,
           said?.kind === "assistant" ? said.text : ""
         )
-        // what was said in another conversation meanwhile goes on now
         const waited = book.waiting[0]
         if (!book.run && waited) this.next(projectId, book, waited.conversation)
       }
@@ -2940,7 +2919,6 @@ export class Threads {
         message: { role: "user", content: turn.content },
         parent_tool_use_id: null,
       }
-      // and what more is said to it while it is at work, as it comes
       if (turn.more)
         for await (const more of turn.more)
           yield {
@@ -3290,7 +3268,6 @@ export class Threads {
         cause: error,
       })
     } finally {
-      // what was in flight did not finish
       for (const item of live.values()) turn.put({ ...item, streaming: false })
       for (const item of tools.values()) turn.put({ ...item, state: "failed" })
     }

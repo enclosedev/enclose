@@ -55,7 +55,6 @@ describe("declared", () => {
         { id: "go", label: "Start", icon: "play" },
       ],
     })
-    // one with a sign and no words is known by the sign
     expect(
       one({ kind: "buttons", options: [{ icon: "pause" }] })
     ).toMatchObject({ options: [{ id: "pause", label: "", icon: "pause" }] })
@@ -81,7 +80,6 @@ describe("declared", () => {
     expect(one({ kind: "slider", max: 10, value: 2 }, { it: 7 })).toMatchObject(
       { value: 7 }
     )
-    // no longer something it can be set to: as the file has it
     expect(
       one({ kind: "choice", options: ["a", "b"] }, { it: "gone" })
     ).toMatchObject({ value: "a" })

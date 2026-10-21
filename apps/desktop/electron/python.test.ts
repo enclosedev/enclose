@@ -136,7 +136,6 @@ describe("Python", () => {
   it("stops what it runs to make one when it is closed", async () => {
     const theirs = path.join(dir, "bin", "python3")
     pythonAt(theirs, path.join(dir, "nothing"))
-    // a uv that takes its time
     const uv = path.join(dir, "slow-uv")
     fs.writeFileSync(uv, "#!/bin/sh\nexec sleep 30\n", { mode: 0o755 })
     const { python, seen } = make(theirs, uv)

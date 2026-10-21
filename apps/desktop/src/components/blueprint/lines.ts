@@ -431,7 +431,6 @@ function seenOf(
     seen[1] = 1
     return 2
   }
-  // what is left between the stretches that are hidden, taken in order
   let stretches: [number, number][] = [[hid[0], hid[1]]]
   if (hid.length > 2) {
     stretches = []
@@ -553,8 +552,6 @@ function* once(
   side: number
 ): Generator<void, Pieces> {
   const kept: Pieces = { ends: [], of: [], kind: [] }
-  // the run each piece is of, pieces that go on from one another being one run, and
-  // how long each run is
   const runOf: number[] = []
   const runs: number[] = []
   for (let piece = 0; piece < pieces.of.length; piece++) {
@@ -633,7 +630,6 @@ function* once(
         const b = ((x2 - cx) * ux + (y2 - cy) * uy) / along
         const beside = ((y1 - cy) * ux - (x1 - cx) * uy) / along
         const then = ((y2 - cy) * ux - (x2 - cx) * uy) / along
-        // beside it by no more than makes them one line, and between its two ends
         from = 0
         to = 1
         within(beside, then, -near, near)
@@ -695,14 +691,12 @@ function joined(ends: number[]): Stroke[] {
     meeting.push([])
     return made
   }
-  /** for each line, the place each of its ends is at */
   const endAt = new Int32Array(count * 2)
   for (let line = 0; line < count; line++) {
     const from = placeOf(ends[line * 4], ends[line * 4 + 1])
     const to = placeOf(ends[line * 4 + 2], ends[line * 4 + 3])
     endAt[line * 2] = from
     endAt[line * 2 + 1] = to
-    // one that ends where it began is no line at all
     if (from === to) continue
     meeting[from].push(line)
     meeting[to].push(line)
@@ -799,7 +793,6 @@ export function* drawn(
 ): Generator<void, Stroke[][]> {
   const frames = bodies.map((body) => frameOf(looking, body.place))
 
-  // every triangle of every part, as it lies in the picture
   let triangles = 0
   for (const body of bodies)
     for (const skin of body.skins)
@@ -837,8 +830,6 @@ export function* drawn(
     }
   }
 
-  // every line that might be drawn: the edges of all the parts, and then the outlines
-  // of their curved faces, those of them that are outlines seen from here
   let most = 0
   for (const body of bodies)
     most +=
@@ -908,7 +899,6 @@ export function* drawn(
   const side = Math.max(box.x1 - box.x0, box.y1 - box.y0, SPECK) * 1.001
   const squares = yield* squared(faces, triangles, box.x0, box.y0, side)
 
-  // what of each is seen
   const pieces: Pieces = { ends: [], of: [], kind: [] }
   const marks = new Uint32Array(triangles)
   const seen: number[] = []

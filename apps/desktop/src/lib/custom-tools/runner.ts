@@ -33,7 +33,6 @@ let running: Running | null = null
 let count = 0
 
 async function start(message: Extract<ToRunner, { type: "start" }>) {
-  // a tool is run shut in, or not at all
   const left = shutIn(self)
   if (left.length > 0)
     throw new Error(

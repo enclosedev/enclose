@@ -14,7 +14,6 @@ export function meta() {
   })
   return {
     ...said,
-    // What the app is, for a search engine to say beside the link to it.
     script: [
       {
         type: 'application/ld+json',

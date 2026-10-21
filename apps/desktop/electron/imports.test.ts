@@ -164,7 +164,6 @@ describe("bringIn", () => {
     expect(
       fs.readFileSync(path.join(dir, "source/deep/Top.step"), "utf8")
     ).toBe("STEP")
-    // what was opened is as it was
     expect(fs.existsSync(from)).toBe(true)
     expect(fs.readFileSync(path.join(dir, "enclose.py"), "utf8")).toBe(
       "# the exporter"
@@ -175,7 +174,6 @@ describe("bringIn", () => {
     const script = fs.readFileSync(path.join(dir, "model.py"), "utf8")
     expect(script).toContain('model = Model("Tray Metalic")')
     expect(script).toContain('    "source/deep/Top.step",')
-    // and it says what that script was written from, to be written from again
     expect(written).toEqual({
       title: "Tray Metalic",
       files: ["source/deep/Top.step"],
@@ -267,7 +265,6 @@ describe("modelScript", () => {
     // what it was taken to be is said where nothing in it can end the saying
     expect(script).toContain("It took the thing to be: a 'wall' clock'")
     expect(script.split('"""')).toHaveLength(3)
-    // with no reference scene named for it, the model names none
     expect(script).toContain('model = Model("Clock")\n')
   })
 

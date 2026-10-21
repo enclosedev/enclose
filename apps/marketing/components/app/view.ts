@@ -211,7 +211,6 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
 
   const middle = box.getCenter(new THREE.Vector3())
   const radius = box.getSize(new THREE.Vector3()).length() / 2
-  // the group that the list of parts shows on its own, and the room it takes
   const picked = parts
     .filter((part) => part.link === PICKED)
     .reduce((all, part) => all.union(part.room), new THREE.Box3())
@@ -290,7 +289,6 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
       Math.sin(around) * Math.cos(above),
       Math.sin(above),
     )
-    // (what is looked at, and how big it is: the whole model, or the group on its own)
     aim.lerpVectors(middle, pickedMiddle, look.alone)
     const size = radius + (pickedRadius - radius) * look.alone
     camera.position.copy(aim).addScaledVector(eye, size * look.distance)
@@ -332,7 +330,6 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
         if (gone) break
         if (!one) continue
 
-        // look at the middle of the part, and open the picture just wide enough for it
         const centre = one.room.getCenter(new THREE.Vector3())
         const reach = one.room.getSize(new THREE.Vector3()).length() || 1
         flat.position.copy(centre).addScaledVector(HOME, reach * 2)
@@ -353,7 +350,6 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
         Object.assign(flat, { left: -half, right: half, top: half, bottom: -half, near: reach * 0.01, far: reach * 4 })
         flat.updateProjectionMatrix()
 
-        // nothing in the scene but the part, where it sits in the model as built
         const shown = parts.map((part) => part.object.visible)
         const laid = ground.objects.map((object) => object.visible)
         const stood = one.object.matrix.clone()
@@ -369,7 +365,6 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
         easel.render(scene, flat)
         each(id, easel.domElement.toDataURL('image/png'))
 
-        // and all as it was
         parts.forEach((part, index) => (part.object.visible = shown[index]))
         ground.objects.forEach((object, index) => (object.visible = laid[index]))
         one.object.matrix.copy(stood)

@@ -38,11 +38,9 @@ export function tokenAt(text: string, caret: number): Token | null {
   while (from > 0 && !/\s/.test(text[from - 1])) from--
   const kind = KIND[text[from]]
   if (!kind || from >= caret) return null
-  // a command is the whole of what is asked: it leads, or it is not one
   if (kind === "command" && from !== 0) return null
   const query = text.slice(from + 1, caret)
   if (!NAMED.test(query)) return null
-  // the rest of the word, when the caret is in the middle of it, goes with it
   let to = caret
   while (to < text.length && !/\s/.test(text[to])) to++
   return { kind, from, to, query }
@@ -52,7 +50,6 @@ export function tokenAt(text: string, caret: number): Token | null {
 export function putIn(text: string, token: Token, name: string) {
   const before = text.slice(0, token.from) + MARK[token.kind] + name
   const after = text.slice(token.to)
-  // one space after it, whether or not there was one already
   const rest = after.startsWith(" ") ? after : ` ${after}`
   return { text: before + rest, caret: before.length + 1 }
 }

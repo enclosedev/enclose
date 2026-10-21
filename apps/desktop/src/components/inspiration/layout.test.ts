@@ -58,7 +58,6 @@ describe("placed", () => {
       for (const other of boxes.slice(index + 1))
         expect(overlaps(box, other, GAP - 1)).toBe(false)
     }
-    // and none of them far off
     const all = boundsOf(boxes)!
     expect(all.w).toBeLessThan(3000)
   })
@@ -86,7 +85,6 @@ describe("spreadOf", () => {
     const all = boundsOf(boxes)!
     expect(all.x).toBeCloseTo(500, 0)
     expect(all.y).toBeCloseTo(-200, 0)
-    // more than one row, and not much wider than tall
     expect(new Set(boxes.map((box) => box.y)).size).toBeGreaterThan(1)
     expect(all.w / all.h).toBeLessThan(2.5)
   })

@@ -76,8 +76,7 @@ export function field(input: unknown, ...keys: string[]) {
 
 /**
  * One turn of a conversation, as the agent says it: what it is saying now, what has been
- * said of each tool call, and what is on show of them. It is the state that used to be
- * kept in each runner's closures.
+ * said of each tool call, and what is on show of them.
  */
 export class AcpTurn {
   /** the agent's name for the conversation, once it has said it */
@@ -180,7 +179,6 @@ export class AcpTurn {
           if (value !== null && value !== undefined)
             (call as Record<string, unknown>)[name] = value
         this.calls.set(key, call)
-        // what it turns over in its own head is no step to show
         if (call.kind === "think") return
         const closed = call.status === "completed" || call.status === "failed"
         const item = {
@@ -439,7 +437,6 @@ export async function runTurn<Hello>(
     onNotification: state.notification,
     onRequest: request,
   })
-  // gone before the turn was over: what it last said to stderr is why, if anything is
   const died = peer.gone.then(() => {
     throw new Error(
       peer.stderr() || `${agent.name} exited before the turn was over.`
@@ -466,7 +463,6 @@ export async function runTurn<Hello>(
 
     const where = {
       cwd: turn.cwd,
-      // where the app's own tools answer, for as long as this turn lasts
       mcpServers: Object.entries(turn.served).map(([name, url]) => ({
         type: "http",
         name,
@@ -529,7 +525,6 @@ export async function runTurn<Hello>(
     if (!resumed) state.sessionId = await Promise.race([begin(), halt, died])
     turn.session(state.sessionId)
 
-    // which model answers, and how hard it thinks: said only where the user chose
     for (const setting of agent.session?.settings?.(turn) ?? [])
       await Promise.race([
         peer.request("session/set_config_option", {
@@ -581,7 +576,6 @@ export async function runTurn<Hello>(
     }
     throw error
   } finally {
-    // what was in flight did not finish
     state.abandon()
     peer.close()
   }

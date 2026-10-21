@@ -57,7 +57,6 @@ export function inBlocks(items: ThreadItem[]): Block[] {
       item.kind !== "tool" &&
       !(item.kind === "assistant" && aside.has(item))
     ) {
-      // whatever comes next is where the steps before it ended
       if (last?.kind === "steps") last.took = item.at - from
       blocks.push(item)
       continue
@@ -131,7 +130,6 @@ export function atWork(
   if (last.kind !== "assistant" && last.kind !== "tool") return null
   if (doing?.kind === "thinking") return "Thinking"
   if (last.kind === "assistant") return "Writing what it found"
-  // the one it is on, if it is on more than one; and failing that the last it took
   const step =
     items.findLast(
       (item): item is Step => item.kind === "tool" && item.state === "running"

@@ -424,7 +424,6 @@ async function main() {
     const count = (tally[kindName] ??= { parts: 0, trianglesIn: 0, triangles: 0, segmentsIn: 0, segments: 0 })
     count.parts++
 
-    // surfaces
     const file = path.join(SOURCE, part.file)
     source.bytes += (await fs.stat(file)).size
     const bodies = bodiesOf(await reader.read(file))
@@ -463,7 +462,6 @@ async function main() {
       .setIndices(doc.createAccessor().setType('SCALAR').setArray(surface.index).setBuffer(buffer))
     scene.addChild(doc.createNode(part.id).setMesh(doc.createMesh(part.id).addPrimitive(primitive)))
 
-    // edge lines
     let segments = []
     if (part.edges) {
       const bytes = await fs.readFile(path.join(SOURCE, part.edges))
@@ -521,7 +519,6 @@ async function main() {
     tally[kindOf(parts[at].id)].segments += parts[at].edges[1]
   })
 
-  // ---- write
   doc.createExtension(KHRMeshQuantization).setRequired(true)
   doc
     .createExtension(EXTMeshoptCompression)
@@ -544,7 +541,6 @@ async function main() {
   await fs.writeFile(path.join(OUT, 'arm.edges.bin'), edges)
   await fs.writeFile(path.join(OUT, 'arm.json'), json)
 
-  // ---- say what happened
   const kb = (bytes) => `${(bytes / 1024).toFixed(0)} KB`
   const sent = (data) => `${kb(data.length)}, ${kb(zlib.gzipSync(data).length)} gzipped`
   const total = { parts: 0, trianglesIn: 0, triangles: 0, segmentsIn: 0, segments: 0 }

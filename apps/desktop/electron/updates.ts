@@ -150,7 +150,6 @@ export function newer(of: string, than: string): boolean {
     const y = b.numbers[at] ?? 0
     if (x !== y) return y > x
   }
-  // the same numbers: a release is newer than what led up to it, and nothing else is
   return a.pre !== undefined && b.pre === undefined
 }
 

@@ -54,7 +54,6 @@ export function grokModels(state: GrokModels | undefined): ModelChoice[] {
         )
   const standing = rows.find((row) => row.modelId === state?.currentModelId)
   return [
-    // there is always the choice of leaving it to Grok
     {
       id: null,
       name: "Default",
@@ -152,7 +151,6 @@ const step = (
           : ctx.relative(file || (call.locations?.[0]?.path ?? ""))
   if (KINDS[kind])
     return { name: KINDS[kind], detail: detail || (call.title ?? "") }
-  // a tool someone else brought it, or one of its own that is none of the above
   const called = field(call.rawInput, "tool_name") || call.title || "Tool"
   return { name: called.replaceAll("__", " "), detail }
 }

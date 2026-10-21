@@ -113,11 +113,9 @@ function ofPalette(
   turn: number
 ): { name: PaletteName } | string {
   if (given === null) return { name: IN_TURN[turn % IN_TURN.length] }
-  // "gray" is the same word
   const named = given.trim().toLowerCase().replace("gray", "grey")
   if (named in PALETTE) return { name: named as PaletteName }
   const colour = parts(given)
-  // not a colour this can read: left to whatever draws it
   if (!colour) return given
   const hue = hueOf(colour)
   if (hue === null) return given

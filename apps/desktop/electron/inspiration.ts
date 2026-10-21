@@ -167,7 +167,6 @@ export class Inspiration {
     const file = `${id}${ending}`
     fs.mkdirSync(at.folder, { recursive: true })
     fs.writeFileSync(path.join(at.folder, file), bytes)
-    // more is being put on the board: what was passed over is tried again with it
     this.passed.delete(projectId)
     return { id, file }
   }
@@ -198,7 +197,6 @@ export class Inspiration {
     const kept = new Set(images.map((image) => image.file))
     for (const image of was.images) {
       if (kept.has(image.file)) continue
-      // one taken off while it is looked at is not looked at any more
       this.looking.get(projectId)?.get(image.id)?.abort()
       void this.deps
         .trash(path.join(at.folder, image.file))

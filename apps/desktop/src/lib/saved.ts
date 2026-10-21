@@ -63,7 +63,6 @@ export function savingParts(
             ),
     }
   }
-  // the files of the parts, each once
   const files = [
     ...new Map(
       parts.flatMap((part) => {

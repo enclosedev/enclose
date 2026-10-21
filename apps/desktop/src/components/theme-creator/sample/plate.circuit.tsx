@@ -683,7 +683,6 @@ export default () => (
     <trace from=".J12 > .IO1" to=".U1 > .IO1" />
 
     {/* ------------------------------------------------------------ stepper drive */}
-    {/* 3.3 V to 5 V for the drivers' inputs */}
     <SN74LV1T34
       name="U6"
       pcbX={-12.6}
@@ -999,7 +998,6 @@ export default () => (
     {label("12V", -39.4, -18.5, 0.6)}
     {label("UART", -9.6, -28, 0.8)}
     {label("EXP", 46.5, 10.4, 0.8)}
-    {/* ground poured over the top, round everything else on it */}
     <copperpour connectsTo="net.GND" layer="top" clearance="0.3mm" />
   </board>
 )

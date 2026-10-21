@@ -75,8 +75,6 @@ function stacked(wanted: number[], height: number): number[] {
   const top = ENDS + CAPITAL
   const foot = height - ENDS
   const at = [...wanted]
-  // down from the top, none nearer the one over it than a line; then, if that took the
-  // last past the foot, back up from there
   for (let i = 0; i < at.length; i++)
     at[i] = Math.max(at[i], i === 0 ? top : at[i - 1] + PITCH)
   for (let i = at.length - 1; i >= 0; i--)
@@ -94,8 +92,6 @@ export function labelsOf(
   placing: Placing,
   column: number
 ): Label[] {
-  // each part that shows: the room its lines take up on the sheet, and the places of
-  // them that are furthest to either side
   type Shown = {
     label: string
     left: [number, number]
@@ -129,7 +125,6 @@ export function labelsOf(
 
   const paper = paperOf(placing)
   const rows = Math.floor((paper.height - 2 * ENDS - CAPITAL) / PITCH) + 1
-  // more than there is room for: the biggest of them are the ones that are named
   const named =
     shown.length <= 2 * rows
       ? shown
@@ -165,7 +160,6 @@ export function labelsOf(
   const labels: Label[] = []
   for (const side of ["left", "right"] as const) {
     const out = side === "left" ? -1 : 1
-    // where the names end, on this side: the edge of the column that is nearer the drawing
     const edge = side === "left" ? EDGE + column : paper.width - EDGE - column
     const ordered = sides[side]
       .map((part) => ({ part, at: part[side] }))

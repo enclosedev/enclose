@@ -75,7 +75,6 @@ describe("startPeer", () => {
     const failed = await peer.request("fail").catch((error: unknown) => error)
     expect(failed).toBeInstanceOf(RpcError)
     expect(failed).toMatchObject({ code: -32000, message: "No such thread." })
-    // and a thing it has no way of doing is numbered as JSON-RPC numbers that
     await expect(peer.request("dance")).rejects.toMatchObject({
       code: NO_SUCH_METHOD,
     })
@@ -178,7 +177,6 @@ on("hello", () => ({ hello: true }))`
     await expect(peer.request("leave")).rejects.toThrow("out of memory")
     await peer.gone
     expect(peer.stderr()).toBe("out of memory")
-    // and nothing more can be asked of it
     await expect(peer.request("anything")).rejects.toThrow("out of memory")
   })
 

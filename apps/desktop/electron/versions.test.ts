@@ -55,7 +55,6 @@ describe("Versions", () => {
     })
     expect(versions.on("p1")).toBe("a")
     expect(read("model.py")).toBe("box(10)")
-    // and is that one's already, when it is turned to again
     expect(await versions.turnTo("p1", "a", folder)).toBeNull()
   })
 
@@ -75,7 +74,6 @@ describe("Versions", () => {
     const versions = new Versions(kept)
     await versions.turnTo("p1", "a", folder)
     await versions.turnTo("p1", "b", folder)
-    // what the second does: a file written to, one made, one taken away
     write("model.py", "sphere(5)")
     write("build/ball.glb", "BALL")
     fs.rmSync(path.join(folder, "build/lid.glb"))
@@ -89,7 +87,6 @@ describe("Versions", () => {
     expect(read("build/lid.glb")).toBe("LID")
     expect(read("build/ball.glb")).toBeNull()
 
-    // and what is done in the first is not in the second
     write("notes/idea.txt", "taller")
     await versions.turnTo("p1", "b", folder)
     expect(read("model.py")).toBe("sphere(5)")
@@ -151,7 +148,6 @@ describe("Versions", () => {
     await versions.turnTo("p1", "a", folder)
     await versions.turnTo("p1", "b", folder)
     write("model.py", "sphere(5)")
-    // switched off: the folder is the one version there is
     expect(await versions.turnTo("p1", "a", folder, { kept: false })).toEqual({
       from: "b",
       to: "a",
@@ -203,7 +199,6 @@ describe("Versions", () => {
     })
     expect(read("model.py")).toBe("sphere(5)")
     expect(read("build/half.glb")).toBeNull()
-    // the first is as it was left, with nothing of the half in it
     await second.turnTo("p1", "a", folder)
     expect(read("model.py")).toBe("box(10)")
     expect(read("build/half.glb")).toBeNull()
@@ -222,7 +217,6 @@ describe("Versions", () => {
     )
     expect(versions.on("p1")).toBe("b")
     fs.renameSync(away, folder)
-    // nothing was lost of either: b's is in the folder still, and a's is put back
     expect(read("model.py")).toBe("sphere(5)")
     await versions.turnTo("p1", "a", folder)
     expect(read("model.py")).toBe("box(10)")
@@ -238,7 +232,6 @@ describe("Versions", () => {
       await versions.turnTo("p1", "b", folder)
       write("build/lid.glb", "ROUND LID")
       write("build/ball.glb", "BALL")
-      // nothing can be made or taken away in the folder's build folder for now
       fs.chmodSync(path.join(folder, "build"), 0o555)
       try {
         await expect(versions.turnTo("p1", "a", folder)).rejects.toThrow(

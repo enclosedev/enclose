@@ -338,7 +338,6 @@ const list = (): Project[] =>
   projects
     .list((id) => threads.summaries(id))
     .map((project): Project =>
-      // (one whose folder is not there has nothing going on in it)
       project.missing
         ? project
         : threads.lookingOver(project.id)
@@ -350,7 +349,6 @@ const list = (): Project[] =>
     )
     .map((project): Project => {
       if (project.missing) return project
-      // what Claude last did to its files, and what of that was last taken back
       const { undo, redo } = changes.last(project.id, whose(project.id))
       return {
         ...project,
@@ -378,7 +376,6 @@ const REDO_KEY = process.platform === "darwin" ? "⇧⌘Z" : "Shift Ctrl Z"
 async function turnBack(id: string, way: "undo" | "redo"): Promise<Undone> {
   const project = projects.get(id)
   if (!project) return { ok: false, why: "nothing", files: [] }
-  // a board being made in the background has the files until it is done
   if (threads.jobOf(id)) return { ok: false, why: "board", files: [] }
   if (threads.working(id) || builds.has(id) || versions.busy(id))
     return { ok: false, why: "busy", files: [] }
@@ -462,7 +459,6 @@ function broadcastSoon() {
 const githubState = (): GitHubState => ({
   connection: connection.state,
   backingUp,
-  // (only of projects still on the list, by what each is called now)
   failures: (backups?.failures() ?? []).flatMap(({ id, why, at }) => {
     const project = projects.listed(id)
     return project ? [{ projectId: id, name: project.name, why, at }] : []
@@ -544,7 +540,6 @@ async function turnTo(id: string, conversationId: string): Promise<boolean> {
   if (!project) return false
   const turned = await versions.turnTo(id, conversationId, project.path, {
     kept,
-    // the manifest goes last: its being written is what the view loads the rest again for
     last: project.manifest && path.relative(project.path, project.manifest),
   })
   if (!turned || !kept || !projects.get(id)) return kept
@@ -835,7 +830,6 @@ function makeModel(id: string) {
   // Python is found on the PATH a terminal would have, which a Mac gives an app no part
   // of: looking for the agents is what takes that PATH up
   void providers.found.then(async () => {
-    // and read with a Python that has build123d, which the app may have to make first
     forPython.add(id)
     settingUp()
     const ready = await python.ready()
@@ -904,7 +898,6 @@ function open(paths: string[]): { id: string | null; refused: string[] } {
     id = projects.add(dir, {
       name: bundle.name,
       reading: true,
-      // what is in the files is Claude's to name and group, once there is a model of it
       ...(lookOver ? { lookOver: written } : {}),
     })
     void backups.prepare(
@@ -1067,7 +1060,6 @@ function lookOver(id: string, seen: Seen, manner: Manner): string | null {
     if (into) analytics?.record("model looked over", mannerSaid(manner))
     return into
   } catch (error) {
-    // a manifest that cannot be read: there is nothing to go by
     console.error("[look over]", error)
     return null
   } finally {
@@ -1273,7 +1265,6 @@ function wire() {
     let id: string | null = null
     let fetching = false
     try {
-      // the app's own copy if it has one, unless it is told where to fetch them
       let from: string | Filed[] = path.join(EXAMPLES_HERE, example.id)
       if (EXAMPLES_FROM || !fs.existsSync(from)) {
         fetching = true
@@ -1296,7 +1287,6 @@ function wire() {
         from: "example",
         example: example.id,
       })
-      // an example that comes without its model built has it made now
       if (!projects.get(id)?.manifest) makeModel(id)
     } catch (error) {
       console.error("[example]", error)
@@ -1343,7 +1333,6 @@ function wire() {
     versions.forget(project.id)
     pictures.forget(project.id)
     inspiration.forget(project.id)
-    // a model still being made of its files is given up on
     builds.get(project.id)?.()
     builds.delete(project.id)
     projects.remove(project.id)
@@ -1407,7 +1396,6 @@ function wire() {
       })
       if (picked.canceled || !picked.filePath) return false
       await fs.promises.copyFile(source, picked.filePath)
-      // (where the next dialog opens, now that something is there)
       saving.savedIn(path.dirname(picked.filePath))
       analytics?.record("model saved", { as: "files", files: 1 })
       return true
@@ -1495,7 +1483,6 @@ function wire() {
       given: Partial<Manner> | null
     ) => {
       const project = projects.get(String(id))
-      // (there is nothing to write a guide to until there is a model)
       if (!project?.manifest) return null
       const manner = mannerFrom(given)
       const [thing] = objectsFrom(of ? [of] : [])
@@ -1505,7 +1492,6 @@ function wire() {
         thing && thing.parts.length > 0 ? thing : null,
         manner
       )
-      // the user has started on the project themselves, as by sending a message
       if (into) projects.lookedOver(project.id)
       if (into)
         analytics?.record("assembly guide asked for", {
@@ -1591,7 +1577,6 @@ function wire() {
         }
       )
       if (wanted.length === 0) return false
-      // a name a folder can have, whatever the group is called
       const called =
         String(folder)
           .replace(/[\\/:]+/g, "-")
@@ -1698,7 +1683,6 @@ function wire() {
         if (picked.canceled || !picked.filePath) return false
         into = picked.filePath
       }
-      // each part read once, however many of the files have it
       const read = new Map<string, Float32Array>()
       const triangles = async (part: (typeof parts)[number]) => {
         let found = read.get(part.id)
@@ -1731,7 +1715,6 @@ function wire() {
       if (how === "file") await fs.promises.writeFile(into, files[0].data)
       else if (how === "zip") await fs.promises.writeFile(into, zipOf(files))
       else {
-        // a folder of its own, numbered where the name is taken: nothing is written over
         const folder = makeFolder(into, name.replace(/^\.+/, "") || "parts")
         for (const file of files)
           await fs.promises.writeFile(path.join(folder, file.name), file.data)
@@ -1771,7 +1754,6 @@ function wire() {
             : []
       )
       if (wanted.length === 0) return false
-      // a name a folder can have, whatever the model is called
       const called =
         String(folder)
           .replace(/[\\/:]+/g, "-")
@@ -1784,7 +1766,6 @@ function wire() {
         properties: ["openDirectory", "createDirectory"],
       })
       if (picked.canceled || !picked.filePaths[0]) return false
-      // a folder of its own, numbered where the name is taken: nothing is written over
       const into = makeFolder(picked.filePaths[0], called)
       for (const { name, svg } of wanted)
         await fs.promises.writeFile(path.join(into, name), svg, "utf8")
@@ -1873,7 +1854,6 @@ function wire() {
       if (!win || !project) return false
       const folder = path.join(project.path, INSPIRATION_FOLDER)
       const { board } = inspiration.read(project.id)
-      // each by what it was called where it came from, and none by another's name
       const taken = new Set<string>()
       const wanted = board.images.flatMap((image) => {
         const source = path.join(folder, image.file)
@@ -1928,7 +1908,6 @@ function wire() {
       if (typeof id !== "string" || typeof conversationId !== "string") return
       if (!projects.get(id)) return
       showing.set(id, conversationId)
-      // shown again, it is tried again
       unturned.delete(id)
       follow()
       // the project's other conversations are read again when they are wanted
@@ -2134,7 +2113,6 @@ function wire() {
   })
   ipcMain.handle(CHANNEL.settingsSetAnalytics, (_, on: unknown): Settings => {
     const next = settings.set({ analytics: on === true })
-    // switched off, what was waiting to be sent is not
     if (!next.analytics) analytics?.forget()
     return next
   })
@@ -2183,7 +2161,6 @@ function wire() {
       throw new Error("The app's own look is changed as it is worked on.")
     return saveDefaults(THEMES, given as Defaults)
   })
-  // (a packaged app's themes are what it came with: it neither writes nor takes away any)
   ipcMain.handle(
     CHANNEL.themesSave,
     (_, given: unknown, replacing: unknown): Theme => {
@@ -2420,7 +2397,6 @@ if (!app.requestSingleInstanceLock()) {
       },
       onRenamed: (from, to) => {
         followFolder(from, to)
-        // the project has its name now: its repository takes it too
         const renamed = projects.list(() => []).find((one) => one.path === to)
         if (renamed) void backups.renamed(renamed.id)
       },
@@ -2568,7 +2544,6 @@ if (!app.requestSingleInstanceLock()) {
       updates.start()
     }
 
-    // a folder or a CAD file on the command line is opened, like `code <folder>`
     const given = process.argv
       .slice(app.isPackaged ? 1 : 2)
       .filter((arg) => !arg.startsWith("-"))
@@ -2709,7 +2684,6 @@ function letGo() {
   drafts?.close()
   updates?.close()
   analytics?.close()
-  // and nothing that was started is left running once the app has gone
   python?.close()
   stopPeers()
 }

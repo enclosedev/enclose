@@ -110,7 +110,6 @@ async function tryAll() {
   })
 
   await Promise.all([
-    // whatever of these is still to be had, used
     ...reached("fetch").map(({ up, value }) =>
       tried(`fetch (${up} up)`, async () => {
         await value.call(self, `${POST}fetch-${up}`, { mode: "no-cors" })

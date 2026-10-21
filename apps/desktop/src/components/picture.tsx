@@ -21,7 +21,6 @@ export function Thumb({
   className?: string
 }) {
   const src = pictureUrl(projectId, picture.id)
-  // its file is gone: there is nothing to show, small or big
   const [gone, setGone] = React.useState(false)
   const said = `${pictureName(picture.number)} · ${picture.name} · ${sizeOf(picture.bytes)}`
   if (gone)

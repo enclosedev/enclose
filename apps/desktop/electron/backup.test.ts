@@ -100,7 +100,6 @@ describe("setUp", () => {
     expect(fs.readFileSync(path.join(dir, ".gitignore"), "utf8")).toContain(
       "build/"
     )
-    // and a second time, makes nothing
     expect(await setUp(git, dir, "build")).toBe(false)
   })
 
@@ -233,7 +232,6 @@ describe("clearStaleLock", () => {
     expect(fs.existsSync(lock)).toBe(true)
     expect(clearStaleLock(dir, now + 11 * 60_000)).toBe(true)
     expect(fs.existsSync(lock)).toBe(false)
-    // and there being none is nothing
     expect(clearStaleLock(dir)).toBe(false)
   })
 })

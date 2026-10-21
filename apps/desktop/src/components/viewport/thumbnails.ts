@@ -35,7 +35,6 @@ function largestPiece(gl: WebGLRenderingContext | WebGL2RenderingContext) {
   let best = { count: 0, x0: 0, x1: SIZE - 1, y0: 0, y1: SIZE - 1 }
   for (let start = 0; start < SIZE * SIZE; start++) {
     if (seen[start] || !drawn(start)) continue
-    // flood out from here over everything touching
     const piece = { count: 0, x0: SIZE, x1: 0, y0: SIZE, y1: 0 }
     const todo = [start]
     seen[start] = 1
@@ -230,14 +229,12 @@ async function draw(
       root.add(holder)
       root.updateMatrixWorld(true)
 
-      // look at the middle of the part, and open the picture just wide enough for it
       const box = new THREE.Box3().setFromObject(holder)
       const half = frame(camera, box, from, FILL)
 
       renderer.render(scene, camera)
       const piece = largestPiece(renderer.getContext())
       if (piece.count > 0 && piece.covered < SPARSE) {
-        // draw it again, closed in on that one piece
         const across = (2 * half) / SIZE
         const x = ((piece.x0 + piece.x1 + 1) / 2) * across - half
         const y = ((piece.y0 + piece.y1 + 1) / 2) * across - half

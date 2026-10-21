@@ -99,7 +99,6 @@ export function codexModels(rows: CodexModel[]): ModelChoice[] {
     detail: row.description ?? "",
     efforts: efforts(row),
   }))
-  // there is always the choice of leaving it to Codex
   const standing = shown.find((row) => row.isDefault)
   if (choices.length > 0)
     choices.unshift({
@@ -377,7 +376,6 @@ export async function runCodex(turn: Turn): Promise<void> {
         )
         return
       case "error":
-        // one it will try again after is not yet anything gone wrong
         if (told.willRetry) return
         troubled = true
         turn.notice("error", told.error?.message || "Codex reported an error.")
@@ -463,7 +461,6 @@ export async function runCodex(turn: Turn): Promise<void> {
     [
       "app-server",
       ...launch.args,
-      // where the app's own tools answer, for as long as this turn lasts
       ...Object.entries(turn.served).flatMap(([name, url]) => [
         "-c",
         `mcp_servers.${name}.url=${JSON.stringify(url)}`,
@@ -477,7 +474,6 @@ export async function runCodex(turn: Turn): Promise<void> {
       onRequest,
     }
   )
-  // gone before the turn was over: what it last said to stderr is why, if anything is
   const died = peer.gone.then(() => {
     throw new Error(peer.stderr() || "Codex exited before the turn was over.")
   })
@@ -565,7 +561,6 @@ export async function runCodex(turn: Turn): Promise<void> {
     }
     throw error
   } finally {
-    // what was in flight did not finish
     for (const item of live.values()) turn.put({ ...item, streaming: false })
     for (const item of tools.values()) turn.put({ ...item, state: "failed" })
     peer.close()

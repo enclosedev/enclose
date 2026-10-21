@@ -278,7 +278,6 @@ function AddToChat({
   if (objects.length + parts.length === 0 || sweeping) return null
   return (
     <Button
-      // room either side of the words, a little less of it past the sign
       className="pointer-events-auto animate-in gap-2 pl-5 shadow-md duration-150 fade-in slide-in-from-bottom-2 has-data-[icon=inline-end]:pr-4"
       onClick={() => callOn([...objects, ...parts])}
     >
@@ -314,7 +313,6 @@ function ImproveReference({
   return (
     <Button
       size="lg"
-      // room either side of the words, a little less of it past the arrow
       className="pointer-events-auto animate-in gap-2 pr-4.5 pl-5 shadow-md duration-150 fade-in slide-in-from-bottom-2"
       onClick={() => callOn([calledScene(sceneId)])}
     >
@@ -397,7 +395,6 @@ function Saying() {
     if (!saying) return
     const over = setTimeout(
       () =>
-        // unless something else has been said since
         useStore.setState((state) =>
           state.saying === saying ? { saying: null } : {}
         ),
@@ -530,8 +527,6 @@ function AtWork({
   const taken = now - Math.min(shown, turn?.since ?? Infinity)
   const doing = (items && atWork(items, turn?.doing)) ?? meanwhile
   return (
-    // the button is as far from the end it is at as from the top and the bottom, and
-    // the words have a good deal more room than that at theirs
     <Floating className="pointer-events-auto flex items-center gap-3 py-2.5 pr-2.5 pl-6">
       {/* room for two figures and what they count in, so that the words beside it stay
           where they are as it goes up, in the figures everything else is set in */}
@@ -603,7 +598,6 @@ function useLoadedModel(
     const taken = loading()
     const run = async () => {
       if (!blank) setState({ status: "loading", done: 0, total: 0 })
-      // nothing made in the folder yet: there is a cube to look at meanwhile
       if (blank) {
         await Promise.resolve()
         if (cancelled) return
@@ -641,7 +635,6 @@ function useLoadedModel(
     }
   }, [project.id, project.revision, blank, coming, loading])
 
-  // free the previous model's meshes once it is off screen
   React.useEffect(
     () => () => {
       if (loaded) disposeModel(loaded)
@@ -793,7 +786,6 @@ function Model({ project }: { project: Project }) {
       (real && scenes?.find((scene) => scene.id === view.reference)) || null,
     [real, scenes, view.reference]
   )
-  // with the figure of a person it has to show, once that is asked for
   const figure = useStore((s) => s.figure)
   const shownScene = React.useMemo(
     () => setIn && withFigure(setIn, figure),
@@ -1130,7 +1122,6 @@ function Model({ project }: { project: Project }) {
             ? { ...selection, part: asPiece(selection.part) }
             : selection
         )
-      // Shift on nothing leaves what is picked out as it is
       if (!selection) return
       const { id } = selection.part
       const had = pickedOut()
@@ -1166,7 +1157,6 @@ function Model({ project }: { project: Project }) {
       const { selectSeveral } = useStore.getState()
       const taken = whole(ids)
       if (!add) return selectSeveral(taken)
-      // nothing more than was picked out already: it stays as it was
       const had = pickedOut()
       if (!taken.every((id) => had.includes(id)))
         selectSeveral(withPicked(taken))
@@ -1389,7 +1379,6 @@ function Model({ project }: { project: Project }) {
         const alone = !event.metaKey && !event.ctrlKey && !event.repeat
         if (!loaded || !alone || spokenFor(event.target)) return
         if (event.key.toLowerCase() === "i") {
-          // the inspiration board, in the view's place, and the view back
           const { view, setView } = useStore.getState()
           setView({ inspiration: !view.inspiration })
           event.preventDefault()
@@ -1443,7 +1432,6 @@ function Model({ project }: { project: Project }) {
         if (!taken && leave()) event.preventDefault()
         return
       }
-      // a letter on its own: not one held down, and not one being typed somewhere
       if (!loaded || !middle || event.repeat || spokenFor(event.target)) return
       const { view, setView, cutOpen } = useStore.getState()
       const letter = event.key.toLowerCase()
@@ -1452,14 +1440,12 @@ function Model({ project }: { project: Project }) {
         if (loaded.standIn) return
         setView({ blueprint: !view.blueprint })
       } else if (letter === "a") {
-        // nor any guide to putting it together
         if (loaded.standIn) return
         setView({ assembly: !view.assembly })
       } else if (view.board !== null && /^[1-3]$/.test(letter)) {
         // in PCB mode, the ways the board is looked at, in the order of their buttons
         setView({ boardAs: BOARD_AS[Number(letter) - 1] })
       } else if (view.board !== null && letter === "p") {
-        // and what is on the board, as P lists the model's parts
         const { boardPartsOpen, setBoardPartsOpen } = useStore.getState()
         setBoardPartsOpen(!boardPartsOpen)
       } else if (view.board !== null && letter === "s") {
@@ -2014,7 +2000,6 @@ function Model({ project }: { project: Project }) {
             ) : blueprint ? (
               <Options further={loaded.further} />
             ) : assembly ? (
-              // and the guides have what asks for another of them
               <AskForGuide
                 project={project}
                 listed={listed}

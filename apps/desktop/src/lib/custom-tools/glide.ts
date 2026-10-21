@@ -62,7 +62,6 @@ class Averaged {
       most = Math.max(most, began, to)
       kept = index
     }
-    // what is further back than the time looked over is not looked at again
     if (kept > 0) {
       this.before = this.pieces[kept - 1].to
       this.pieces.splice(0, kept)
@@ -107,7 +106,6 @@ export class Glide {
   /** Where it is `dt` seconds on, told to be at `to` in `seconds` from when it is told. */
   next(to: number, dt: number, seconds: number): number {
     if (dt <= 0) return this.at
-    // at rest, the next move takes what it is given; one under way comes round to it
     const change = this.resting() ? Infinity : COMING_ROUND * dt
     this.seconds += Math.max(-change, Math.min(change, seconds - this.seconds))
     const span = this.seconds / TIMES

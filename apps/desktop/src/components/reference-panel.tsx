@@ -89,7 +89,6 @@ export function ReferencePanel({
                   : "outline-none hover:border-foreground/40"
               )}
             >
-              {/* its picture, in the room over its name: none until it is drawn */}
               {url && (
                 <img
                   src={url}
@@ -98,11 +97,9 @@ export function ReferencePanel({
                   className="absolute top-2 left-1/2 size-50 -translate-x-1/2"
                 />
               )}
-              {/* what it is called and, under that in the same letters, its sizes */}
               <span className="absolute inset-x-3 bottom-2.25 flex flex-col text-[11px] leading-4">
                 <span className="truncate font-medium">{scene.name}</span>
                 <span className="truncate text-foreground/45">
-                  {/* one of the project's own says so, where it says nothing else */}
                   {scene.detail || (scene.own ? "This project’s own" : " ")}
                 </span>
               </span>

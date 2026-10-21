@@ -139,7 +139,6 @@ describe("takenIn", () => {
   const parts = (): [string, Shape[]][] => [
     ["middle", [cube()]],
     ["right", [cube([3, 0, 0])]],
-    // a part drawn as two shapes, one of them out to the left
     ["both", [cube(), cube([-3, 0, 0])]],
   ]
 

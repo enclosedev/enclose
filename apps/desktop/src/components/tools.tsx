@@ -227,7 +227,6 @@ function Downloads({
   // (a model of one part is all there in that part's file: there is nothing to archive)
   const parts = downloads.filter((file) => file.kind === "part")
   const apart = parts.length > 1 ? parts : []
-  // the archive goes by what the whole model's file does, or the model
   const called =
     step?.name.replace(/\.[^.]+$/, "") ||
     (title ?? "model").replace(/[^A-Za-z0-9]+/g, "-").toLowerCase()
@@ -270,7 +269,6 @@ function Downloads({
             <ToggleGroupItem
               key={option.value}
               value={option.value}
-              // the chosen one is lit the way a button that is on is
               className="flex-1 aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary/85 aria-pressed:hover:text-primary-foreground"
             >
               {option.label}
@@ -756,9 +754,6 @@ export function Tools({
 
   const onBoard = view.board !== null
   const inspiring = view.inspiration
-  // the inspiration board's own: what was noted on its pictures, shown beside each mark
-  // or only when it is pointed at; its pictures laid out tidily; looking through it; and,
-  // in red, what leaves it
   const inspirationButtons = (
     <>
       <Switch
@@ -794,13 +789,10 @@ export function Tools({
       </Press>
     </>
   )
-  // how a board is looked at, in PCB mode: one way at a time, and always one
   const boardButtons = (
     <>
       {BOARD_AS.map((as, index) => (
         <div key={as} className="relative">
-          {/* while the board is drawn as it is made, alongside: its other side, turned
-              over to be seen from under it */}
           {as === "pcb" && view.boardAs === "pcb" && (
             <div className="absolute top-0 right-full mr-1.5 flex">
               <Switch
@@ -826,7 +818,6 @@ export function Tools({
           </Switch>
         </div>
       ))}
-      {/* what is on the board, kind by kind */}
       <Switch
         label="Parts"
         shortcut="P"
@@ -836,7 +827,6 @@ export function Tools({
       >
         <BoxesIcon />
       </Switch>
-      {/* and last, in red, what takes the view back to the model */}
       <Press
         key="exit"
         label="Exit PCB mode"
@@ -876,7 +866,6 @@ export function Tools({
         )}
       </Stack>
 
-      {/* how the model is looked at, or in PCB mode how the board is */}
       {loaded && !locked && (
         <Gears
           shown={onBoard ? "board" : inspiring ? "inspiration" : "model"}
@@ -897,7 +886,6 @@ export function Tools({
               >
                 <BoxesIcon />
               </Switch>
-              {/* not the model but what it stands in: the ground, and the world's axes */}
               <Switch
                 label="Grid"
                 shortcut={MAC ? "⇧G" : "Shift G"}
@@ -908,8 +896,6 @@ export function Tools({
                 <Grid3x3Icon />
               </Switch>
               <div className="relative">
-                {/* while the model is cut open, alongside: the cut put back to where it
-            starts from, and which half of the model to show */}
                 {section && (
                   <div className="absolute top-0 right-full mr-1.5 flex gap-1.5">
                     <Press
@@ -967,10 +953,6 @@ export function Tools({
               >
                 <UnfoldVerticalIcon />
               </Switch>
-              {/* things of a known size for the model to be seen beside: the button brings
-          up the scenes there are, and is lit while the list is up and while the
-          model is set in one. (The key sets it in whichever suits it, at once.)
-          There is none for the cube that stands in for a model */}
               {!loaded.standIn && (
                 <Switch
                   label="Reference"
@@ -983,10 +965,6 @@ export function Tools({
                   <ReferenceIcon />
                 </Switch>
               )}
-              {/* the circuit boards that go in the thing: the button brings up the list of
-          them, and a board picked there takes the view's place, in PCB mode. Where
-          the project has none yet, the list says how one comes. Lit while it is up;
-          and while an agent is at one of them, a ring goes round it */}
               <div className="relative">
                 <Switch
                   label="PCB"
@@ -1001,9 +979,6 @@ export function Tools({
                   <BoardAtWorkRing projectId={projectId} boards={boards} />
                 )}
               </div>
-              {/* the model drawn flat, from each of its sides and from its corners, on
-          sheets that take the view's place: there is nothing to draw of the cube
-          that stands in for one */}
               {!loaded.standIn && (
                 <Switch
                   label="Blueprint"
@@ -1014,8 +989,6 @@ export function Tools({
                   <DraftingCompassIcon />
                 </Switch>
               )}
-              {/* how the thing is put together, a step at a time: the guides Claude has
-          written to that, on covers that take the view's place as the sheets do */}
               {!loaded.standIn && (
                 <Switch
                   label="Assembly"
@@ -1026,9 +999,7 @@ export function Tools({
                   <BookOpenIcon />
                 </Switch>
               )}
-              {/* the pictures of what the thing should be like, for the agent to design
-          by: a board of them that takes the view's place, as a circuit board does.
-          It is there before there is any model, when they are most wanted */}
+              {/* It is there before there is any model, when they are most wanted */}
               <Switch
                 label="Inspiration Board"
                 shortcut={MAC ? "⇧I" : "Shift I"}
@@ -1037,8 +1008,6 @@ export function Tools({
               >
                 <ImagesIcon />
               </Switch>
-              {/* parts and groups looked for by name, in a box at the top of the view: not
-          in the cube that stands in for a model, which has none to find */}
               {!loaded.standIn && (
                 <Switch
                   label="Search"

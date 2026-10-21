@@ -197,7 +197,6 @@ describe("what was done by hand, when the model changes under it", () => {
       Screws: [],
       Fixings: ["m3"],
     })
-    // and holds again, should the model go back to how it was
     expect(shown(made)[UNNAMED]).toEqual(["chip", "m3"])
   })
 

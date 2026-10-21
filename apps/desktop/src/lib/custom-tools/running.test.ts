@@ -59,7 +59,6 @@ describe("a tool at work", () => {
     const first = tool.tick(0, 0)
     expect(first.poses!.ids).toEqual(["arm"])
     expect(where(first, "arm", [20, 0, 3])).toEqual([0, 20, 3])
-    // nothing has changed by the next frame: nothing is said again
     expect(tool.tick(16, 0)).toMatchObject({
       poses: null,
       looks: null,
@@ -164,7 +163,6 @@ describe("a tool at work", () => {
     tool.press("go", "stop")
     tool.press("go", "no such button")
     tool.set("speed", 1, true)
-    // (what cannot be is let pass, from a hand)
     tool.set("speed", "fast", true)
     expect(heard).toEqual(["stop", 1])
     expect(tool.standing()[1]).toMatchObject({ value: 0.5 })
@@ -227,7 +225,6 @@ describe("a tool at work", () => {
       },
       frame(tool: Tool & { values: Record<string, unknown> }) {
         const angle = tool.glide("lid", tool.values.open ? 110 : 0, 1)
-        // asked for again in the same frame, it is where it was
         expect(tool.glide("lid", 55, 1)).toBe(angle)
         angles.push(angle)
         tool.part("arm").turn({ by: angle, about: [0, 0, 3] })
@@ -235,7 +232,6 @@ describe("a tool at work", () => {
     })
     let now = 0
     const frame = () => tool.tick((now += 1000 / 60), 0)
-    // as built, until something is asked of it
     for (let n = 0; n < 5; n++) expect(frame().poses?.ids ?? []).toEqual([])
     tool.set("open", true, true)
     for (let n = 0; n < 31; n++) frame()
@@ -243,11 +239,9 @@ describe("a tool at work", () => {
     expect(angles.at(-1)!).toBeGreaterThan(50)
     expect(angles.at(-1)!).toBeLessThan(60)
     expect(angles.at(-26)!).toBeLessThan(110 / 60)
-    // it says that it is on its way, for whoever waits to see where it gets to
     expect(frame().settling).toBe(true)
     for (let n = 0; n < 35; n++) frame()
     expect(angles.at(-1)).toBe(110)
-    // and at rest there, nothing more is said of the part
     const rested = frame()
     expect(rested.poses).toBeNull()
     expect(rested.settling).toBe(false)

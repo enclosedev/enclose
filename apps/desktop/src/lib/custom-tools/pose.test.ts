@@ -13,7 +13,6 @@ describe("turning", () => {
   it("leaves the point it turns about where it was", () => {
     const pose = turning([3, 4, 5], [1, 2, 3], 77)
     near(placed(pose, [3, 4, 5]), [3, 4, 5])
-    // and every point on the line through it
     near(placed(pose, [4, 6, 8]), [4, 6, 8])
   })
 
@@ -32,10 +31,8 @@ describe("turning", () => {
 
 describe("after", () => {
   it("does the first move first", () => {
-    // carried out along X and then turned a quarter about Z: it ends up on Y
     const pose = after(turning([0, 0, 0], [0, 0, 1], 90), carrying([10, 0, 0]))
     near(placed(pose, [0, 0, 0]), [0, 10, 0])
-    // the other way about, it is turned where it stands and then carried
     const other = after(carrying([10, 0, 0]), turning([0, 0, 0], [0, 0, 1], 90))
     near(placed(other, [0, 0, 0]), [10, 0, 0])
   })

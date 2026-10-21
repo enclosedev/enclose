@@ -397,7 +397,6 @@ def _cross(across: float, top: float, depth: float) -> object:
         (-wing, wing), (-reach, wing), (-reach, -wing), (-wing, -wing),
         (-wing, -reach), (wing, -reach), (wing, -wing), (reach, -wing),
     ]  # fmt: skip
-    # the wings slope in at 26.5 degrees, to a blunt point
     foot = max(across / 2 - depth * math.tan(math.radians(26.5)), wing * 1.2)
     slope = (across / 2 - foot) / depth
     over = across / 2
@@ -915,7 +914,6 @@ if __name__ == "__main__":
 
     if "--check" in sys.argv:
         sys.exit(1 if _check() else 0)
-    # the sizes, as a table: what there is to choose among
     print("size   thread  pitch  socket head  passes through  screws into  lengths")
     for name, (across, turn, passes, taps) in _THREADS.items():
         made = lengths(name)

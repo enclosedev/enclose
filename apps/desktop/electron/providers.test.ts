@@ -80,10 +80,8 @@ describe("loginShell", () => {
   })
 
   it("falls back to what is always there only when there is no shell of the user's own", () => {
-    // a $SHELL that is not there is not a shell to ask, so one that is always there is
     process.env.SHELL = path.join(dir, "not-there")
     expect(loginShell()).toMatch(/^\/bin\/(bash|sh|zsh)$/)
-    // and with no $SHELL at all, this is all there is to ask
     delete process.env.SHELL
     expect(loginShell()).toMatch(/^\/bin\/(bash|sh|zsh)$/)
   })
@@ -126,11 +124,9 @@ describe("locate", () => {
         throw new Error("ENOENT")
       return realAccess(file, mode)
     })
-    // nothing to ask: the agent is not found, and a shell is asked for again later
     expect(await locate("claude")).toBeNull()
 
     vi.restoreAllMocks()
-    // a shell is there now: it is asked, and the agent is found
     const answer = path.join(dir, "answer-sh")
     fs.writeFileSync(answer, `#!/bin/sh\nprintf "__PATH__${bin}__PATH__"\n`, {
       mode: 0o755,
@@ -250,7 +246,6 @@ describe("Providers", () => {
     // not installed, and off: nothing is asked of it
     expect(by.codex.status).toMatchObject({ path: null, version: null })
     expect(by.codex.models).toEqual([])
-    // found where the user said, and what went wrong in asking it is said
     expect(by.grok.status).toMatchObject({
       path: grok,
       version: "1.0.50",
@@ -278,7 +273,6 @@ describe("Providers", () => {
     expect(providers.list()[0].status?.signedIn).toBe(true)
     asked.splice(asked.indexOf("claude"), 1)
 
-    // switched off, it is not something to start: and it is not asked again
     await providers.change("claude", { enabled: false })
     expect(providers.launch("claude")).toBeNull()
     expect(asked.filter((one) => one === "claude")).toHaveLength(1)
@@ -290,7 +284,6 @@ describe("Providers", () => {
       favorites: ["m2"],
       binary: grok,
     })
-    // given a home of its own, it is started with that, and asked again
     await providers.change("claude", { enabled: true, home: "~/elsewhere" })
     expect(providers.launch("claude")?.env.CLAUDE_CONFIG_DIR).toBe(
       path.join(os.homedir(), "elsewhere")
@@ -397,7 +390,6 @@ echo "${version} (Claude Code)"
       update: null,
       updating: false,
     })
-    // nothing newer is offered for one switched off
     await providers.change("claude", { enabled: false })
     expect(claudeOf()?.update).toBeNull()
   })

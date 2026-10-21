@@ -11,13 +11,10 @@ export const NOTHING: Said = { picked: [], written: "" }
 
 /** One of a question's answers was clicked. */
 export function pick(question: Question, said: Said, label: string): Said {
-  // where one answer is all it takes, this is it: in place of any other, written or not
   if (!question.several) return { picked: [label], written: "" }
   const had = said.picked.includes(label)
   return {
     ...said,
-    // taken up, or put down again: and kept in the order they were offered in,
-    // whatever order they were clicked in
     picked: question.options
       .map((option) => option.label)
       .filter((one) => (one === label ? !had : said.picked.includes(one))),
@@ -26,7 +23,6 @@ export function pick(question: Question, said: Said, label: string): Said {
 
 /** An answer of one's own was written to a question. */
 export function write(question: Question, said: Said, written: string): Said {
-  // where one answer is all it takes, what is written is it
   const instead = !question.several && written.trim() !== ""
   return { picked: instead ? [] : said.picked, written }
 }

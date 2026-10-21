@@ -88,7 +88,6 @@ export const SLOTS = [
     detail: "The project's own tools, and their panel",
     token: "--tool",
   },
-  // the settings, in their panel over the window
   {
     id: "settings-background",
     area: "Settings",

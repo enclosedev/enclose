@@ -125,7 +125,6 @@ describe("findModel", () => {
       expect(findModel(root).manifest).toBe(manifest)
       expect(findModel(root).manifest).toBe(manifest)
       expect(reads()).toBe(1)
-      // written again as something that is no manifest: it is read, and is none
       write("model.json", { parts: [] })
       expect(findModel(root).manifest).toBeNull()
       expect(reads()).toBe(2)
@@ -167,19 +166,15 @@ describe("Projects", () => {
     expect(projects.list(idle).map((p) => [p.id, p.name])).toEqual([
       [id, "The Thing"],
     ])
-    // adding a folder that is already a project is that project
     expect(projects.add(path.join(root, "thing"))).toBe(id)
-    // and it is the same one after a restart
     expect(new Projects(file, () => {}).list(idle)[0]).toMatchObject({ id })
 
     projects.remove(id)
     expect(projects.list(idle)).toEqual([])
     expect(projects.get(id)).toBeNull()
     expect(new Projects(file, () => {}).list(idle)).toEqual([])
-    // what is in the folder is no business of the list's
     expect(fs.existsSync(path.join(root, "thing/model.json"))).toBe(true)
 
-    // it comes back clean: another project, by its folder's name
     const again = projects.add(path.join(root, "thing"))
     expect(again).not.toBe(id)
     expect(projects.list(idle)).toMatchObject([
@@ -197,7 +192,6 @@ describe("Projects", () => {
     )
     const id = projects.add(path.join(root, "thing"))
     const colours = () => projects.list(idle)[0].colours
-    // read from the folder as the project is found
     const found = colours()
     expect(found.parts).toEqual({ a: "blue" })
 
@@ -210,7 +204,6 @@ describe("Projects", () => {
     expect(
       fs.readFileSync(path.join(root, "thing/enclose.colors.json"), "utf8")
     ).toBe('{\n  "a": "red",\n  "c": "grey"\n}\n')
-    // as it was, it is not written again
     expect(projects.saveColours(id, { c: "grey", a: "red" })).toBe(false)
     projects.refresh(id)
     expect(colours().revision).toBe(found.revision)
@@ -223,7 +216,6 @@ describe("Projects", () => {
       parts: { a: "green" },
     })
 
-    // none at all: no file
     expect(projects.saveColours(id, {})).toBe(true)
     expect(fs.existsSync(path.join(root, "thing/enclose.colors.json"))).toBe(
       false
@@ -298,14 +290,12 @@ describe("Projects", () => {
     expect(new Projects(file, () => {}).listed(id)).toMatchObject({
       name: "The Thing",
     })
-    // back where it was, it is the same project, with its model
     fs.renameSync(path.join(root, "thing-away"), path.join(root, "thing"))
     expect(projects.refreshAll()).toBe(true)
     expect(projects.get(id)?.manifest).toBe(path.join(root, "thing/model.json"))
     expect(projects.list(idle)[1]).toMatchObject({ id, manifest: "model.json" })
     expect(projects.list(idle)[1].missing).toBeUndefined()
     expect(projects.refreshAll()).toBe(false)
-    // gone again while the app is open, it is missing again
     fs.renameSync(path.join(root, "thing"), path.join(root, "thing-away"))
     expect(projects.refreshAll()).toBe(true)
     expect(projects.get(id)).toBeNull()
@@ -334,12 +324,10 @@ describe("Projects", () => {
     )
     const id = projects.add(path.join(root, "thing"))
     expect(projects.refresh(id)).toBe(false)
-    // a model somewhere else
     write("thing/model.json", { parts: [] })
     write("thing/out/model.json", MANIFEST)
     expect(projects.refresh(id)).toBe(true)
     expect(projects.refresh(id)).toBe(false)
-    // a tool of its own
     write("thing/tools/clock.js", "export default {}")
     expect(projects.refresh(id)).toBe(true)
     expect(projects.refresh(id)).toBe(false)
@@ -449,7 +437,6 @@ describe("Projects", () => {
     expect(projects.goesByOwnSettings(opened)).toBe(false)
     expect(projects.goesByOwnSettings(plain)).toBe(true)
     expect(projects.goesByOwnSettings(made)).toBe(true)
-    // a folder that has some later is asked about then
     write("plain/.mcp.json", { mcpServers: {} })
     expect(projects.goesByOwnSettings(plain)).toBe(false)
     projects.trust(opened, true)
@@ -524,7 +511,6 @@ describe("Projects", () => {
       projects.christen(id, (from, to) => moves.push([from, to]))
     const now = () => projects.list(idle).find((p) => p.id === id)!
 
-    // nothing made yet: it keeps the stand-in
     christen()
     expect(now().name).toBe("Quiet heron")
 
@@ -550,7 +536,6 @@ describe("Projects", () => {
       [fs.realpathSync(root) + "/2026-10-05-2306-quiet-heron", now().path],
     ])
 
-    // it has its name now: a later title does not rename it again
     write(
       path.relative(root, path.join(now().path, "build/enclose.model.json")),
       {
@@ -591,16 +576,13 @@ describe("Projects", () => {
     expect(now().name).toBe("Travel case")
     expect(now().path).toBe(path.join(root, "theirs"))
     expect(said).toBe(before + 1)
-    // a name that says nothing changes nothing, and nor does the one it has
     projects.rename(id, "   ")
     projects.rename(id, "Travel case")
     expect(now().name).toBe("Travel case")
     expect(said).toBe(before + 1)
-    // and no name is longer than a card has any use for
     projects.rename(id, "a".repeat(200))
     expect(now().name).toHaveLength(80)
     projects.close()
-    // it is kept
     const again = new Projects(file, () => {})
     expect(again.list(idle)[0]).toMatchObject({ name: "a".repeat(80) })
     again.close()
@@ -617,7 +599,6 @@ describe("Projects", () => {
     projects.rename(id, "Travel case")
     expect(projects.get(id)).toMatchObject({ name: "Travel case" })
     expect(projects.get(id)?.standIn).toBeUndefined()
-    // the model's title no longer takes its place, and the folder is left alone
     write("2026-10-05-2306-quiet-heron/build/enclose.model.json", {
       ...MANIFEST,
       title: "Pill box",
@@ -654,7 +635,6 @@ describe("Projects", () => {
       [fs.realpathSync(root) + "/2026-10-05-2306-quiet-heron", now.path],
     ])
 
-    // named once, it is the user's: a later name leaves the folder as it is called
     projects.rename(id, "Pill box", () => {
       throw new Error("renamed")
     })
@@ -674,7 +654,6 @@ describe("Projects", () => {
       path.join(root, "state/projects.json"),
       () => {}
     )
-    // opened, with nothing in it, and called something: taken off the list, it stays
     fs.mkdirSync(path.join(root, "theirs"))
     const id = projects.add(path.join(root, "theirs"))
     projects.rename(id, "Mine")
@@ -769,19 +748,16 @@ describe("Projects, of a model Claude is to look over", () => {
       lookOver: written,
     })
     const now = () => projects.list(() => []).find((p) => p.id === id)!
-    // nothing to look over yet
     expect(now().lookOver).toBeNull()
     write("made/build/enclose.model.json", MANIFEST)
     projects.report(id, null)
     expect(now().lookOver).toBe("wanted")
     projects.close()
 
-    // it is still waiting when the app is next started
     const again = new Projects(file, () => {})
     expect(again.list(() => [])[0].lookOver).toBe("wanted")
     expect(again.get(id)?.lookOver).toEqual(written)
 
-    // and is asked for once: what it was written from is handed over with that
     let told = 0
     const last = new Projects(file, () => told++)
     expect(last.lookedOver(id)).toEqual(written)

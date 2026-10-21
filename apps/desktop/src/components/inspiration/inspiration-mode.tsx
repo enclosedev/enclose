@@ -120,8 +120,6 @@ export function InspirationMode({ projectId }: { projectId: string }) {
     void useInspiration.getState().load(projectId)
   }, [projectId])
   return (
-    // (its ground comes in over the model as the buttons change over: the grey of what
-    // the user says in the conversation, a little lighter than the view's)
     <div className="absolute inset-0 animate-in overflow-hidden bg-user-message duration-300 fade-in motion-reduce:animate-none">
       {board && <Board projectId={projectId} board={board} />}
     </div>
@@ -149,8 +147,6 @@ function Board({
 
   const analysing = useInspiration((s) => s.analysing[projectId] ?? NONE)
   const notesShown = useInspiration((s) => s.notesShown)
-  // (a picture gone up to that is no longer there is gone up to no longer; and so with
-  // a group spread out)
   const goneUpTo = useInspiration((s) => s.focused)
   const focused =
     goneUpTo !== null && board.images.some((image) => image.id === goneUpTo)
@@ -208,7 +204,6 @@ function Board({
         )
         continue
       }
-      // (held over, to be gone into, it opens up: fanned out further, and bigger)
       const fan = group.id === over ? OPEN_FAN : 1
       const width = group.id === over ? PILE_WIDTH * OPEN_GROW : PILE_WIDTH
       // all as wide as each other in the pile, the tallest lie at the back and the
@@ -228,7 +223,6 @@ function Board({
             h: heightOf(image.pixels, width),
           },
           turn: laid.turn * fan,
-          // the shortest on top
           z: 1 + (pictures.length - index) / (pictures.length + 1),
           pile: group.id,
           top: index === 0,
@@ -377,7 +371,6 @@ function Board({
     const sized = () => {
       const { width, height } = on.getBoundingClientRect()
       view.current = { width, height }
-      // the first time, it is seen whole
       if (!camera.current && width > 0) put(wholeNow.current())
       else show()
     }
@@ -594,7 +587,6 @@ function Board({
     )
     if (going.length === 0) return
     const rest = board.images.filter((image) => !going.includes(image))
-    // (first in it: spread out, they come first)
     const first = rest.findIndex((image) => image.group === groupId)
     const at = first < 0 ? rest.length : first
     const next = {
@@ -615,7 +607,6 @@ function Board({
     const images = picturesIn(keys)
     if (images.length < 2)
       return say("Pick out two or more images to group first")
-    // a group among them gives its title to begin with
     const first = keys.find((key) => key.startsWith("g:"))
     const title =
       board.groups.find((group) => `g:${group.id}` === first)?.title ?? ""
@@ -636,7 +627,6 @@ function Board({
     }
     const id = `g-${Date.now().toString(36)}`
     const wanted = new Set(naming.images)
-    // the pile lies where they were, about the middle of them
     const all = boundsOf(
       shown.filter((one) => wanted.has(one.image.id)).map((one) => one.box)
     )
@@ -646,7 +636,6 @@ function Board({
     changed(
       tidied({
         ...board,
-        // the pictures go in the order they are picked out in, as the board has them
         images: board.images.map((image) =>
           wanted.has(image.id) ? { ...image, group: id } : image
         ),
@@ -687,8 +676,6 @@ function Board({
         pictures.map((image, index) => [image.id, boxes[index]])
       )
       freed.push(...pictures.map((image) => image.id))
-      // what lies in the way of where they go is pushed aside, as it is when they are
-      // spread out
       const clear = boundsOf(boxes)!
       const others = [
         ...images
@@ -1038,7 +1025,6 @@ function Board({
 
   const down = (event: React.PointerEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement
-    // what is being written of a place is kept once anything else is pressed
     if (writing) {
       writeNote(writing)
       return
@@ -1090,7 +1076,6 @@ function Board({
       if (pressed.key) {
         // a picture gone up to is noted on, and stays where it is
         if (pressed.image === focused && pressed.key.startsWith("i:")) return
-        // a picture of a group spread out takes its group with it
         const own = (key: Key): Key => {
           const image = board.images.find((one) => `i:${one.id}` === key)
           return image?.group ? `g:${image.group}` : key
@@ -1149,7 +1134,6 @@ function Board({
     if (pressed.pan) return
     if (pressed.moved) {
       const at = camera.current
-      // let go over a group, they go into it; anywhere else, they lie where they are
       const into =
         pressed.dragging &&
         groupAt(pressed.dragging, boardAt(event.clientX, event.clientY))
@@ -1164,7 +1148,6 @@ function Board({
       setBox(null)
       return
     }
-    // a click
     const { key, image, share } = pressed
     if (!key) {
       if (focused) unfocus()
@@ -1211,7 +1194,6 @@ function Board({
     const pictures = shown.filter((one) => one.image.group === group.id)
     const all = boundsOf(pictures.map((one) => one.box))
     if (!all) return []
-    // (and, held over it, with what is about to go into it)
     const coming = over === group.id && moving ? moving.keys.length : 0
     return [
       {
@@ -1375,8 +1357,6 @@ function Board({
         }}
       />
 
-      {/* what it is, at the top, where the window is not dragged by: unless the box that
-          looks through it is there */}
       {finding === null ? (
         <Called updated={board.updated} />
       ) : (

@@ -22,7 +22,6 @@ export function sharing<T>(free: (value: T) => void) {
       const value = make()
       const entry = { value, users: 1 }
       entries.set(key, entry)
-      // what could not be made is not there to be had: the next to ask makes it again
       value.catch(() => {
         if (entries.get(key) === entry) entries.delete(key)
       })

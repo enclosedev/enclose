@@ -40,12 +40,10 @@ export const Reply = React.memo(function Reply({
             "group/details rounded-md text-left outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
           )}
         >
-          {/* still being written: it can be opened and read as it comes */}
           <span className={cn(item.streaming && LIVE)}>Details</span>
           <ChevronDownIcon className="size-3.5 shrink-0 opacity-60 transition-transform group-data-panel-open/details:rotate-180" />
         </CollapsibleTrigger>
         <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-out data-ending-style:h-0 data-starting-style:h-0">
-          {/* it reads on from what was said, as the rest of the same reply */}
           <div className="pt-2">
             <Markdown>{more}</Markdown>
           </div>

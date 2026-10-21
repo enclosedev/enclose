@@ -393,7 +393,6 @@ export function placing(scene: ReferenceScene, model: THREE.Box3) {
  * would go into whatever the model stands on.
  */
 export function sinking(parts: LoadedPart[], model: THREE.Box3) {
-  // how low each part is, put together, and how fast it goes down as it is pulled out
   const lows = parts.map(
     (part) => part.box.clone().applyMatrix4(part.home).min.z
   )
@@ -592,7 +591,6 @@ async function draw(
       marked.layers.mask = APART.mask
       root.add(mesh, marked)
       root.updateMatrixWorld(true)
-      // from the side a model opens on, as the view first shows it
       frame(
         camera,
         new THREE.Box3().setFromObject(mesh),

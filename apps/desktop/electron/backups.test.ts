@@ -104,7 +104,6 @@ describe("Backups", () => {
     expect(await show(bare, "log", "--format=%an <%ae>|%s", "main")).toBe(
       "Ada <7+ada@users.noreply.github.com>|Thicker lid\nAda <7+ada@users.noreply.github.com>|Started in Enclose"
     )
-    // a second conversation's version goes on a branch of its own
     write("model.py", "a = 3")
     await kept.record("p1", {
       what: "Round corners",
@@ -180,7 +179,6 @@ describe("Backups", () => {
     expect(await show(project.path, "log", "--format=%s", "main")).toBe(
       "One\nStarted in Enclose"
     )
-    // and a backup of every project commits on the branch of the one it is now
     await kept.all(false)
     expect(
       await show(project.path, "branch", "--format=%(refname:short)")

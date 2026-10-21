@@ -18,7 +18,6 @@ describe("pick", () => {
   it("takes one answer in place of another, where one is all it takes", () => {
     const mug = pick(one, pick(one, NOTHING, "Can"), "Mug")
     expect(mug.picked).toEqual(["Mug"])
-    // clicked again, it is still the answer
     expect(pick(one, mug, "Mug").picked).toEqual(["Mug"])
   })
 

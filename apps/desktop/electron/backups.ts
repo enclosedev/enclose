@@ -159,7 +159,6 @@ export class Backups {
    * for what is pushed after it.)
    */
   async committed(id?: string): Promise<void> {
-    // (of every project, where none is named)
     await (id === undefined
       ? Promise.all([...this.committing.values()])
       : this.committing.get(id))
@@ -479,7 +478,6 @@ export class Backups {
         await this.queue(project.id, async () => {
           try {
             if (!(await this.keeps(project))) return
-            // (on the branch of the conversation the folder is now: it is that one's)
             await this.commit(
               project,
               "on",

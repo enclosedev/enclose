@@ -60,11 +60,9 @@ describe("skinColour", () => {
     expect(hex(skinColour(part({ color: "red" }), blue, true))).toBe(
       PALETTE.red
     )
-    // bare, a face the file coloured is drawn as the nearest of the app's colours
     expect(
       hex(skinColour(part({ color: "red", paint: "bare" }), blue, true))
     ).toBe(drawnIn("#0000ff", 1))
-    // and a face it left uncoloured wears the model's
     expect(
       hex(skinColour(part({ color: "red", paint: "bare" }), skin(), true))
     ).toBe(PALETTE.red)
@@ -93,7 +91,6 @@ describe("skinColour", () => {
   it("draws a circuit board in green, whatever the model names", () => {
     const board = part({ board: "main", color: "blue" }, true)
     expect(hex(skinColour(board, skin(), true))).toBe(PALETTE.green)
-    // what its file colours is what is on it, in its own colours
     expect(
       hex(
         skinColour(
@@ -116,7 +113,6 @@ describe("skinColour", () => {
     expect(hex(skinColour(part({ color: "green" }), skin(), true))).toBe(
       PALETTE.green
     )
-    // what the user gives a part is what it is drawn in
     expect(hex(skinColour(part({}, true), skin(), true, "green"))).toBe(
       PALETTE.green
     )

@@ -168,7 +168,6 @@ describe("a project's boards", () => {
     projects.refresh(id)
     const first = boards()
     expect(first).not.toBeNull()
-    // looked at again with nothing written or built: it is as it was
     projects.refresh(id)
     expect(boards()).toBe(first)
     write("pcb/build/main.circuit.json", BOARD)
@@ -198,11 +197,9 @@ describe("Following", () => {
 
     build(1000, "source_component")
     expect(following.look()).toBe(true)
-    // (looked at again with nothing built since: it is the same build)
     expect(following.look()).toBe(false)
     build(2000, "source_component", "source_trace")
     expect(following.look()).toBe(true)
-    // (built again, and got no further)
     build(3000, "source_component", "source_trace")
     expect(following.look()).toBe(false)
     build(4000, "source_component", "source_trace", "pcb_trace")

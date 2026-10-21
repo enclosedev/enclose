@@ -263,7 +263,6 @@ function Drawn({
     if (!held || !markup) return
     const read = readDrawing(markup)
     if (!read) return
-    // as much of it as is shown, as big as it fits
     read.svg.setAttribute(
       "viewBox",
       (as === "schematic" && schematicShown(board, read.svg)) ||

@@ -17,7 +17,6 @@ import { join, resolve } from "node:path"
 import { pack } from "../electron/archive.ts"
 
 const ROOT = resolve(import.meta.dirname, "..")
-// (the examples are at the top of the repository, two folders up from the app)
 const EXAMPLES = resolve(ROOT, "../../examples")
 const LIST = join(ROOT, "shared/examples.json")
 const OUT = join(ROOT, "release/examples")

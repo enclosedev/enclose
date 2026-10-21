@@ -18,7 +18,6 @@ function entries(accept: string): Entry[] {
       if (name.toLowerCase() !== 'q') continue
       q = Number(value)
     }
-    // a quality that is not one is not an entry to go by
     if (!Number.isFinite(q) || q < 0 || q > 1) return
     read.push({ type, subtype, q, at })
   })
@@ -60,7 +59,6 @@ export function negotiate(accept: string | null | undefined): Offered | null {
       !best ||
       candidate.q > best.q ||
       (candidate.q === best.q && candidate.closeness > best.closeness) ||
-      // both by name, and as wanted: the one the header puts first
       (candidate.q === best.q && candidate.closeness === best.closeness && closest === 3 && candidate.at < best.at)
     if (better) best = candidate
   }

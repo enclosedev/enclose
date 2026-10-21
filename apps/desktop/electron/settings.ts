@@ -120,7 +120,6 @@ export class SettingsStore {
     try {
       text = fs.readFileSync(file, "utf8")
     } catch (error) {
-      // first run: the defaults stand
       if (missing(error)) return
       text = ""
     }
@@ -188,7 +187,6 @@ export class SettingsStore {
         try {
           return { name: one.name, value: this.vault?.unseal(one.sealed) ?? "" }
         } catch {
-          // kept by a system that will not give it back: it has to be given again
           return { name: one.name, value: "" }
         }
       }

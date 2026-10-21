@@ -135,7 +135,6 @@ try {
   console.log(`(${scratch} is left: something was still writing into it)`)
 }
 
-// What is wrong, a thing to a line: nothing, of a tool that is shut in.
 const wrong = []
 if (!found || found.failed || !found.tried || !found.there || !found.could)
   wrong.push(

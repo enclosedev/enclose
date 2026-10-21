@@ -28,7 +28,6 @@ describe("keptAsWas", () => {
     expect(now).toEqual(project("working"))
     expect(now.conversations).not.toBe(was.conversations)
     expect(now.conversations[0]).not.toBe(was.conversations[0])
-    // the conversation that is as it was, and what is in it
     expect(now.conversations[1]).toBe(was.conversations[1])
     expect(now.conversations[1].queued).toBe(was.conversations[1].queued)
     expect(now.conversations[0].queued).toBe(was.conversations[0].queued)

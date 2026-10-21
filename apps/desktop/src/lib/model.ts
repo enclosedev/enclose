@@ -151,7 +151,6 @@ export function readModel(manifest: unknown): Model {
       const shell = raw.shell === true || raw.control === "shell"
       return [{ id, label: text(raw.label) ?? titled(id), shell }]
     })
-    // a part may name a group nobody declared: it still gets listed
     for (const id of used) {
       if (!groups.some((g) => g.id === id))
         groups.push({ id, label: titled(id), shell: false })

@@ -98,7 +98,6 @@ function Start() {
 /** An example to start from: its picture, and under that its name and what it is to fetch. */
 function ExampleCard({ example }: { example: Example }) {
   const startExample = useStore((s) => s.startExample)
-  // how much of it has come, while a project is being made of it
   const received = useStore((s) => s.starting[example.id])
   const starting = received !== undefined
   const picture = PICTURES[example.id]
@@ -166,7 +165,6 @@ export function Welcome() {
               : "wheel"
         if (from === "wheel") event.currentTarget.scrollLeft += event.deltaY
       }}
-      // (nothing here is to be picked out by a drag: it is all to be pressed, or read)
       className="flex h-full [scrollbar-width:none] items-center gap-[8.1vw] overflow-x-auto overscroll-x-contain px-[11.7vw] select-none"
     >
       <Start />

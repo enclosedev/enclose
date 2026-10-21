@@ -142,7 +142,6 @@ describe("saidOf", () => {
     expect(saidOf("redo", { ok: true, what: "Make it taller" }, true)).toBe(
       "Redid “Make it taller”"
     )
-    // and off a Mac, in its keys
     expect(saidOf("undo", { ok: true, what: "Make it taller" }, false)).toBe(
       "Undid “Make it taller”. Shift Ctrl Z puts it back"
     )

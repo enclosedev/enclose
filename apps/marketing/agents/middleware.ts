@@ -46,7 +46,6 @@ function markdown(request: Request, documents: Documents, address: string, varie
     'cache-control': 'public, max-age=0, must-revalidate',
   }
   if (varies) headers.vary = 'Accept'
-  // the page this is the Markdown of, for whatever keeps one address to a page
   if (page !== undefined) headers.link = `<${documents.origin}${address}>; rel="canonical"`
   const body = request.method === 'HEAD' ? null : (page ?? documents.missing)
   return new Response(body, { status: page === undefined ? 404 : 200, headers })

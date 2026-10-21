@@ -127,7 +127,6 @@ function adopt(dir: string, projectId: string, session: () => string | null) {
   try {
     items = JSON.parse(fs.readFileSync(old, "utf8"))
   } catch {
-    // there is none, or it cannot be read: left as it is
     return
   }
   if (Array.isArray(items) && items.length > 0) {
@@ -380,7 +379,6 @@ export function readShelved(
 /** The summaries of a project's conversations, as their file has them. */
 function summariesFile(conversations: Conversation[]): string {
   const kept: Record<string, Summed> = {}
-  // (one not written down yet is read from its file once it is)
   for (const { id, summed } of conversations) if (summed) kept[id] = summed
   return JSON.stringify(kept)
 }

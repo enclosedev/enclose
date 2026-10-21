@@ -111,7 +111,6 @@ function Choice<Value extends string>({
         <ToggleGroupItem
           key={option.value}
           value={option.value}
-          // the chosen one is lit the way a button that is on is
           className={cn(
             "aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary/85 aria-pressed:hover:text-primary-foreground",
             fill && "flex-1"
@@ -155,7 +154,6 @@ function Days({
           )
             onChange(days)
         }}
-        // what was left half-typed gives way to what stands
         onBlur={() => setTyped(String(value))}
         className="h-8 w-16 text-center tabular-nums"
       />
@@ -398,7 +396,6 @@ function ThemeCard({
   const { theme: mode } = useTheme()
   const defaults = useThemes((state) => state.defaults)
   const name = theme?.name ?? defaults.name
-  // what its parts are drawn in, in each look: its own colours over the app's
   const palettes = React.useMemo(
     () => ({
       light: paletteOf(theme?.light, defaults.light),
@@ -480,8 +477,6 @@ function Appearance() {
   // (as they are now: one may have been written or taken away since)
   React.useEffect(() => void load(), [load])
   return (
-    // the app's own look, which stays, and the themes beside it; as it is worked on, the
-    // app's own is changed here, and the others taken away, as they are made
     <section className="flex flex-col gap-2">
       <h2 className="px-1 text-sm text-muted-foreground">Theme</h2>
       <div className="grid grid-cols-3 gap-3">
@@ -493,7 +488,6 @@ function Appearance() {
             import.meta.env.DEV
               ? () => {
                   close(false)
-                  // in the look chosen; for the system's, the one the window is in
                   setCreating("defaults", mode === "system" ? undefined : mode)
                 }
               : undefined
@@ -732,7 +726,6 @@ function Navigation() {
           title="Reverse the wheel"
           detail="The wheel zooms the other way."
         >
-          {/* on or off is a switch, at the far side of its half */}
           <Switch
             aria-label="Reverse the wheel"
             checked={wheelReversed}
@@ -979,7 +972,6 @@ function Shortcuts() {
       {KEYS.map((group) => (
         <Group key={group.title} title={group.title}>
           {group.rows.map(([what, keys, drag]) => {
-            // each way of doing it, one after another with a word between
             const all = [
               ...(keys.length > 0 ? [keys] : []),
               ...(drag ? ways[drag].map(dragKeys) : []),
@@ -1019,7 +1011,6 @@ function Connections() {
   const failing =
     failed &&
     `${failures.length > 1 ? `${failures.length} projects failed to back up. ` : ""}${failed.name}: ${failed.why}`
-  // what it is at, in one line: what went wrong, where something did
   const said =
     connection.state === "unavailable"
       ? "Not available in this version of Enclose."
@@ -1183,7 +1174,6 @@ export function Settings() {
 
   return (
     <div className="settings fixed inset-0 z-40 text-foreground">
-      {/* the app past the panel: dimmed, and a click on it puts the settings away */}
       <div
         aria-hidden
         className="no-drag absolute inset-0 animate-in bg-black/30 duration-200 fade-in-0 dark:bg-black/50"

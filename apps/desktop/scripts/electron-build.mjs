@@ -42,7 +42,6 @@ export const guide = {
   bundle: true,
   minify: true,
   alias: { "@": "./src", "@shared": "./shared" },
-  // the typeface goes into the sheet itself
   loader: { ".woff2": "dataurl" },
   logLevel: "warning",
 }

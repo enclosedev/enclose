@@ -107,7 +107,6 @@ describe("lowestPolar", () => {
   it("lets it under what it looks at, by as much as that is above the ground", () => {
     // half as high as it is far: a third of the way on from level to straight below
     expect(lowestPolar(250, 500)).toBeCloseTo((Math.PI * 2) / 3, 6)
-    // and where that leaves it is on the ground
     expect(250 + 500 * Math.cos(lowestPolar(250, 500))).toBeCloseTo(0, 6)
   })
 

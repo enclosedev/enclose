@@ -347,7 +347,6 @@ export class Python {
       this.set({ state: "failed", detail: why(error) })
       return false
     } finally {
-      // nothing is at it any more
       if (this.making.size === 0) fs.rmSync(this.marker, { force: true })
     }
   }

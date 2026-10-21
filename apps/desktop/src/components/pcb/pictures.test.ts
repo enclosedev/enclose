@@ -50,7 +50,6 @@ describe("inBoardColours", () => {
 
   it("does a material that parts share the once", () => {
     const { group, top } = board()
-    // two chips of one kind, and the board's top drawn twice
     const chip = new THREE.MeshStandardMaterial({ color: "#9c9c9c" })
     group.add(new THREE.Mesh(new THREE.BoxGeometry(), chip))
     group.add(new THREE.Mesh(new THREE.BoxGeometry(), chip))
@@ -68,7 +67,6 @@ describe("inBoardColours", () => {
     const pins = new THREE.MeshStandardMaterial({ color: "#fcfdfe" })
     const led = new THREE.MeshStandardMaterial({ color: "#00bc00" })
     const plain = new THREE.MeshBasicMaterial({ color: "#9c9c9c" })
-    // and a mesh of several materials, each done
     const resistor = new THREE.MeshStandardMaterial({ color: "#737373" })
     group.add(new THREE.Mesh(new THREE.BoxGeometry(), [led, resistor]))
     group.add(new THREE.Mesh(new THREE.BoxGeometry(), pins))

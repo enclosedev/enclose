@@ -113,14 +113,12 @@ export function AxisGizmo({ className }: { className?: string }) {
         const front = sign > 0
         const lit = hot === key
         const r = front ? 10.5 : 8.5
-        // the same view has a name and a shortcut
         const view = VIEWS.findIndex((v) => v.axis === axis && v.sign === sign)
         return (
           <g
             key={key}
             data-end={key}
             className="cursor-pointer"
-            // the ends pointing away sit back a little
             opacity={lit ? 1 : 0.72 + 0.28 * ((depth + 1) / 2)}
             onPointerEnter={() => setHot(key)}
           >

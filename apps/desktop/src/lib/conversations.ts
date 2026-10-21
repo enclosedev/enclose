@@ -34,7 +34,6 @@ export function stackOf(
   const carriedOn =
     latest !== undefined &&
     (latest.status !== "idle" || now - latest.updatedAt < settleDays * DAY)
-  // a new one is on the card while it is what the user is on, as well
   const cover = picked === null || !carriedOn ? null : latest
   const chosen =
     typeof picked === "string"
@@ -43,7 +42,6 @@ export function stackOf(
   return {
     cover,
     under: cover ? conversations.slice(1) : conversations,
-    // with nothing turned to (or something that is no longer there), what is on the card
     open: chosen ?? (picked === null ? null : cover),
   }
 }

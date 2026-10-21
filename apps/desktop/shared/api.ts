@@ -306,7 +306,6 @@ export type ThreadItem =
        * PCB mode, and is about that board: this is what the board is called.
        */
       board?: string
-      /** the pictures that went with the message */
       pictures?: Attached[]
       /**
        * Not said by the user: asked by the app itself of files just opened, that Claude
@@ -551,7 +550,6 @@ export type Provider = {
    * to put it in, as that would be typed. Null where there is none, or none it can.
    */
   update: { version: string; command: string } | null
-  /** it is being updated now */
   updating: boolean
 }
 
@@ -600,7 +598,6 @@ export type GuideSummary = {
   version: number
   /** when it was written (ms) */
   made: number
-  /** how many steps it has */
   steps: number
   /** the parts it shows, by id: those there to begin with, and those its steps put on */
   parts: string[]
@@ -621,7 +618,6 @@ export type GuideSummary = {
 export type BoardSummary = {
   /** what it is known by: what its file is called, without the ending */
   id: string
-  /** what it is called */
   name: string
   /** whether it is a board to be made: false of one only roughed out so far */
   finished: boolean

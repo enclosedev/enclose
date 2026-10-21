@@ -123,7 +123,6 @@ export function folderName(name: string, made: Date): string {
     .normalize("NFKD")
     .replace(/\p{M}/gu, "")
     .toLowerCase()
-    // anything that is not a letter or a digit, in any script, is a dash
     .replace(/[^\p{L}\p{N}]+/gu, "-")
     .replace(/^-+|-+$/g, "")
   return `${when}-${slug || "untitled"}`
@@ -550,7 +549,6 @@ export class Projects {
           this.sceneTimers.set(
             id,
             setTimeout(() => {
-              // taken away, it is no scene any more: that is found by looking again
               if (fs.existsSync(found)) bump()
               else this.locateScene(project)
               this.onChange()
@@ -790,7 +788,6 @@ export class Projects {
       if (file) fs.writeFileSync(at, file)
       else fs.rmSync(at, { force: true })
     } catch {
-      // the folder is gone, or cannot be written: the window has them all the same
       return false
     }
     this.colours.set(id, { parts, file })
@@ -1153,8 +1150,6 @@ export class Projects {
           found.manifest && path.join(to, path.relative(from, found.manifest)),
       })
     this.watch(project)
-    // and so is its reference scene, if it has one of its own, its tools and guides, and
-    // the colours given its parts
     this.locateScene(project)
     this.locateTools(project)
     this.locateGuides(project)

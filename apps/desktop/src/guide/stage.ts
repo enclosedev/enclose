@@ -233,7 +233,6 @@ async function shownOf(
     whole.add(new THREE.Mesh(geometry, material))
     geometry.computeBoundingBox()
     box.union(geometry.boundingBox!)
-    // the build's own edges, or failing those wherever its surfaces meet sharply
     if (!edges) lined(new THREE.EdgesGeometry(geometry, CREASE))
     return {
       material,
@@ -360,14 +359,12 @@ export async function stageOf(
         shown.set(part.id, one)
         root.add(one.whole)
       } catch (error) {
-        // the guide is read without it
         console.warn(`"${part.label}" could not be loaded.`, error)
       }
       progress(++done, wanted.length)
     })
   )
 
-  // the room the parts take up between them, where the model has them
   const all = new THREE.Box3()
   for (const part of shown.values()) all.union(part.box)
   if (all.isEmpty()) all.set(new THREE.Vector3(), new THREE.Vector3())
@@ -511,7 +508,6 @@ export async function stageOf(
     camera.top = window.innerHeight / (2 * scale)
     camera.bottom = -camera.top
     camera.updateProjectionMatrix()
-    // (and as much again as it has been moved across by hand)
     camera.position
       .copy(aim.middle)
       .addScaledVector(right, -(over + moved.x) / scale)
@@ -580,7 +576,6 @@ export async function stageOf(
       dirty = true
     }
     settled = true
-    // (and whoever asked is told when it comes to be as a hand left it, or no longer is)
     const left = turned || near !== 1 || (!returning && moved.lengthSq() > 0.25)
     if (left !== changed) byHand((changed = left))
     if (!dirty) return

@@ -137,7 +137,6 @@ export function QuestionCard({
             on={mine.picked.includes(option.label)}
             onClick={() => {
               const now = pick(question, mine, option.label)
-              // the one answer a question takes is all there is to say to it
               if (question.several) set(now)
               else goOn(now)
             }}
@@ -166,7 +165,6 @@ export function QuestionCard({
             {last ? "Send" : "Next"}
           </Button>
         )}
-        {/* left to Claude, this one: which goes by its best guess, and says so */}
         <Button
           size="sm"
           variant="ghost"

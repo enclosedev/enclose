@@ -2,8 +2,8 @@
 //
 // CAD exporters write one mesh per face: tens of thousands of them for a circuit board,
 // each one a separate draw. Here every face that wears the same colour is joined into one
-// mesh per part (a frame of the first test model went from ~160 ms to ~6 ms), and the
-// face each triangle came from is kept, so a click can still be traced to a face.
+// mesh per part, and the face each triangle came from is kept, so a click can still be
+// traced to a face.
 import * as THREE from "three"
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
 import {
@@ -571,7 +571,6 @@ function waysOf(
     else whole.box.getCenter(whole.centre)
   const ways = begun(waysOut([...wholes.values()], middle, across))
   const way = new Map([...wholes.keys()].map((piece, n) => [piece, ways[n]]))
-  // every part by itself: each is a piece, clear of all the others
   const alone =
     wholes.size < parts.length
       ? begun(

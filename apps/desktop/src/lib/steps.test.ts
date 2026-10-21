@@ -60,7 +60,6 @@ describe("inBlocks", () => {
     expect(
       shape([user("u"), step("a"), says("s"), step("b"), step("c"), says("t")])
     ).toEqual(["user", "a+s+b+c", "assistant"])
-    // said before the first of them, too: and the stretch then goes by that
     expect(shape([user("u"), says("s"), step("a"), says("t")])).toEqual([
       "user",
       "s+a",
@@ -81,7 +80,6 @@ describe("inBlocks", () => {
       "assistant",
       "assistant",
     ])
-    // the next turn's steps are no part of this one
     expect(shape([step("a"), says("s"), user("u"), step("b")])).toEqual([
       "a",
       "assistant",
@@ -182,7 +180,6 @@ describe("atWork", () => {
     expect(atWork([user("u"), step("a", "running")])).toBe(
       "Run python3 model.py"
     )
-    // of two under way, the later; and one that is over, until something follows it
     expect(
       atWork([user("u"), step("a", "running"), step("b", "running")])
     ).toBe("Run python3 model.py")

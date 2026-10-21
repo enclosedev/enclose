@@ -157,21 +157,18 @@ const UserMessage = React.memo(function UserMessage({
           {goesBy(item.part)}
         </Badge>
       )}
-      {/* it was about the reference scene the model was set in, and not the model */}
       {item.reference && (
         <Badge variant="outline" title={item.reference}>
           <ReferenceIcon data-icon="inline-start" />
           Reference scene
         </Badge>
       )}
-      {/* it was written with a circuit board on screen, and is about that board */}
       {item.board && (
         <Badge variant="outline" title={item.board}>
           <BoardIcon data-icon="inline-start" />
           {item.board}
         </Badge>
       )}
-      {/* it began a new version of the project, with what was asked for in another */}
       {item.version && (
         <Badge
           variant="outline"
@@ -181,7 +178,6 @@ const UserMessage = React.memo(function UserMessage({
           New version
         </Badge>
       )}
-      {/* the whole objects it is about, each by what it goes by */}
       {item.objects && item.objects.length > 0 && (
         <div className="flex max-w-[85%] flex-wrap justify-end gap-1.5">
           {item.objects.map((one, index) => (
@@ -196,7 +192,6 @@ const UserMessage = React.memo(function UserMessage({
           ))}
         </div>
       )}
-      {/* the pictures that went with it, each to be looked at big */}
       {pictures.length > 0 && (
         <div className="flex max-w-[85%] flex-wrap justify-end gap-1.5">
           {pictures.map((picture) => (
@@ -209,7 +204,6 @@ const UserMessage = React.memo(function UserMessage({
           ))}
         </div>
       )}
-      {/* what was said of words picked out of the conversation, each under its words */}
       {item.quotes?.map((one, index) => (
         <Bubble
           key={index}
@@ -217,18 +211,13 @@ const UserMessage = React.memo(function UserMessage({
           waiting={waiting}
           className="flex flex-col items-start gap-1.5"
         >
-          {/* how the words begin, in one line, as a chip like a part's: it is what was
-              said of them that is read here, and all of them are told where the pointer
-              rests on the chip */}
           <Badge variant="outline" title={one.quote} className="max-w-full">
-            {/* (the sign keeps its size: it is the words that give way) */}
             <QuoteIcon data-icon="inline-start" className="shrink-0" />
             <span className="min-w-0 truncate">{inLine(one.quote)}</span>
           </Badge>
           {one.text}
         </Bubble>
       ))}
-      {/* what was said of parts, each under the name of its part */}
       {item.notes?.map((note, index) => (
         <Bubble
           key={index}
@@ -245,7 +234,6 @@ const UserMessage = React.memo(function UserMessage({
       ))}
       {item.text && (
         <Bubble of={item.text} waiting={waiting}>
-          {/* the names in it that call on something are set off from the rest */}
           {stretches(item.text).map((stretch, index) =>
             stretch.kind ? (
               <span
@@ -255,7 +243,6 @@ const UserMessage = React.memo(function UserMessage({
                 {stretch.text}
               </span>
             ) : (
-              // and so is the mark of a picture, where one was put in the words
               atPictures(stretch.text, numbers).map((piece) => {
                 const picture = pictures.find(
                   (one) => one.number === piece.picture
@@ -452,7 +439,6 @@ const Item = React.memo(function Item({
     case "user":
       return <UserMessage item={item} project={project} />
     case "assistant":
-      // (words of an answer can be picked out, for something to be said of them)
       return (
         <div {...{ [QUOTABLE]: "" }}>
           <Reply item={item} />
@@ -506,7 +492,6 @@ function JobCard({
     : null
   const blocks = React.useMemo(() => inBlocks(item.items), [item.items])
   const last = blocks.at(-1)
-  // what came of it: what was said last, once it is over
   const said = !working && last?.kind === "assistant" ? last : null
   const took = (item.ended ?? now) - item.at
   // what was done and said, as it is spelled out while it is under way: the last thing
@@ -525,7 +510,6 @@ function JobCard({
     : said
       ? [said]
       : pieces.slice(-1)
-  // there is more to it than that, which "See all" opens
   const hidden = pieces.length > shown.length
   // Once it is over it is kept to a square, which what came of it is often longer than:
   // the foot of it fades out where there is more, and a click on it shows the rest. A
@@ -579,8 +563,6 @@ function JobCard({
           <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
             {duration(took)}
           </span>
-          {/* the board in PCB mode; and while it is being made, what stops it, as the
-            foot of the view has for a turn */}
           <span className="ml-auto flex shrink-0 items-center gap-1.5">
             <Tooltip>
               <TooltipTrigger
@@ -622,7 +604,6 @@ function JobCard({
           className={cn(
             "relative -mx-4.5 -mb-3 flex min-h-0 flex-col gap-3 px-4.5 pb-3",
             kept && "overflow-hidden",
-            // what is under the fade is there to be had
             more && "mask-b-from-[calc(100%-5rem)] mask-b-to-100%"
           )}
         >
@@ -997,7 +978,6 @@ export function Thread({ project }: { project: Project }) {
   const items = useStore((state) => (open ? state.items[open.id] : undefined))
   const load = useStore((state) => state.load)
   const openConversation = useStore((state) => state.openConversation)
-  // whose agent answers here: the one this conversation is had with, or the one picked
   const providers = useStore((state) => state.providers)
   const answers = answering(
     providers,
@@ -1015,7 +995,6 @@ export function Thread({ project }: { project: Project }) {
     if (openId) load(project.id, openId)
   }, [project.id, openId, load])
 
-  // what was said here while it was being answered, and waits its turn
   const queued = open?.queued ?? NOTHING_QUEUED
 
   const blocks = React.useMemo(() => inBlocks(items ?? []), [items])
@@ -1026,12 +1005,10 @@ export function Thread({ project }: { project: Project }) {
   const elsewhere = project.conversations.some(
     (c) => c.status !== "idle" && c.id !== openId
   )
-  // what Claude is at where nothing it says or does shows it: thinking, mostly
   const doing = working ? (open?.doing ?? null) : null
   // A stretch of steps says for itself that there is more to come, and what Claude is
   // at after them. So do words as they come; words that have come say it no more.
   const latest = blocks.at(-1)
-  // where the turn Claude is on began: what it was asked
   const asked = blocks.findLastIndex((block) => block.kind === "user")
   const quiet =
     versioning ||
@@ -1065,11 +1042,9 @@ export function Thread({ project }: { project: Project }) {
       <Edge />
       {/* (what is being quoted is this conversation's: it is let go of with it) */}
       <Quoting key={open?.id ?? "new"} panel={panel} />
-      {/* a faint light across its ground, for as long as the new version is on its way */}
       {versioning && <div aria-hidden className="version-coming" />}
       <header className="drag flex h-12 shrink-0 items-center justify-between gap-2 pr-3 pl-8">
         <Name key={open?.id} projectId={project.id} conversation={open} />
-        {/* quiet until the pointer is on them */}
         <div className="no-drag flex items-center text-muted-foreground">
           <Tooltip>
             <TooltipTrigger
@@ -1110,7 +1085,6 @@ export function Thread({ project }: { project: Project }) {
 
       {items?.length ? (
         <ScrollArea className="min-h-0 flex-1">
-          {/* everything said here breaks into lines of about one length */}
           <div
             ref={inside}
             className="flex flex-col gap-4 px-8 pt-2 pb-6 text-balance"
@@ -1209,7 +1183,6 @@ export function Thread({ project }: { project: Project }) {
           // opened to be written in: by its button, or by Cmd+B
           autoFocus
         />
-        {/* said only when a message cannot be sent, and why */}
         {(elsewhere || (agent && !agent.checking && !usable(agent))) && (
           <p className="px-1.5 text-xs text-balance text-muted-foreground">
             {elsewhere

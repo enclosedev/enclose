@@ -136,7 +136,6 @@ export function Quoting({
         )?.text
       : undefined
   )
-  // the words that are selected, while nothing is being said of them yet
   const [offered, setOffered] = React.useState<{
     words: string
     range: Range
@@ -148,7 +147,6 @@ export function Quoting({
     // looked at once the pointer is let go: what is selected is still being made until then
     const look = () =>
       setTimeout(() => setOffered(panel.current ? picked(panel.current) : null))
-    // and gone with the selection, however that goes
     const gone = () => {
       if (document.getSelection()?.isCollapsed ?? true) setOffered(null)
     }
@@ -160,7 +158,6 @@ export function Quoting({
     }
   }, [panel])
 
-  // nothing is being quoted any longer, once the conversation is put away
   React.useEffect(
     () => () => {
       light(null)
@@ -168,7 +165,6 @@ export function Quoting({
     },
     []
   )
-  // and the words are lit for as long as something is being said of them
   const fresh = quoting !== null && quoting.id === null
   React.useEffect(() => {
     if (!fresh) return
@@ -231,7 +227,6 @@ export function Quoting({
           </div>
         </Beside>
       )}
-      {/* other words can be picked out while the box is up: it is then theirs */}
       {offered && (
         <Beside place={byButton} within={panel} sooner="over">
           <button

@@ -109,7 +109,6 @@ describe("Analytics", () => {
         $process_person_profile: false,
       },
     })
-    // and nothing again until something else happens
     await after(60_000)
     expect(sent).toHaveLength(1)
   })

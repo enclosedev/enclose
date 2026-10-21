@@ -98,7 +98,6 @@ describe("conversations on disk", () => {
         gist: null,
       },
     ])
-    // moved, not copied: reading again finds the same one, not a second
     expect(fs.existsSync(path.join(dir, "p1.json"))).toBe(false)
     expect(readConversations(dir, "p1", none)).toEqual(read)
   })
@@ -174,7 +173,6 @@ describe("conversations on disk", () => {
     expect(left).toHaveLength(3)
     expect(left[0]).toMatch(/^broken\.json\.corrupt-\d+$/)
     expect(left.slice(1)).toEqual(["good.json", "notes.txt"])
-    // with what was in it, as it was
     expect(fs.readFileSync(path.join(dir, "p1", left[0]), "utf8")).toBe(
       "{ cut short"
     )
@@ -350,7 +348,6 @@ describe("conversations as the sidebar has them", () => {
     expect(readsOf(() => (read = readShelved(dir, "p1", none)))).toBe(1)
     expect(read.map((one) => one.id)).toEqual(["c1"])
     expect(read[0].items.at(-1)).toEqual(said("u3", "In red"))
-    // and the summaries are as the files are again
     expect(readsOf(() => readShelved(dir, "p1", none))).toBe(0)
   })
 

@@ -31,7 +31,6 @@ export function opencodeModels(
   const rows = options ?? []
   const standing = rows.find((row) => row.value === current)
   return [
-    // there is always the choice of leaving it to opencode
     {
       id: null,
       name: "Default",
@@ -131,7 +130,6 @@ const step = (
   ctx: AcpStepContext
 ): { name: string; detail: string } => {
   if (ctx.own) return ctx.turn.describe(ctx.own, call.rawInput)
-  // what kind of thing it is, it says at first only in its own words
   const kind = call.kind && call.kind !== "other" ? call.kind : ""
   const file = field(
     call.rawInput,
@@ -150,7 +148,6 @@ const step = (
           : ctx.relative(file || (call.locations?.[0]?.path ?? ""))
   if (KINDS[kind])
     return { name: KINDS[kind], detail: detail || (call.title ?? "") }
-  // a tool someone else brought it, or one of its own that is none of the above
   const called = field(call.rawInput, "tool_name") || call.title || "Tool"
   return { name: called.replaceAll("__", " "), detail }
 }
@@ -258,8 +255,7 @@ const opencode: AcpAgent = {
 
 /**
  * What the installed opencode says of itself: that it is there, and the models it
- * offers. Its models come only with a session, which has no delete: one empty session
- * is left behind each time it is looked at.
+ * offers.
  */
 export async function lookAtOpencode(launch: Launch): Promise<Looked> {
   return lookAt(launch, opencode)

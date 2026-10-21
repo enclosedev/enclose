@@ -110,7 +110,6 @@ export function ColourPicker({
 
   return (
     <div className={cn("flex flex-col gap-2.5", className)}>
-      {/* how much colour, across; how light, down */}
       <div
         role="slider"
         tabIndex={0}
@@ -145,7 +144,6 @@ export function ColourPicker({
           }}
         />
       </div>
-      {/* the hue */}
       <div
         role="slider"
         tabIndex={0}
@@ -172,7 +170,6 @@ export function ColourPicker({
           style={{ left: `${(hsv.h / 360) * 100}%`, background: pure }}
         />
       </div>
-      {/* or typed: what is typed counts as soon as it is a colour */}
       <Input
         aria-label={`${label}, as #rrggbb`}
         spellCheck={false}

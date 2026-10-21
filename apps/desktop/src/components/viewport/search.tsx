@@ -39,7 +39,6 @@ export function Search({
       if (held) {
         if (event.shiftKey || event.key.toLowerCase() !== "f") return
         event.preventDefault()
-        // asked for again while it is up: what was typed is there to be typed over
         if (finding === null) find("")
         else box.current?.select()
         return

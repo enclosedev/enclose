@@ -169,7 +169,6 @@ describe("SettingsStore", () => {
       })
     )
     const store = new SettingsStore(file, DEFAULTS)
-    // still had, and changing something else keeps it so
     store.setProvider("grok", { args: "--verbose" })
     expect(store.provider("grok").env).toEqual([
       { name: "XAI_API_KEY", value: "xai-1" },
@@ -189,7 +188,6 @@ describe("SettingsStore", () => {
     expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({
       analytics: false,
     })
-    // and a first run has nothing to move
     fs.rmSync(file)
     expect(new SettingsStore(file, DEFAULTS).aside).toBeNull()
   })

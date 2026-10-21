@@ -52,7 +52,6 @@ describe("Pace", () => {
     expect(told).toHaveLength(2)
     vi.advanceTimersByTime(1)
     expect(told.at(-1)).toBe("c:m:Hello")
-    // and with nothing more said, nothing more is told
     vi.advanceTimersByTime(STEADY_MS * 5)
     expect(told).toHaveLength(3)
   })
@@ -98,7 +97,6 @@ describe("Pace", () => {
     pace.put("p", "a", said("m", "AA"))
     pace.flush()
     expect(told).toEqual(["a:m:A", "a:m:AA"])
-    // and not again when the time is up
     vi.advanceTimersByTime(STEADY_MS)
     expect(told).toHaveLength(2)
   })

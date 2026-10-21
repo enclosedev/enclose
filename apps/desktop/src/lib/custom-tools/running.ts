@@ -396,7 +396,6 @@ export class Running {
           })
           return to
         }
-        // asked for again in the same frame, it is where it was the first time
         if (going.frame === this.frames) return going.glide.now()
         going.frame = this.frames
         return going.glide.next(to, this.dt, seconds)

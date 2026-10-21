@@ -30,7 +30,6 @@ const SMALL: ReadonlySet<ControlKind> = new Set(["toggle", "readout"])
 function Broken({ tool, projectId }: { tool: Tool; projectId: string }) {
   const fix = () => {
     const { drafts, setDraft, setThreadOpen } = useStore.getState()
-    // (not over something that is already being written)
     if (!(drafts[projectId] ?? "").trim())
       setDraft(
         `The ${tool.name} tool (${tool.file}) is not working: ${tool.error}`
@@ -80,7 +79,6 @@ export function ToolsPanel({
   const tool = tools.find((one) => one.id === picked) ?? tools.at(0)
   const tabs = React.useRef<HTMLDivElement>(null)
 
-  // the tab turned to is in sight, where there are more of them than fit
   React.useEffect(() => {
     tabs.current
       ?.querySelector("[aria-selected=true]")
@@ -96,8 +94,6 @@ export function ToolsPanel({
       // being the view's
       onMouseDown={(event) => event.preventDefault()}
       className={cn(
-        // in the blue of what is the project's own, and rounded as a group's card in
-        // the list of parts is
         "pointer-events-auto flex w-105 flex-col overflow-hidden rounded-2xl bg-tool-panel text-white shadow-lg ring-1 ring-tool-line select-none",
         className
       )}
@@ -105,7 +101,6 @@ export function ToolsPanel({
       <div
         ref={tabs}
         role="tablist"
-        // a wheel that only turns up and down goes along the tabs too
         onWheel={(event) => {
           if (Math.abs(event.deltaY) > Math.abs(event.deltaX))
             event.currentTarget.scrollLeft += event.deltaY
@@ -153,7 +148,6 @@ export function ToolsPanel({
                 data-control={control.id}
                 className={cn("flex gap-4 border-b p-5 last:border-b-0", LINE)}
               >
-                {/* what it is called and, under that in the same letters, what it does */}
                 <div
                   className={cn(
                     "text-xs/4",
@@ -161,13 +155,10 @@ export function ToolsPanel({
                   )}
                 >
                   <div className="font-medium">{control.title}</div>
-                  {/* its lines as long as one another: no word left on a line alone */}
                   <div className="text-balance text-white/60">
                     {control.description}
                   </div>
                 </div>
-                {/* in the room beside that, which a control fills: or at the far end
-                    of the line, half way up it, where it is a small thing */}
                 <div
                   className={cn(
                     "flex items-center",

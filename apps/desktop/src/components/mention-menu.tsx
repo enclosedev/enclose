@@ -61,7 +61,6 @@ export function MentionMenu({
 }) {
   const { title, none, icon: Icon } = WHAT[kind]
   const list = React.useRef<HTMLDivElement>(null)
-  // the one the keys are on is kept in sight
   React.useEffect(() => {
     list.current
       ?.querySelector("[aria-selected=true]")

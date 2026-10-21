@@ -183,7 +183,6 @@ describe("Drafts", { timeout: 15_000 }, () => {
     // none was made unseen, either: with an agent at work now, there is still none
     working = true
     expect(drafts.shown("p")).toBeNull()
-    // until the script is written again
     drafts.sync()
     await watched()
     write("model.py", "print('changed')")

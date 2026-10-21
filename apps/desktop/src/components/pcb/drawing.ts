@@ -215,8 +215,6 @@ export function drawingOf(
 ): string {
   const elements = circuit as unknown as AnyCircuitElement[]
   if (as === "pcb" && side === "bottom")
-    // all of it, as from over it, but its bottom over its top: seen from under the
-    // board, as its top is with its bottom under it from over it
     return turnedOver(
       holesEdged(
         bottomUp(

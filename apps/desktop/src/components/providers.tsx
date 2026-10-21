@@ -500,7 +500,6 @@ function Install({ provider }: { provider: Provider }) {
   const { name, install, docs } = PROVIDER_WORDS[provider.id]
   return (
     <div className="flex flex-col gap-3 text-sm text-muted-foreground">
-      {/* the command on a line of its own, under what to do with it */}
       <div className="flex flex-col items-start gap-2">
         <p>Open Terminal and type</p>
         <Command text={install} />
@@ -551,7 +550,6 @@ function Trouble({ provider }: { provider: Provider }) {
 function Body({ provider, id }: { provider: Provider; id: string }) {
   const [advanced, setAdvanced] = React.useState(false)
   const { tone, detail } = standing(provider)
-  // looked for, and not found
   const missing = provider.status !== null && !provider.status.path
   return (
     <div id={id} className="flex flex-col gap-7 px-8 pb-7">

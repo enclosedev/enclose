@@ -164,7 +164,6 @@ export function reduction(
       )
     )
   )
-  // (nothing to draw is drawn life size)
   if (!(most > 0)) return 1
   for (let tens = ENLARGED; ; tens++)
     for (const step of REDUCED) {
@@ -321,8 +320,6 @@ export function svgOf(sheet: {
     out.push(`</g>`)
   }
   out.push(`</g>`)
-  // What is said of the model's size, apart from the model: thin lines, the arrowheads
-  // filled in, and the figures as writing, for whatever opens the file to set.
   if (sheet.dimensions?.length) {
     out.push(
       `<g id="${name("dimensions")}" fill="none" stroke="${PENCIL}" stroke-width="${short(THIN)}" stroke-linecap="round">`
@@ -353,8 +350,6 @@ export function svgOf(sheet: {
     }
     out.push(`</g>`)
   }
-  // And the names of the parts, apart from both: each a line of dots that ends in a
-  // bigger one on its part, and the name as writing at the other end of it.
   if (sheet.labels?.length) {
     out.push(
       `<g id="${name("labels")}" fill="none" stroke="${PENCIL}" stroke-width="${short(THIN)}" stroke-linecap="round" stroke-linejoin="round">`

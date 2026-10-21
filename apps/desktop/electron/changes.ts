@@ -154,7 +154,6 @@ export async function filesOf(folder: string): Promise<Standing[] | null> {
       if (within !== "" && missing(error)) return true
       throw error
     }
-    // a Python of the project's own, under whatever name
     if (entries.some((entry) => entry.name === "pyvenv.cfg")) return true
     for (const entry of entries) {
       if (LEFT_OUT.has(entry.name)) continue
@@ -444,7 +443,6 @@ export class Changes {
       const aside = path.join(this.root(projectId, id), "before")
       const files: Pending["files"] = new Map()
       this.pending.add(id)
-      // what stands as the last turn left it is linked to, and only the rest copied
       const latest = await this.latestOf(projectId)
       const kept = path.join(this.latest(projectId), "folder")
       try {
@@ -494,7 +492,6 @@ export class Changes {
       for (const [file, was] of pending.files) {
         const is = now.get(file)
         const kept = path.join(root, "before", file)
-        // as it stood, to the instant: not written to
         if (same(was, is)) {
           left.add(file)
           continue
@@ -546,7 +543,6 @@ export class Changes {
         this.drop(projectId, gone.id)
       index.undone = index.undone.filter((gone) => !among(of)(gone))
       index.done.push(change)
-      // it is one of the project's changes from here on, and no longer a copy put aside
       this.pending.delete(id)
       const old = index.done.filter(among(of)).slice(0, -KEPT)
       for (const one of old) this.drop(projectId, one.id)
@@ -614,7 +610,6 @@ export class Changes {
         continue
       }
       await fs.promises.rm(at, { force: true })
-      // and the folders that were made for it, where nothing else is in them
       for (
         let above = path.dirname(file.path);
         above !== "." && above !== "";

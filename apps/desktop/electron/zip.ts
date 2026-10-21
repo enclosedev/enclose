@@ -52,7 +52,6 @@ export function zipOf(files: Zipped[], made = new Date()): Buffer {
   files.forEach(({ data }, index) => {
     const name = Buffer.from(names[index], "utf8")
     const squeezed = zlib.deflateRawSync(data, { level: 6 })
-    // (a file that is no smaller squeezed goes in as it is)
     const stored = squeezed.length < data.length ? squeezed : data
     const how = stored === data ? 0 : 8
     if (data.length >= MOST || at + stored.length >= MOST)

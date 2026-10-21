@@ -18,7 +18,6 @@ export function duration(ms: number): string {
     [Math.floor((seconds % 3600) / 60), "m"],
     [seconds % 60, "s"],
   ] as const
-  // a part there is none of is not said: two minutes flat is "2m"
   return parts
     .filter(([count]) => count > 0)
     .map(([count, unit]) => `${count}${unit}`)
@@ -34,11 +33,9 @@ export function elapsed(ms: number): string {
   const seconds = Math.max(0, Math.floor(ms / 1000))
   if (seconds < 60) return `${seconds} s`
   const minutes = Math.floor(seconds / 60)
-  // seconds there are none of are not said: a minute flat is "1 min"
   if (minutes < 60)
     return seconds % 60 ? `${minutes} min ${seconds % 60} s` : `${minutes} min`
   const hours = Math.floor(minutes / 60)
-  // minutes there are none of are not said: two hours flat is "2 h"
   return minutes % 60 ? `${hours} h ${minutes % 60} min` : `${hours} h`
 }
 

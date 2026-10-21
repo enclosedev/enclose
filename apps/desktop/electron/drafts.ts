@@ -113,7 +113,6 @@ export class Drafts {
     const manifest = this.deps.project(projectId)?.manifest
     if (!made || !manifest) return null
     try {
-      // the project's own build, written since the draft began, is as new as it
       if (fs.statSync(manifest).mtimeMs >= made.began) return null
     } catch {
       return null

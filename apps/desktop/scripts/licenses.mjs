@@ -208,7 +208,6 @@ export function writeLicenses(bundled) {
     if (folder && fs.existsSync(path.join(folder, "package.json")))
       folders.add(folder)
   }
-  // one entry to a name and version, wherever in node_modules it was found
   const entries = new Map()
   for (const folder of folders) {
     const entry = entryOf(folder)
@@ -236,7 +235,6 @@ export function writeLicenses(bundled) {
           : entry.license
       }`,
       ...(entry.homepage ? [entry.homepage.replace(/^git\+/, "")] : []),
-      // a package that has no text of its license with it is under the standard one
       ...(entry.text
         ? ["", entry.text]
         : /^[A-Za-z0-9.-]+$/.test(entry.license)

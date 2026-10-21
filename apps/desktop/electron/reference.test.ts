@@ -67,7 +67,6 @@ describe("appScenes", () => {
       script: path.join(root, "table", "reference.py"),
       dir: path.join(root, "table", "reference"),
     })
-    // what it is called, where it does not say, is what it is known by
     expect(scenes[0].name).toBe("hand")
     expect(appScenes(path.join(root, "nowhere"))).toEqual([])
   })
@@ -96,7 +95,6 @@ describe("findReference", () => {
     write("scenes/bench.json", SCENE)
     write("enclose.json", { reference: "scenes/bench.json" })
     expect(findReference(root)).toBe(path.join(root, "scenes", "bench.json"))
-    // told of one that is not there, it is the usual place that is looked in
     write("enclose.json", { reference: "scenes/gone.json" })
     expect(findReference(root)).toBe(
       path.join(root, "reference", "enclose.reference.json")
@@ -124,13 +122,11 @@ describe("a project's own scene", () => {
     expect(projects.get(id)?.reference).toBe(
       path.join(dir, "reference", "enclose.reference.json")
     )
-    // looked for again and found as it was, it is the same scene still
     projects.refresh(id)
     expect(said()).toBe(first)
 
-    // Rewritten, it is watched for: the window is told, and loads it again. (What
-    // watches a folder may not yet be watching the moment after it is set to: so it
-    // is rewritten until that is seen, with time between for it to be taken as done.)
+    // What watches a folder may not yet be watching the moment after it is set to: so it
+    // is rewritten until that is seen, with time between for it to be taken as done.
     const before = changed
     await expect
       .poll(

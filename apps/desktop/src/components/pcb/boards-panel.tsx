@@ -107,7 +107,6 @@ function BoardCard({
         FOCUS
       )}
     >
-      {/* its picture, in the room over its name: none until it is drawn */}
       {picture ? (
         <img
           src={picture}
@@ -120,8 +119,6 @@ function BoardCard({
           <TurningBoard className="absolute top-14 left-1/2 w-24 -translate-x-1/2" />
         )
       )}
-      {/* a board being worked on; or one only roughed out so far, to be made in detail
-          later */}
       {making ? (
         <WorkingBadge className="absolute top-2.5 left-2.5" />
       ) : (
@@ -129,7 +126,6 @@ function BoardCard({
           <UnfinishedBadge className="absolute top-2.5 left-2.5" />
         )
       )}
-      {/* what it is called and, under that in the same letters, its size */}
       <span className="absolute inset-x-3 bottom-2.25 flex flex-col text-[11px] leading-4">
         <span className="truncate font-medium">{board.name}</span>
         <span className="truncate text-foreground/45">

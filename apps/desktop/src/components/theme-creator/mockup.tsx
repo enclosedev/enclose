@@ -409,7 +409,6 @@ const SETTINGS_SECTIONS = [
 function SettingsOver() {
   return (
     <div inert className="settings absolute inset-0 text-foreground">
-      {/* the window past the panel, dimmed */}
       <div className="absolute inset-0 bg-black/30 dark:bg-black/50" />
       <div className="absolute inset-y-0 left-0 flex w-205 flex-col overflow-hidden rounded-r-xl bg-background shadow-2xl ring-1 ring-foreground/10">
         <div className="h-12 shrink-0" />
@@ -645,7 +644,6 @@ export function Mockup({
     >
       <div className="relative min-w-0 flex-1">
         {board ? (
-          // the whole of the view, as PCB mode has it, the cards put away
           <div className="absolute inset-0">
             <SampleBoard
               as={board.as}

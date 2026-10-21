@@ -60,8 +60,6 @@ export function NewerAgent() {
       {one.updating ? (
         <Spinner className="m-2 text-muted-foreground" />
       ) : (
-        // leaving it be first, and putting it in last, at the end of the pill: the two
-        // closer to each other than to what is said
         <div className="flex items-center gap-1">
           <Button
             variant="secondary"
@@ -77,7 +75,6 @@ export function NewerAgent() {
             title={one.update ? `Runs ${one.update.command}` : undefined}
             onClick={() => {
               if (!version) return
-              // whatever comes of it, it is not offered here again
               void updateProvider(one.id).finally(() => pass(one.id, version))
             }}
           >

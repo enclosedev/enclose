@@ -38,7 +38,6 @@ describe("serveFile", () => {
     const again = await serveFile(file, asked({ "if-none-match": mark }), "x")
     expect(again.status).toBe(304)
     expect(await again.text()).toBe("")
-    // written again since, it is sent again
     fs.writeFileSync(file, "LID, again")
     const since = await serveFile(file, asked({ "if-none-match": mark }), "x")
     expect(since.status).toBe(200)

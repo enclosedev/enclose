@@ -33,14 +33,11 @@ describe("dragOf", () => {
   })
 
   it("does what a key says with either button", () => {
-    // Blender: Shift pans, Ctrl zooms
     expect(dragOf(PRESETS.blender, "middle", SHIFT)).toBe("pan")
     expect(dragOf(PRESETS.blender, "right", SHIFT)).toBe("pan")
     expect(dragOf(PRESETS.blender, "middle", CTRL)).toBe("zoom")
-    // SolidWorks has them the other way about
     expect(dragOf(PRESETS.solidworks, "middle", SHIFT)).toBe("zoom")
     expect(dragOf(PRESETS.solidworks, "middle", CTRL)).toBe("pan")
-    // Fusion pans with the middle button, and turns with Shift
     expect(dragOf(PRESETS.fusion, "middle", SHIFT)).toBe("turn")
   })
 

@@ -54,7 +54,6 @@ describe("sweptTo", () => {
   it("picks the one thing, with the rest, where there is nowhere to sweep from", () => {
     const first = sweptTo(order, [], NO_SWEEP, "c")
     expect(first).toEqual({ ids: ["c"], sweep: { from: "c", over: [] } })
-    // and the next sweeps from it
     expect(sweptTo(order, first.ids, first.sweep, "e").ids).toEqual([
       "c",
       "d",

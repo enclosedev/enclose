@@ -141,7 +141,6 @@ export function fileGuide(
   fs.mkdirSync(dir, { recursive: true })
   if (replacing && GUIDE_FILE.test(`${replacing}.json`))
     fs.rmSync(path.join(dir, `${replacing}.json`), { force: true })
-  // the next writing of the guide to this: one more than the latest there is of it
   const name = fileNameOf(read.title)
   const before = foundIn(root).filter(
     (one) => one.guide && fileNameOf(one.guide.title) === name

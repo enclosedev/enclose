@@ -78,7 +78,6 @@ describe("a project's tools", () => {
     projects.refresh(id)
     const first = toolsOf(projects)
     expect(first).toBeTypeOf("number")
-    // looked at again with nothing changed, they are as they were
     projects.refresh(id)
     expect(toolsOf(projects)).toBe(first)
 

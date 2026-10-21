@@ -126,7 +126,6 @@ function useDrawing(
         if (stopped) return
         since = performance.now()
       }
-      // what the cover is filled with fits the room the sheet has for it
       const wanted = new Set(cover.parts)
       const some = parts.filter((part) => wanted.has(part.part.id))
       const drawing: Drawing = {
@@ -183,7 +182,6 @@ function Cover({
   onRemove: () => void
 }) {
   const drawing = useDrawing(parts, guide.cover)
-  // parts it names that the model has no longer: they are left out of what it shows
   const gone = guide.parts.length - parts.length
   const readable = guide.trouble === null
   return (
@@ -216,10 +214,8 @@ function Cover({
             </TooltipTrigger>
             <TooltipContent side="top">Download as a zip</TooltipContent>
           </Tooltip>
-          {/* And what takes the guide away, in the colour of something not to be
-              pressed by mistake: red on a darker red. It goes to the system's bin,
-              and can be had back from there. (A guide that does not read can still
-              be taken away: it is the one most likely to be.) */}
+          {/* (A guide that does not read can still be taken away: it is the one most
+              likely to be.) */}
           <Tooltip disableHoverablePopup>
             <TooltipTrigger
               render={
@@ -252,9 +248,6 @@ function Cover({
           "cursor-pointer bg-white text-left text-black ring-1 ring-foreground/10 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-default dark:bg-[#f5f6ec] dark:ring-0 dark:focus-visible:ring-[3px]"
         )}
       >
-        {/* The thing, drawn as a blueprint draws it, on all of the sheet, from edge to
-            edge and from top to foot: as big as its guide has it, and going off the
-            sheet's edge where it does. */}
         {readable &&
           (drawing ? (
             <div className="absolute inset-0 animate-in duration-300 fade-in">
@@ -267,11 +260,8 @@ function Cover({
               </div>
             )
           ))}
-        {/* What is written on it is over the drawing, in its top corners, in the
-            app's own sizes whatever size the sheet is: at the left what it is a
-            guide to, and under that, smaller, how much there is to it; at the right,
-            which writing of it this is. The lines may well run on under any of it:
-            each word has the paper's own colour close round it, to be read over them. */}
+        {/* The lines may well run on under any of it: each word has the paper's own
+            colour close round it, to be read over them. */}
         <div className="absolute inset-x-5 top-5 flex items-start justify-between gap-4 [text-shadow:0_0_2px_#fff,0_0_3px_#fff,0_0_6px_#fff] dark:[text-shadow:0_0_2px_#f5f6ec,0_0_3px_#f5f6ec,0_0_6px_#f5f6ec]">
           <div className="min-w-0">
             <div className="text-sm/5">
@@ -366,11 +356,7 @@ export function Assembly({
 }) {
   const guides = useGuides(project)
   const asking = useAsking(project, listed, loaded.model.groups)
-  // with no guide to show, and none on its way, there is only what asks for the first
   const none = guides?.length === 0 && !project.assembling
-  // That is in the middle of the view, and so is the first guide, while it is being
-  // written and once it is: one sheet is no row. With a second they stand in a row,
-  // from the left.
   const alone =
     guides !== null && guides.length + (project.assembling ? 1 : 0) <= 1
   const colours = useStore((state) => state.colours[project.id] ?? NO_COLOURS)
@@ -426,8 +412,6 @@ export function Assembly({
         // other edge. (It is what their sizes are said as lengths of: see PAPERED.)
         className={cn(
           "[container-type:size] absolute inset-0 flex [scrollbar-width:none] items-center overflow-x-auto overflow-y-hidden overscroll-x-contain select-none",
-          // (the one sheet there is, is in the middle of the view, over what is at its
-          // foot, and there is no row to take hold of)
           alone
             ? "justify-center"
             : cn(
@@ -460,7 +444,6 @@ export function Assembly({
           const moved = event.clientX - from.x
           if (!from.pulled && Math.abs(moved) < PULLED_PX) return
           if (!from.pulled) {
-            // it has the pointer from here on, wherever that goes
             from.pulled = true
             event.currentTarget.setPointerCapture(event.pointerId)
             setPulling(true)
@@ -537,7 +520,6 @@ function useAsking(
       ? { label: goesBy(selection.part), parts: allOf(selection.part) }
       : several.length > 0
         ? (() => {
-            // one whole object goes by its name, and anything else by how much it is
             const { objects, loose } = objectsOf(listed, groups, several)
             return objects.length === 1 && loose.length === 0
               ? objects[0]

@@ -82,7 +82,6 @@ export function UpdateButton() {
             className={cn(
               "relative animate-in bg-background shadow-sm duration-200 zoom-in-90 fade-in",
               busy && "cursor-default active:translate-y-0",
-              // the colour of what waits on the user
               here &&
                 "border-transparent bg-attention text-background hover:bg-attention/85 hover:text-background"
             )}

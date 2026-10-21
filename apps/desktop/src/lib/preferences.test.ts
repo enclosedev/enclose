@@ -81,7 +81,6 @@ describe("the preferences", () => {
       scrolling: "auto",
       middle: PRESETS.enclose.middle,
       right: PRESETS.enclose.right,
-      // what was a choice is kept, beside what was not
       shift: "turn",
       pivot: "view",
       units: "mm",
@@ -127,9 +126,7 @@ describe("the preferences", () => {
     expect(preferences.getState()).toMatchObject({ units: "in", turnSpeed: 2 })
     const written = JSON.parse(kept.get(KEY)!) as Record<string, unknown>
     expect(written).toMatchObject({ units: "in", turnSpeed: 2, pivot: "view" })
-    // (and not the way of changing it)
     expect(written).not.toHaveProperty("change")
-    // so the app starts with it the next time
     expect((await started(written)).getState().units).toBe("in")
   })
 })

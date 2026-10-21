@@ -60,7 +60,6 @@ export function extraArgs(args: string[]): Record<string, string | null> {
   const extra: Record<string, string | null> = {}
   for (let at = 0; at < args.length; at++) {
     const arg = args[at]
-    // what is no flag has no place among them
     if (!arg.startsWith("--") || arg.length === 2) continue
     const [name, value] = arg.slice(2).split(/=(.*)/s)
     if (value !== undefined) extra[name] = value
@@ -102,7 +101,6 @@ export function modelChoices(rows: ModelInfo[]): ModelChoice[] {
       ),
     }
   })
-  // there is always the choice of leaving it to Claude Code
   if (choices.length > 0 && !choices.some((choice) => choice.id === null))
     choices.unshift({
       id: null,

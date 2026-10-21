@@ -218,7 +218,6 @@ function Pad({
   const drag = useDrag(
     (px, py) =>
       onSet([x.min + px * (x.max - x.min), y.min + (1 - py) * (y.max - y.min)]),
-    // let go of, one that springs goes back to rest
     control.springs ? () => onSet([within(x, 0), within(y, 0)]) : undefined
   )
   return (
@@ -226,8 +225,7 @@ function Pad({
       <div className={cn(SAYS, "text-right")}>
         {control.says ?? `${plainly(value[0], 0)}, ${plainly(value[1], 0)}`}
       </div>
-      {/* as wide as the room there is. The knob keeps inside it: it is moved over a
-          smaller one within */}
+      {/* The knob keeps inside it: it is moved over a smaller one within */}
       <div className="h-32 w-full rounded-xl bg-white/10 p-2 ring-1 ring-white/20 ring-inset">
         <div
           role="group"
@@ -255,7 +253,6 @@ function Buttons({
   onPress: (option: string) => void
 }) {
   return (
-    // side by side and all of a width, across all the room there is
     <div
       className="grid w-full gap-1.5"
       style={columns(across(control.options))}
@@ -420,9 +417,6 @@ export function ControlOf({
     case "palette":
       return <Palette control={control} onSet={onSet} />
     case "readout":
-      // What a tool says is not a thing to be worked, and is said quietly: on a tag,
-      // fainter than a button and smaller, and cut short where it is too long for it.
-      // With nothing to say there is no tag.
       return control.value ? (
         <div
           title={control.value}

@@ -61,7 +61,6 @@ export function Writing({
           value={text}
           onChange={(event) => setText(event.target.value)}
           onFocus={(event) => {
-            // carrying on from the end of what was written
             const end = event.target.value.length
             event.target.setSelectionRange(end, end)
           }}
@@ -107,8 +106,6 @@ export function Writing({
           </Button>
         </div>
       </div>
-      {/* leaving what is being written, without keeping it: off the top corner of the
-          box, and as plain to see over anything as a part's name is */}
       <button
         type="button"
         onClick={onCancel}

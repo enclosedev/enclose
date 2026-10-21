@@ -143,7 +143,6 @@ export function Download() {
     }
   }, [])
 
-  // pointed at, or come to from the keyboard
   const pointing = (system: System) => ({
     onPointerEnter: () => setOver(system),
     onPointerLeave: () => setOver((was) => (was === system ? null : was)),

@@ -31,7 +31,6 @@ describe("the section's handle, put away", () => {
     const away: PutAway = { cut: across(), chosen: cutsChosen() }
     cutChosen()
     expect(stillAway(away, across(), cutsChosen())).toBe(false)
-    // and put away again, it is away again
     const again: PutAway = { cut: across(), chosen: cutsChosen() }
     expect(stillAway(again, across(), cutsChosen())).toBe(true)
   })

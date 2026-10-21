@@ -123,13 +123,10 @@ export function dimensionsOf(
   const { min, max } = room
   const size = [max[0] - min[0], max[1] - min[1], max[2] - min[2]]
   if (size.every((length) => !(length > 0))) return []
-  /** Where a place in the model falls on the sheet. */
   const place = (p: readonly number[]): Point =>
     onSheet(dot(p, looking.right), dot(p, looking.up), placing)
 
   if (flat) {
-    // the box round the model as the sheet has it, and how much of the model each way
-    // of the sheet takes in
     const corners = Array.from({ length: 8 }, (_, i) =>
       place([
         i & 1 ? max[0] : min[0],
@@ -167,7 +164,6 @@ export function dimensionsOf(
   const near = [0, 1, 2].map((axis) => (back[axis] > 0 ? max[axis] : min[axis]))
   const far = [0, 1, 2].map((axis) => (back[axis] > 0 ? min[axis] : max[axis]))
   const towards = [0, 1, 2].map((axis) => (back[axis] > 0 ? 1 : -1))
-  /** A way in the model as it lies on the sheet, one long. */
   const lying = (way: readonly number[]): Point => {
     const x = dot(way, looking.right)
     const y = -dot(way, looking.up)
@@ -175,21 +171,18 @@ export function dimensionsOf(
     return [x / length, y / length]
   }
   return [
-    // the width, along the front of that face, set out towards the eye
     measured(
       place([far[0], near[1], far[2]]),
       place([near[0], near[1], far[2]]),
       lying([0, towards[1], 0]),
       lengthSaid(size[0], unit)
     ),
-    // the depth, along the side of it, set out to that side
     measured(
       place([near[0], near[1], far[2]]),
       place([near[0], far[1], far[2]]),
       lying([towards[0], 0, 0]),
       lengthSaid(size[1], unit)
     ),
-    // the height, up the edge at the other end of the front, set out past it
     measured(
       place([far[0], near[1], min[2]]),
       place([far[0], near[1], max[2]]),

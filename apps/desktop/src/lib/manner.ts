@@ -53,7 +53,6 @@ export function mannerOf(
   effort: Effort | null,
   access: Access
 ): Manner {
-  // the agent has not said what it offers: what was picked stands as it is
   if (models.length === 0) return { provider, model, effort, access }
   const chosen = chosenModel(models, model)
   return {

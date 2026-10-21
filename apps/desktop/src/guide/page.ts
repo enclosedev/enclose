@@ -131,7 +131,6 @@ function page(told: NonNullable<Window["ENCLOSE_GUIDE"]>) {
   const canvas = made("canvas", "stage")
   canvas.setAttribute("aria-label", `${guide.title}, in 3D`)
   const sections = [
-    // before anything is begun: the thing whole, and what is needed to hand
     made(
       "section",
       "step",
@@ -146,7 +145,6 @@ function page(told: NonNullable<Window["ENCLOSE_GUIDE"]>) {
       needed(guide.needs)
     ),
     ...guide.steps.map((step, index) => {
-      // what goes on in it: the things made up before, each as one, and then its parts
       const names = [
         ...step.fits,
         ...step.parts.flatMap((id) => called.get(id) ?? []),
@@ -165,7 +163,6 @@ function page(told: NonNullable<Window["ENCLOSE_GUIDE"]>) {
         ),
         made("h2", "", step.title),
         ...written(step.text, ""),
-        // something to take care over, set apart with a lamp beside it, as a tip is
         step.tip
           ? made(
               "p",
@@ -256,7 +253,6 @@ function page(told: NonNullable<Window["ENCLOSE_GUIDE"]>) {
     further = over - risen
     down = Math.min(down, further)
     list.style.transform = `translateY(${sections[0].offsetTop - section.offsetTop - risen - down}px)`
-    // and how far through the guide that is, on the mark at the window's edge
     const track = mark.clientHeight - thumb.clientHeight
     thumb.style.transform = `translateY(${(active / (sections.length - 1)) * track}px)`
   }
@@ -291,7 +287,6 @@ function page(told: NonNullable<Window["ENCLOSE_GUIDE"]>) {
     section.addEventListener("click", () => goTo(index))
   )
   again.addEventListener("click", () => stage?.again())
-  // the keys that go down a page go on a step, and the ones that go up, back one
   window.addEventListener("keydown", (event) => {
     if (event.metaKey || event.ctrlKey || event.altKey) return
     const on =
@@ -376,7 +371,6 @@ function page(told: NonNullable<Window["ENCLOSE_GUIDE"]>) {
       canvas.classList.add("ready")
     },
     (error: unknown) => {
-      // the steps are still there to be read
       loading.textContent = "The model could not be shown here."
       console.error(error)
     }

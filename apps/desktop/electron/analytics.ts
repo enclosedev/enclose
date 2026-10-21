@@ -220,7 +220,6 @@ export class Analytics {
     this.sending = false
     if (taken) this.failures = 0
     else this.failures++
-    // what went is done with, and so is what has failed to go too often
     if (taken || this.failures % TRIES === 0)
       this.waiting = this.waiting.filter((one) => !batch.includes(one))
     if (!on) return

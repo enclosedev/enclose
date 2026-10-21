@@ -138,7 +138,6 @@ function executable(file: string): boolean {
 }
 
 function onPath(name: string): string | null {
-  // a Windows command goes by one of several endings
   const names =
     process.platform === "win32" && !path.extname(name)
       ? [`${name}.exe`, `${name}.cmd`]
@@ -180,8 +179,8 @@ export function loginShell(): string | null {
   // a bare name (no path) is left to be found on the PATH, as when it is run
   if (own && (own.includes("/") ? executable(own) : true)) return own
   // A Mac's own login shell is zsh, whose profile (`~/.zprofile`) is where Homebrew and
-  // the agents put their PATH: asked for first there, as the old default of `/bin/zsh`
-  // did. Elsewhere bash is what a box is launched with.
+  // the agents put their PATH: asked for first there. Elsewhere bash is what a box is
+  // launched with.
   const alwaysThere =
     process.platform === "darwin"
       ? ["/bin/zsh", "/bin/bash", "/bin/sh"]
@@ -208,7 +207,6 @@ function adoptShellPath(): Promise<void> {
       if (found) process.env.PATH = found
       return true
     } catch {
-      // keep the PATH we were started with, for now
       return false
     }
   })()
@@ -303,7 +301,6 @@ export class Providers {
       .then(() => {
         const left = (this.waiting.get(id) ?? 1) - 1
         this.waiting.set(id, left)
-        // the last of it: it is no longer being looked at
         if (left === 0) this.deps.onChange()
       })
     this.queues.set(id, queued)
@@ -329,7 +326,6 @@ export class Providers {
     this.statuses.set(id, {
       path: file,
       version,
-      // what the same one said of its account stands until it is asked again
       signedIn: was?.path === file ? was.signedIn : null,
       account: was?.path === file ? was.account : null,
       trouble: null,
@@ -362,7 +358,6 @@ export class Providers {
       trouble: looked.trouble,
       checkedAt: Date.now(),
     })
-    // one that would not say this time keeps what it said before
     if (looked.models.length > 0) this.models.set(id, looked.models)
     this.deps.onChange()
   }

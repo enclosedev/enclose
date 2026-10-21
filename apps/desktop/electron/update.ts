@@ -61,13 +61,10 @@ export class Updates {
     this.updater = deps.updater
     this.onChange = deps.onChange
     const { updater } = this
-    // nothing is fetched until it is asked for
     updater.autoDownload = false
     updater.on("update-available", ({ version }) => {
       const now = this.update
-      // one that is on its way, or here, is seen through first
       if (now.state !== "none" && now.state !== "available") return
-      // (the same one, found again, is still one that did not come when it was asked for)
       const failed =
         now.state === "available" && now.version === version && now.failed
       this.set({ state: "available", version, failed })

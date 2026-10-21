@@ -27,17 +27,14 @@ describe("dimensionsOf", () => {
     const [across, down] = dimensionsOf(ROOM, looking, true, LIFE, "mm")
     expect(across.text.said).toBe("130")
     expect(down.text.said).toBe("30")
-    // the line across is over the drawing, from one end of it to the other
     const [, , line] = across.lines
     expect(line[0]).toBeCloseTo(SHEET.width / 2 - 65)
     expect(line[2]).toBeCloseTo(SHEET.width / 2 + 65)
     expect(line[1]).toBeCloseTo(line[3])
     expect(line[1]).toBeLessThan(SHEET.height / 2 - 15)
-    // and its figure is over the middle of it, the right way up
     expect(across.text.x).toBeCloseTo(SHEET.width / 2)
     expect(across.text.y).toBeLessThan(line[1])
     expect(across.text.turn).toBeCloseTo(0)
-    // the one down the side stands to the left, and reads from the foot up
     const [, , upright] = down.lines
     expect(upright[0]).toBeCloseTo(upright[2])
     expect(upright[0]).toBeLessThan(SHEET.width / 2 - 65)

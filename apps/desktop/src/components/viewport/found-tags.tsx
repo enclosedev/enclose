@@ -202,14 +202,12 @@ function arrange(
       !whole ||
       (span.right - span.left >= wide * ROOMY.wide &&
         span.bottom - span.top >= high * ROOMY.high)
-    // above it, unless that is off the top of the view
     const over = span.top - ABOVE - high
     const left = Math.round(across(seen.x) - wide / 2)
     const top = Math.round(roomy || over < 0 ? down(seen.y) - high / 2 : over)
     const right = left + wide
     const bottom = top + high
     const there =
-      // in front of the camera, and in the view
       Math.abs(seen.z) <= 1 &&
       right > 0 &&
       left < size.width &&

@@ -89,7 +89,6 @@ describe("zipOf", () => {
     })
     afterEach(() => fs.rmSync(dir, { recursive: true, force: true }))
 
-    // (where there is an unzip to ask: there is on a Mac, and on most of Linux)
     const unzip = ["/usr/bin/unzip", "/bin/unzip"].find((file) =>
       fs.existsSync(file)
     )

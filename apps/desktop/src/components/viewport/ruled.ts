@@ -39,7 +39,6 @@ export function ruledOf(
   let faces = 0
   for (let t = 0; t < triangles; t++) faces = Math.max(faces, faceOf[t] + 1)
 
-  // how much of each face there is, and the box round it
   const area = new Float64Array(faces)
   const low = new Float64Array(faces * 3).fill(Infinity)
   const high = new Float64Array(faces * 3).fill(-Infinity)
@@ -65,7 +64,6 @@ export function ruledOf(
       Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx) / 2
   }
 
-  // how many squares across each face is, along each axis
   const counts = new Uint16Array(faces * 3)
   for (let face = 0; face < faces; face++) {
     const side = Math.sqrt(area[face] / SQUARES)

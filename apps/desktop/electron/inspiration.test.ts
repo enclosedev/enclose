@@ -164,7 +164,6 @@ describe("Inspiration", () => {
       at: [5, 5],
       overview: "What: a radio",
     })
-    // and nothing is looked at twice
     await settle()
     expect(looked).toHaveLength(1)
   })
@@ -180,7 +179,6 @@ describe("Inspiration", () => {
     inspiration.save("p1", { images: [onBoard(two.id, two.file)] })
     await until(() => trashed.length > 0)
     expect(trashed).toEqual([one.file])
-    // the one being looked at is looked at no longer
     expect(looked[0].signal.aborted).toBe(true)
     expect(fs.readdirSync(path.join(dir, INSPIRATION_FOLDER)).sort()).toEqual(
       [INSPIRATION_FILE, "mine.png", two.file].sort()

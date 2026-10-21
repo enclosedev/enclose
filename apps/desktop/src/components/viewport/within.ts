@@ -121,7 +121,6 @@ function kept(shape: number[], { normal, constant }: THREE.Plane): number[] {
       normal.z * shape[b + 2] +
       constant
     if (fromA >= 0) left.push(shape[a], shape[a + 1], shape[a + 2])
-    // the edge crosses the plane: where it does is a corner of what is left
     if (fromA >= 0 !== fromB >= 0) {
       const along = fromA / (fromA - fromB)
       left.push(

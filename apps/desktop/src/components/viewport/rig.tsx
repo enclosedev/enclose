@@ -330,7 +330,6 @@ function direct(stage: {
           )
         )
         .sub(target)
-      // how near the camera the corner is, and how far off the middle of the view
       const near = corner.dot(toward)
       const aside = Math.abs(corner.dot(right)) * margin
       const above = Math.abs(corner.dot(up)) * margin
@@ -508,7 +507,6 @@ function direct(stage: {
       seen = small
       const toward = toWorld(HOME_DIRECTION)
       const polar = Math.acos(toward.y)
-      // stand back just far enough that all of what is framed is in the view
       const { target, distance } = fitting(
         framed(),
         Math.atan2(toward.x, toward.z),
@@ -649,7 +647,6 @@ function direct(stage: {
       // there is no looking up from under the ground
       if (stage.ground() !== null && polar > Math.PI / 2 + THERE) return
       const { width, height } = stage.size()
-      // what of the model shows from there, and the scale at which it fits the view
       const extent = framed().getSize(new THREE.Vector3())
       const [across, up] =
         axis === "x"
@@ -1181,7 +1178,6 @@ export function Rig({
     first.current = false
   }, [homeKey, watching, small])
 
-  // the view changed shape: a panel opened, or the window was resized
   React.useEffect(() => {
     shape.current = aspect
     if (!first.current) director.current?.reshape(aspect)
@@ -1302,7 +1298,6 @@ export function Rig({
       const does = dragOf(buttons, button, held)
       if (does === "zoom")
         zooming = { x: event.clientX, y: event.clientY, last: event.clientY }
-      // a turn may go about the place the drag began on, or about what is picked out
       else if (does === "turn") made.hold(turnedAbout(event, bridging.current))
     }
     const drag = (event: PointerEvent) => {
@@ -1355,7 +1350,6 @@ export function Rig({
       camera.smoothTime = SMOOTH.zoom
       if (event.shiftKey) return
       const now = performance.now()
-      // what it was made with is worked out, unless the user has said which it always is
       const { scrolling, wheelReversed } = usePreferences.getState()
       const from =
         scrolling === "auto"
@@ -1395,8 +1389,6 @@ export function Rig({
     }
   }, [gl])
 
-  // Going round by itself: a little further each frame, the way a drag would take it,
-  // and gently into it.
   const round = React.useRef(0)
   useFrame((_, delta) => {
     const step = Math.min(delta, STEP)
@@ -1417,10 +1409,8 @@ export function Rig({
       camera={lens}
       makeDefault
       onControl={() => director.current?.taken()}
-      // a drag turns as fast as the user has asked the view to turn
       azimuthRotateSpeed={turnSpeed}
       polarRotateSpeed={turnSpeed}
-      // and a wheel zooms as fast as they have asked it to zoom
       dollySpeed={ZOOM_SPEED * zoomSpeed}
       dollyToCursor
       smoothTime={SMOOTH.turn}

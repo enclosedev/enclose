@@ -77,7 +77,6 @@ describe("stackOf", () => {
       ["b", "a"],
       "a",
     ])
-    // one that has settled can be turned to as well
     expect(laid([left("b", 5), left("a", 9)], "b")).toEqual([
       null,
       ["b", "a"],
@@ -146,7 +145,6 @@ describe("finishedNow", () => {
 describe("follows", () => {
   it("goes on to a new version from the conversation it was asked for in", () => {
     expect(follows(left("a", 0), "a", "b")).toBe(true)
-    // and stays with the new one, where that is what is shown already
     expect(follows(left("b", 0), "a", "b")).toBe(true)
   })
 

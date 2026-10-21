@@ -88,7 +88,6 @@ export function standing(
   cuts: boolean[] = []
 ): Standing {
   const steps = stands.length
-  // before the first step the thing is shown whole, and after the last it is whole again
   const whole = at < 0 ? 1 - smooth(at + 1, 0, WHOLE_GOES) : 0
   const own = Math.max(whole, smooth(at, steps - 1, steps))
   // the step it is at, or last left, and how far on it is to the one after: whole, the

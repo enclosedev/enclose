@@ -132,7 +132,6 @@ export function ShadingPie({
         },
       }
       menu.current = {
-        // on a choice takes that one; anywhere else, the one pointed at
         click: (on) => {
           const mode = on ?? (up ? pointedAt(up.from, last) : null)
           if (mode) choose(mode)
@@ -147,7 +146,6 @@ export function ShadingPie({
     const keydown = (event: KeyboardEvent) => {
       const z = event.key.toLowerCase() === "z"
       if (up) {
-        // the menu has the keyboard while it is up: Esc, or Z again, puts it away
         if (event.metaKey || event.ctrlKey) return
         event.preventDefault()
         event.stopPropagation()
@@ -273,7 +271,6 @@ export function ShadingPie({
             data-shading={mode}
             className={cn(
               "glass absolute flex -translate-1/2 items-center justify-center rounded-full bg-background/60 shadow-sm ring-1 ring-foreground/10 transition-[background-color,box-shadow,scale] [&_svg]:size-5",
-              // the one in use is lit like a button that is on
               mode === current && "bg-primary text-primary-foreground",
               mode === pointed && "scale-105 ring-2 ring-foreground/70",
               mode === pointed && mode !== current && "bg-foreground/15"

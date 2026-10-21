@@ -52,7 +52,6 @@ export class Previews {
       this.again.add(key)
       return
     }
-    // a board being built for real shows its own build when it is done
     try {
       const building = path.join(root, BOARD_FOLDER, builtOf(board).building)
       if (
