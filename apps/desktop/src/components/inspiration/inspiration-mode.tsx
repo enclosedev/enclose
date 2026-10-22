@@ -1383,7 +1383,9 @@ function Board({
           />
           <div className="text-xl/[1.3] font-bold">Your inspiration board</div>
           <div className="max-w-md text-xl/[1.3] text-balance text-foreground/45">
-            Drop in images of things you want this to be like.
+            Show the agent what you want
+            <br />
+            your project to look like.
           </div>
           <Button
             variant="secondary"
