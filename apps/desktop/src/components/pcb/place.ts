@@ -8,10 +8,12 @@ export const PLACE_MARK = "enclose-place"
 /**
  * How the board's millimetres lie in a drawing of it as it is made, from its mark (see
  * `placeMark`), which is then taken out: x and y on the board come out at a·x + e and
- * d·y + f. Null where it has none.
+ * d·y + f. Null where it has none. For a drawing of the board turned over (see
+ * `turnedOver`), `turned` is how wide it is: the mark is drawn turned over with the rest.
  */
 export function placeOf(
-  svg: SVGSVGElement
+  svg: SVGSVGElement,
+  turned: number | null = null
 ): { a: number; d: number; e: number; f: number } | null {
   const mark = svg.querySelector(`[data-pcb-note-line-id^="${PLACE_MARK}:"]`)
   if (!mark) return null
@@ -26,5 +28,7 @@ export function placeOf(
     return null
   const a = x2 - x1
   const d = y2 - y1
-  return { a, d, e: x1 - a * x, f: y1 - d * y }
+  const e = x1 - a * x
+  const f = y1 - d * y
+  return turned === null ? { a, d, e, f } : { a: -a, d, e: turned - e, f }
 }

@@ -7,7 +7,9 @@
 // The drawings are moved about as the model is: fingers across a trackpad or a drag move
 // them, and a pinch or a mouse wheel zooms, on the place under the pointer. A double
 // click puts the whole of the board back in view. The 3D has the model's own camera, and
-// is turned and moved by the same hand.
+// is turned and moved by the same hand. Drawn as it is made, what the pointer is over is
+// said as tscircuit's own viewer says it (see inspecting.tsx): a pad's names, a trace's
+// length, and how far its part is placed from what it is placed by.
 import * as React from "react"
 import { cn } from "cn"
 import * as THREE from "three"
@@ -60,6 +62,8 @@ import {
   type Shaded,
 } from "./colours"
 import { cleanDrawing } from "./clean-drawing"
+import { inspected, underAt, type Under } from "./inspect"
+import { Inspecting, onBoardAt, pixelsPerMm, type Seen } from "./inspecting"
 import { placeOf } from "./place"
 import { BoardPartsPanel } from "./parts-panel"
 import { TurningBoard } from "./turning-board"
@@ -279,6 +283,8 @@ function lay(traces: SVGGeometryElement[], gone = 0) {
  * keeps where it was looked at as long as it is the same board drawn the same way.
  * While the board is being made (`swept`) a light goes across it, a line that scans it
  * while it is being checked (`checking`), and each trace a build brings draws itself in.
+ * Where it has the board as tscircuit has it (`circuit`), what the pointer is over is
+ * said over it.
  */
 function Drawing({
   id,
@@ -287,6 +293,8 @@ function Drawing({
   swept,
   checking = false,
   routing = null,
+  circuit = null,
+  side = "top",
 }: {
   /** the board, of which project, and the way it is drawn */
   id: string
@@ -298,6 +306,10 @@ function Drawing({
   checking?: boolean
   /** what the router is trying, while it is routed: drawn over the board */
   routing?: Routing | null
+  /** the board as tscircuit has it, for what the pointer is over to be said */
+  circuit?: Circuit | null
+  /** the side of the board drawn */
+  side?: "top" | "bottom"
 }) {
   const holder = React.useRef<HTMLDivElement>(null)
   // (the board being made, as it is when a new drawing comes, without waiting on it:
@@ -312,13 +324,25 @@ function Drawing({
   const whole = React.useRef(1)
   /** how the board's millimetres lie in the drawing, where it says (see placeOf) */
   const place = React.useRef<ReturnType<typeof placeOf>>(null)
+  const board = React.useMemo(
+    () => (circuit ? inspected(circuit) : null),
+    [circuit]
+  )
+  /** how it is seen now, for what is said over it to lie where it should */
+  const [seen, setSeen] = React.useState<Seen | null>(null)
+  /** what the pointer is over, of which board, and where the pointer is, px */
+  const [pointed, setPointed] = React.useState<{
+    under: Under
+    of: ReturnType<typeof inspected>
+    at: [number, number]
+  } | null>(null)
 
   React.useLayoutEffect(() => {
     const within = holder.current
     const drawing = readDrawing(markup)
     if (!within || !drawing) return
     const { svg, ...size } = drawing
-    place.current = placeOf(svg)
+    place.current = placeOf(svg, side === "bottom" ? size.width : null)
     sweep.current = sweptOver(svg, size, dark)
     within.replaceChildren(svg)
     const drawn = [...svg.querySelectorAll<SVGGeometryElement>(".pcb-trace")]
@@ -352,6 +376,8 @@ function Drawing({
       const w = width * at.scale
       const h = height * at.scale
       svg.setAttribute("viewBox", `${at.x - w / 2} ${at.y - h / 2} ${w} ${h}`)
+      const laid = place.current
+      setSeen(laid ? { at, width, height, place: laid } : null)
     }
     const fit = () => {
       const { width, height } = within.getBoundingClientRect()
@@ -459,7 +485,7 @@ function Drawing({
       within.removeEventListener("pointercancel", up)
       within.removeEventListener("dblclick", fit)
     }
-  }, [id, markup, dark])
+  }, [id, markup, dark, side])
 
   React.useLayoutEffect(() => {
     const svg = holder.current?.firstElementChild
@@ -492,11 +518,41 @@ function Drawing({
     return () => cancelAnimationFrame(frame)
   }, [markup, dark, swept, checking])
 
+  /** What is under the pointer, while nothing is held down. */
+  const point = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!board || !seen || event.buttons !== 0) return setPointed(null)
+    const box = event.currentTarget.getBoundingClientRect()
+    const at: [number, number] = [
+      event.clientX - box.left,
+      event.clientY - box.top,
+    ]
+    // (a pixel or two from a thing is on it)
+    const under = underAt(
+      board,
+      onBoardAt(seen, ...at),
+      side,
+      2 / pixelsPerMm(seen)
+    )
+    setPointed(under ? { under, of: board, at } : null)
+  }
+
   return (
-    <div
-      ref={holder}
-      className="absolute inset-0 cursor-grab touch-none select-none active:cursor-grabbing"
-    />
+    <>
+      <div
+        ref={holder}
+        className="absolute inset-0 cursor-grab touch-none select-none active:cursor-grabbing"
+        onPointerMove={point}
+        onPointerLeave={() => setPointed(null)}
+      />
+      {circuit && seen && pointed?.of === board && (
+        <Inspecting
+          under={pointed.under}
+          pointer={pointed.at}
+          seen={seen}
+          circuit={circuit}
+        />
+      )}
+    </>
   )
 }
 
@@ -1443,6 +1499,8 @@ export function BoardMode({
           swept={making}
           checking={job?.steps.at(-1)?.step === "checking"}
           routing={routing}
+          circuit={as === "pcb" ? circuit : null}
+          side={turned ? "bottom" : "top"}
         />
       ) : trouble || markup === false ? (
         <Nothing

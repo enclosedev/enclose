@@ -219,7 +219,7 @@ export function drawingOf(
       holesEdged(
         bottomUp(
           convertCircuitJsonToPcbSvg(
-            elements,
+            [...elements, ...placeMark(elements)],
             pcbLook(elements, colours, ground)
           )
         ),

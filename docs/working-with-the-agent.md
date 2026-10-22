@@ -184,7 +184,13 @@ in PCB mode, with the board where the model was (its copper in KiCad's colours):
 right change over to the board's, and the cards of the other projects are put away. A board opens in
 3D; the buttons, or 1, 2 and 3, show it as it is made (**Technical view**), in **3D**, or as its
 **Schematic**. Beside **Technical view**, **Bottom side** (S) turns the board over, to show its bottom as it is seen from under it. A drawing is moved with a swipe or a drag and zoomed with a pinch or the
-wheel, and a double click shows all of it again. The 3D is looked round as the model is,
+wheel, and a double click shows all of it again. In the technical view, pointing at a
+pad shows what its pin is called (U1.VBAT, U1.pin28), as tscircuit's own viewer does,
+pointing at a hole shows how big it is drilled, and pointing at a trace shows the net it
+is on and how long it is. Pointing at a pad, a hole or a part also boxes the part (a hole
+of the board's own, the hole) and draws, dashed, how far it is placed from what it is
+placed by (the middle of the board, or its group's anchor), along and up, in
+millimetres: the same numbers as its position in the board's code. The 3D is looked round as the model is,
 with the same camera, with the edges drawn as the model's are, and in the app's own
 colours for a board: two greens for its mask, the lighter over copper, a yellow for its
 pads, and white for its lettering and for where nothing may go; a theme can change them,
