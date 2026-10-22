@@ -47,6 +47,7 @@ is Ctrl off a Mac.
 | 3 | Its schematic |
 | S | Its bottom side, turned over as it is seen from under the board, and back |
 | P | The parts on the board |
+| Cmd+F | Search the board for parts, pins and nets by name, in the technical view and in 3D |
 | Cmd+1 to 7 | In 3D, the same set views as the model's: the view it opens with, front, back, top, bottom, right, left |
 | Esc | Back to the model |
 

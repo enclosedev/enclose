@@ -190,7 +190,12 @@ pointing at a hole shows how big it is drilled, and pointing at a trace shows th
 is on and how long it is. Pointing at a pad, a hole or a part also boxes the part (a hole
 of the board's own, the hole) and draws, dashed, how far it is placed from what it is
 placed by (the middle of the board, or its group's anchor), along and up, in
-millimetres: the same numbers as its position in the board's code. The 3D is looked round as the model is,
+millimetres: the same numbers as its position in the board's code. **Search** (Cmd+F)
+looks for what is on the board by name: a part (C1, J1, or "capacitor" for all of them),
+a pin (GND1, or J1.GND1), or a net (GND, V5). What is found is lit, with the rest of the
+board faded back, a part or a pin boxed with its name over it and a net all its pads and
+traces; in 3D, the parts found, or those a pin or a net is on, are lit. Enter goes to all
+of it, and Esc puts the search away. The 3D is looked round as the model is,
 with the same camera, with the edges drawn as the model's are, and in the app's own
 colours for a board: two greens for its mask, the lighter over copper, a yellow for its
 pads, and white for its lettering and for where nothing may go; a theme can change them,

@@ -1411,7 +1411,17 @@ function Board({
       {finding === null ? (
         <Called updated={board.updated} />
       ) : (
-        <BoardSearch found={found} onShow={showFound} />
+        <BoardSearch
+          what="images"
+          said={
+            found === null
+              ? null
+              : found.size > 0
+                ? counted(found.size, "image")
+                : ""
+          }
+          onShow={showFound}
+        />
       )}
 
       {naming && (

@@ -9,7 +9,9 @@
 // click puts the whole of the board back in view. The 3D has the model's own camera, and
 // is turned and moved by the same hand. Drawn as it is made, what the pointer is over is
 // said as tscircuit's own viewer says it (see inspecting.tsx): a pad's names, a trace's
-// length, and how far its part is placed from what it is placed by.
+// length, and how far its part is placed from what it is placed by. Cmd+F looks for its
+// parts, pins and nets by name (see finding.ts): what goes by it is lit on the board,
+// and in 3D, and Enter goes to it.
 import * as React from "react"
 import { cn } from "cn"
 import * as THREE from "three"
@@ -62,17 +64,38 @@ import {
   type Shaded,
 } from "./colours"
 import { cleanDrawing } from "./clean-drawing"
-import { inspected, underAt, type Under } from "./inspect"
+import {
+  findablesOf,
+  foundBox,
+  foundSaid,
+  lookFor,
+  partsIn,
+  type Found,
+} from "./finding"
+import { Finding } from "./found"
+import { inspected, underAt, type Inspected, type Under } from "./inspect"
 import { Inspecting, onBoardAt, pixelsPerMm, type Seen } from "./inspecting"
 import { placeOf } from "./place"
 import { BoardPartsPanel } from "./parts-panel"
 import { TurningBoard } from "./turning-board"
+import {
+  BoardSearch,
+  useBoardFinding,
+} from "@/components/inspiration/board-search"
 
 /** How much of the view a drawing fills when the whole of it is shown. */
 const FIT = 0.86
 /** How far in a drawing can be zoomed, and out, against the whole of it. */
 const NEAREST = 60
 const FURTHEST = 0.5
+/**
+ * How much of the view what was looked for fills when it is gone to, and how near that
+ * goes at most, against the whole of the drawing: a small part is seen among those round it.
+ */
+const FOUND_FIT = 0.6
+const FOUND_NEAREST = 8
+/** How long the view takes to go to it, ms. */
+const GOING_MS = 380
 
 /** How many drawings have been read: each one's style is kept to it by its number. */
 let drawings = 0
@@ -284,7 +307,7 @@ function lay(traces: SVGGeometryElement[], gone = 0) {
  * While the board is being made (`swept`) a light goes across it, a line that scans it
  * while it is being checked (`checking`), and each trace a build brings draws itself in.
  * Where it has the board as tscircuit has it (`circuit`), what the pointer is over is
- * said over it.
+ * said over it, and what was looked for is lit on it (`found`).
  */
 function Drawing({
   id,
@@ -294,7 +317,11 @@ function Drawing({
   checking = false,
   routing = null,
   circuit = null,
+  board = null,
   side = "top",
+  ground,
+  found = null,
+  goneTo = 0,
 }: {
   /** the board, of which project, and the way it is drawn */
   id: string
@@ -308,8 +335,16 @@ function Drawing({
   routing?: Routing | null
   /** the board as tscircuit has it, for what the pointer is over to be said */
   circuit?: Circuit | null
+  /** and what of it can be pointed at (see inspect.ts) */
+  board?: Inspected | null
   /** the side of the board drawn */
   side?: "top" | "bottom"
+  /** the colour it is drawn on */
+  ground: string
+  /** what was looked for on it, to be lit */
+  found?: Found[] | null
+  /** how many times what was found has been gone to: once more, and it is again */
+  goneTo?: number
 }) {
   const holder = React.useRef<HTMLDivElement>(null)
   // (the board being made, as it is when a new drawing comes, without waiting on it:
@@ -324,16 +359,16 @@ function Drawing({
   const whole = React.useRef(1)
   /** how the board's millimetres lie in the drawing, where it says (see placeOf) */
   const place = React.useRef<ReturnType<typeof placeOf>>(null)
-  const board = React.useMemo(
-    () => (circuit ? inspected(circuit) : null),
-    [circuit]
-  )
+  /** go to a box of the drawing, in its own units (see below) */
+  const goTo = React.useRef<
+    ((box: { x: number; y: number; w: number; h: number }) => void) | null
+  >(null)
   /** how it is seen now, for what is said over it to lie where it should */
   const [seen, setSeen] = React.useState<Seen | null>(null)
   /** what the pointer is over, of which board, and where the pointer is, px */
   const [pointed, setPointed] = React.useState<{
     under: Under
-    of: ReturnType<typeof inspected>
+    of: Inspected
     at: [number, number]
   } | null>(null)
 
@@ -390,8 +425,12 @@ function Drawing({
       }
       show()
     }
+    /** the view on its way to something, while it goes there: the hand stops it */
+    let gliding = 0
+    const stay = () => cancelAnimationFrame(gliding)
     /** Zoom by so much, on a place in the view, as its pixels from the top left. */
     const zoom = (by: number, px: number, py: number) => {
+      stay()
       const at = looking.current
       if (!at) return
       const { width, height } = within.getBoundingClientRect()
@@ -410,6 +449,7 @@ function Drawing({
       show()
     }
     const move = (dx: number, dy: number) => {
+      stay()
       const at = looking.current
       if (!at) return
       looking.current = {
@@ -418,6 +458,42 @@ function Drawing({
         y: at.y - dy * at.scale,
       }
       show()
+    }
+
+    // Go to a box of the drawing: as near as has it fill so much of the view, and no
+    // nearer than so; glided to, from where the view is, as the eye would go.
+    goTo.current = (box) => {
+      const from = looking.current
+      const { width, height } = within.getBoundingClientRect()
+      if (!from || width === 0 || height === 0) return
+      const scale = Math.min(
+        whole.current / FURTHEST,
+        Math.max(
+          whole.current / FOUND_NEAREST,
+          Math.max(box.w / width, box.h / height) / FOUND_FIT
+        )
+      )
+      const to = { x: box.x, y: box.y, scale }
+      stay()
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        looking.current = to
+        show()
+        return
+      }
+      const began = performance.now()
+      const step = () => {
+        const share = Math.min(1, (performance.now() - began) / GOING_MS)
+        const eased = 1 - (1 - share) ** 3
+        looking.current = {
+          x: from.x + (to.x - from.x) * eased,
+          y: from.y + (to.y - from.y) * eased,
+          // (zoomed evenly, as a pinch does: by so much a step, not so far)
+          scale: from.scale * (to.scale / from.scale) ** eased,
+        }
+        show()
+        if (share < 1) gliding = requestAnimationFrame(step)
+      }
+      gliding = requestAnimationFrame(step)
     }
 
     if (looking.current === null) fit()
@@ -477,6 +553,8 @@ function Drawing({
     within.addEventListener("pointercancel", up)
     within.addEventListener("dblclick", fit)
     return () => {
+      stay()
+      goTo.current = null
       sized.disconnect()
       within.removeEventListener("wheel", wheel)
       within.removeEventListener("pointerdown", down)
@@ -494,6 +572,30 @@ function Drawing({
     if (routing && place.current)
       svg.append(routingOver(routing, place.current))
   }, [routing, markup])
+
+  // Enter, where something was found, goes to all of it.
+  const wentTo = React.useRef(goneTo)
+  React.useEffect(() => {
+    if (goneTo === wentTo.current) return
+    wentTo.current = goneTo
+    const laid = place.current
+    const box = found && board && foundBox(found, board)
+    if (!laid || !box) return
+    const [x1, y1] = [
+      laid.a * (box.x - box.w / 2) + laid.e,
+      laid.d * (box.y - box.h / 2) + laid.f,
+    ]
+    const [x2, y2] = [
+      laid.a * (box.x + box.w / 2) + laid.e,
+      laid.d * (box.y + box.h / 2) + laid.f,
+    ]
+    goTo.current?.({
+      x: (x1 + x2) / 2,
+      y: (y1 + y2) / 2,
+      w: Math.abs(x2 - x1),
+      h: Math.abs(y2 - y1),
+    })
+  }, [goneTo, found, board])
 
   React.useEffect(() => {
     const laid = sweep.current
@@ -544,6 +646,9 @@ function Drawing({
         onPointerMove={point}
         onPointerLeave={() => setPointed(null)}
       />
+      {board && seen && found && found.length > 0 && (
+        <Finding found={found} board={board} seen={seen} ground={ground} />
+      )}
       {circuit && seen && pointed?.of === board && (
         <Inspecting
           under={pointed.under}
@@ -1057,10 +1162,17 @@ export function KeepOuts({
 /**
  * The parts of the board that are lit: the one picked out, all the way, in the colour a
  * part of the model is when it is picked out; and those whose square in the list of
- * them the pointer is over, less. And the board itself in the theme's colours, as the
- * window is put in another.
+ * them the pointer is over, less, or else those that were looked for. And the board
+ * itself in the theme's colours, as the window is put in another.
  */
-function Lighting({ shown }: { shown: ReturnType<typeof standing> }) {
+function Lighting({
+  shown,
+  found,
+}: {
+  shown: ReturnType<typeof standing>
+  /** the parts that were looked for, by their names on the board */
+  found: string[] | null
+}) {
   const picked = useStore((state) => state.boardPicked?.name ?? null)
   const hover = useStore((state) => state.boardHover)
   const { picked: colour, pcb } = useThemeColors()
@@ -1068,13 +1180,14 @@ function Lighting({ shown }: { shown: ReturnType<typeof standing> }) {
   React.useEffect(() => {
     shown.paint(pcb)
     const how = new Map<string, number>()
-    for (const name of hover ?? []) how.set(name, HOVER_LIT)
+    const lit = hover && hover.length > 0 ? hover : found
+    for (const name of lit ?? []) how.set(name, HOVER_LIT)
     if (picked) how.set(picked, 1)
     // (the parts of one kind are pale as often as not, as the light is: the rest of the
     // board goes dark around them while their square is pointed at)
-    shown.light(how, colour, hover && hover.length > 0 ? HOVER_REST : 1)
+    shown.light(how, colour, lit && lit.length > 0 ? HOVER_REST : 1)
     invalidate()
-  }, [shown, picked, hover, colour, pcb, invalidate])
+  }, [shown, picked, hover, found, colour, pcb, invalidate])
   return null
 }
 
@@ -1115,6 +1228,7 @@ function InThreeD({
   swept,
   dark,
   circuit,
+  found,
 }: {
   url: string
   id: string
@@ -1123,6 +1237,8 @@ function InThreeD({
   dark: boolean
   /** the board as tscircuit has it: where its parts are, for the camera to go to */
   circuit: Circuit | null
+  /** the parts that were looked for, by their names on the board: lit */
+  found: string[] | null
 }) {
   const [shown, setShown] = React.useState<ReturnType<typeof standing> | null>(
     null
@@ -1195,7 +1311,7 @@ function InThreeD({
       />
       {/* (after the camera is set up, which it goes by) */}
       <Focusing holder={shown.holder} circuit={circuit} />
-      <Lighting shown={shown} />
+      <Lighting shown={shown} found={found} />
       <KeepOuts shown={shown} circuit={circuit} />
       <Picking shown={shown} names={names} />
       <BoardPartMark circuit={circuit} />
@@ -1407,6 +1523,10 @@ export function BoardMode({
   const { dark, backdrop, pcb } = useThemeColors()
   const ground = `#${backdrop.getHexString()}`
   const { circuit, trouble } = useCircuit(projectId, board)
+  const inspecting = React.useMemo(
+    () => (circuit ? inspected(circuit) : null),
+    [circuit]
+  )
   const side = useStore((state) => state.view.boardSide)
   const turned = as === "pcb" && side === "bottom"
   const markup = useDrawn(
@@ -1428,6 +1548,33 @@ export function BoardMode({
   // (an agent making it in detail has the steps it is at shown at the foot of the view)
   const job = useJobOn(projectId, board)
   const partsOpen = useStore((state) => state.boardPartsOpen)
+
+  // What is looked for on the board (Cmd+F): lit as it is drawn, and in 3D. Enter goes
+  // to it, and the box stays up, with it lit, until Esc.
+  const finding = useStore((state) => state.finding)
+  const findables = React.useMemo(
+    () => (inspecting && circuit ? findablesOf(inspecting, circuit) : []),
+    [inspecting, circuit]
+  )
+  const found = React.useMemo(
+    () => (finding === null ? null : lookFor(findables, finding)),
+    [findables, finding]
+  )
+  const foundParts = React.useMemo(
+    () => (found && inspecting ? partsIn(found, inspecting) : null),
+    [found, inspecting]
+  )
+  const [goneTo, setGoneTo] = React.useState(0)
+  const showFound = () => {
+    if (!found || found.length === 0) return
+    if (as === "3d") useStore.getState().focusBoardParts(foundParts ?? [])
+    else setGoneTo((times) => times + 1)
+  }
+  useBoardFinding(findables.length > 0 && as !== "schematic")
+  // (the schematic has nothing lit: the search is put away for it, and not left up unseen)
+  React.useEffect(() => {
+    if (as === "schematic") useStore.getState().find(null)
+  }, [as])
 
   // While the board is being made it is drawn as it is made, where what changes is
   // seen first (the 3D is only as of its last full build); and once the work on it is
@@ -1482,6 +1629,7 @@ export function BoardMode({
             swept={making}
             dark={dark}
             circuit={circuit}
+            found={foundParts}
           />
         ) : (
           <Nothing
@@ -1500,7 +1648,11 @@ export function BoardMode({
           checking={job?.steps.at(-1)?.step === "checking"}
           routing={routing}
           circuit={as === "pcb" ? circuit : null}
+          board={as === "pcb" ? inspecting : null}
           side={turned ? "bottom" : "top"}
+          ground={ground}
+          found={found}
+          goneTo={goneTo}
         />
       ) : trouble || markup === false ? (
         <Nothing
@@ -1521,37 +1673,47 @@ export function BoardMode({
 
       {/* what it is, at the top: where the window is not dragged by, and that it is
           being worked on while it is; and under that, while it is being built, how far
-          that has got, unless an agent is making it in detail, whose steps say that */}
-      <div className="pointer-events-none absolute inset-x-0 top-4 flex flex-col items-center gap-2">
-        <div className="flex max-w-[50%] items-center gap-2 text-sm select-none">
-          <span className="truncate font-medium">{board.name}</span>
-          {size && (
-            <span className="shrink-0 text-foreground/45 tabular-nums">
-              {size}
-            </span>
-          )}
-          {making ? (
-            <WorkingBadge className="shrink-0" />
+          that has got, unless an agent is making it in detail, whose steps say that.
+          While something on it is looked for, what is looked for is there instead */}
+      {finding !== null && as !== "schematic" ? (
+        <BoardSearch
+          what="parts, pins or nets"
+          said={found && finding.trim() !== "" ? foundSaid(found) : null}
+          onShow={showFound}
+          keysKept
+        />
+      ) : (
+        <div className="pointer-events-none absolute inset-x-0 top-4 flex flex-col items-center gap-2">
+          <div className="flex max-w-[50%] items-center gap-2 text-sm select-none">
+            <span className="truncate font-medium">{board.name}</span>
+            {size && (
+              <span className="shrink-0 text-foreground/45 tabular-nums">
+                {size}
+              </span>
+            )}
+            {making ? (
+              <WorkingBadge className="shrink-0" />
+            ) : (
+              !board.finished && <UnfinishedBadge className="shrink-0" />
+            )}
+            {turned && (
+              <Badge variant="outline" className="shrink-0">
+                Bottom side
+              </Badge>
+            )}
+          </div>
+          {!job && board.building ? (
+            <BuildingLine building={board.building} />
           ) : (
-            !board.finished && <UnfinishedBadge className="shrink-0" />
-          )}
-          {turned && (
-            <Badge variant="outline" className="shrink-0">
-              Bottom side
-            </Badge>
+            as === "3d" &&
+            board.model &&
+            board.built !== null &&
+            (board.preview !== null || board.outdated) && (
+              <LastBuilt at={board.built} />
+            )
           )}
         </div>
-        {!job && board.building ? (
-          <BuildingLine building={board.building} />
-        ) : (
-          as === "3d" &&
-          board.model &&
-          board.built !== null &&
-          (board.preview !== null || board.outdated) && (
-            <LastBuilt at={board.built} />
-          )
-        )}
-      </div>
+      )}
     </div>
   )
 }

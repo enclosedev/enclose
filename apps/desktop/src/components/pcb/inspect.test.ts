@@ -262,6 +262,7 @@ describe("cornersOf", () => {
       sides: ["top"],
       part: null,
       names: [],
+      joined: null,
     }
     const corners = cornersOf(pad, 0.5)
     const xs = corners.map((one) => one.x)

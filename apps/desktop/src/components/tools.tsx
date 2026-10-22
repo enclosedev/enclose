@@ -843,6 +843,17 @@ export function Tools({
       >
         <BoxesIcon />
       </Switch>
+      {/* (what is on the board is looked for as it is drawn, and in 3D) */}
+      {view.boardAs !== "schematic" && (
+        <Switch
+          label="Search"
+          shortcut={MAC ? "⌘F" : "Ctrl F"}
+          on={finding}
+          onChange={(on) => find(on ? "" : null)}
+        >
+          <SearchIcon />
+        </Switch>
+      )}
       <Press
         key="exit"
         label="Exit PCB mode"

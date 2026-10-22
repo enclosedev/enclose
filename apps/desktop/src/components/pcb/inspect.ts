@@ -4,6 +4,7 @@
 // what it is placed by. And a hole through the board, by how big it is drilled and how far
 // it is placed, as a part is. Worked out from the board as tscircuit has it, in its
 // millimetres, with y upwards, and so the same whichever side of the board is looked at.
+// With what is joined to what, for a net to be looked for by name (see finding.ts).
 import type { Circuit } from "./boards"
 
 /** A place on the board, mm. */
@@ -25,6 +26,8 @@ export type Pad = Box & {
   part: string | null
   /** what its pin is called, each with the part's name: "U1.VBAT", "U1.pin28" */
   names: string[]
+  /** the connection its pin is of (see `inspected`): null for a pad of no pin */
+  joined: string | null
 }
 
 /**
@@ -55,7 +58,12 @@ export type Trace = {
   length: number
   /** what it is called, or the net it is of, or what it joins: null for none of them */
   name: string | null
+  /** the connection it is of: null where that is not said */
+  joined: string | null
 }
+
+/** A via, where a trace goes through the board: how wide its copper is, and its connection. */
+export type Via = Spot & { id: string; w: number; joined: string | null }
 
 /** A part on the board, and where it is placed. */
 export type Part = {
@@ -77,7 +85,10 @@ export type Inspected = {
   pads: Pad[]
   holes: Hole[]
   traces: Trace[]
+  vias: Via[]
   parts: Map<string, Part>
+  /** the board's nets, by their names, with the connection each is */
+  nets: { name: string; joined: string }[]
 }
 
 /** What is under the pointer: a pad, with its part; a hole, with its; a trace; or a part itself. */
@@ -240,6 +251,35 @@ export function inspected(circuit: Circuit): Inspected {
     return name && !name.includes("unnamed_") ? name : null
   }
 
+  // What is joined to what: the pins, nets and traces that are of one connection, by
+  // what tscircuit says of each, the connection it is of, and of each trace, what it
+  // joins. A connection is known by one of what it is of, by what that is and its id
+  // ("port:source_port_3"): any other of it is of the same one.
+  const joins = new Map<string, string>()
+  const joinedOf = (id: string): string => {
+    let at = id
+    for (let next = joins.get(at); next !== undefined; next = joins.get(at))
+      at = next
+    return at
+  }
+  const join = (a: string, b: string) => {
+    const [ra, rb] = [joinedOf(a), joinedOf(b)]
+    if (ra !== rb) joins.set(ra, rb)
+  }
+  const keyed = (id: string, element: Element | undefined) => {
+    const key = text(element?.subcircuit_connectivity_map_key)
+    if (key) join(id, `key:${key}`)
+  }
+  for (const [id, port] of sourcePorts) keyed(`port:${id}`, port)
+  for (const [id, net] of sourceNets) keyed(`net:${id}`, net)
+  for (const [id, trace] of sourceTraces) {
+    keyed(`trace:${id}`, trace)
+    for (const port of strings(trace.connected_source_port_ids))
+      join(`trace:${id}`, `port:${port}`)
+    for (const net of strings(trace.connected_source_net_ids))
+      join(`trace:${id}`, `net:${net}`)
+  }
+
   const pads: Pad[] = []
   for (const element of [
     ...byType("pcb_smtpad"),
@@ -264,6 +304,7 @@ export function inspected(circuit: Circuit): Inspected {
         [...strings(element.port_hints), ...strings(source?.port_hints)],
         nameOf(part)
       ),
+      joined: source ? joinedOf(`port:${String(source.source_port_id)}`) : null,
     })
   }
 
@@ -292,13 +333,37 @@ export function inspected(circuit: Circuit): Inspected {
     const net = strings(source?.connected_source_net_ids)
       .map((id) => text(sourceNets.get(id)?.name))
       .find(Boolean)
-    const joins = text(source?.display_name)
+    const between = text(source?.display_name)
     return [
       {
         id: String(element.pcb_trace_id),
         points,
         length: num(element.trace_length) ?? length,
-        name: text(source?.name) ?? net ?? (joins && joinedSaid(joins)),
+        name: text(source?.name) ?? net ?? (between && joinedSaid(between)),
+        joined: source
+          ? joinedOf(`trace:${String(source.source_trace_id)}`)
+          : null,
+      },
+    ]
+  })
+
+  // a via is of the connection it says, or else of a trace that goes through it
+  const vias: Via[] = byType("pcb_via").flatMap((element) => {
+    const at = spot(element)
+    const w = num(element.outer_diameter)
+    if (!at || !w) return []
+    const key = text(element.subcircuit_connectivity_map_key)
+    const through = traces.find((trace) =>
+      trace.points.some(
+        (point) => Math.hypot(point.x - at.x, point.y - at.y) < 0.01
+      )
+    )
+    return [
+      {
+        ...at,
+        id: String(element.pcb_via_id),
+        w,
+        joined: key ? joinedOf(`key:${key}`) : (through?.joined ?? null),
       },
     ]
   })
@@ -400,7 +465,11 @@ export function inspected(circuit: Circuit): Inspected {
       },
     }
   })
-  return { pads, holes, traces, parts }
+  const nets = [...sourceNets].flatMap(([id, net]) => {
+    const name = text(net.name)
+    return name ? [{ name, joined: joinedOf(`net:${id}`) }] : []
+  })
+  return { pads, holes, traces, vias, parts, nets }
 }
 
 /** What a hole is said to be: how big it is drilled, and the part it is of. */
