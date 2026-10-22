@@ -304,7 +304,10 @@ deletes it. Esc, or a click on the ground, puts the picture back.
 Cmd+G puts the pictures picked out in a group, after asking what they stand for
 together, in at most 50 letters: "Material inspirations", "Look & feel". They lie in a
 pile under that title; a click on the pile spreads them out, pushing the rest aside, and
-a click on the title renames it. Shift+Cmd+G takes them out of the group again. A
+a click on the title renames it. **Expand all** (E) spreads every group out at once,
+moving everything else apart to make room, and shows the whole board; E again puts them
+back in their piles. Organized while they are spread out, the groups are laid out as they
+lie spread out. Shift+Cmd+G takes them out of the group again. A
 picture dragged over a group opens the pile up; let go there, and it goes into the
 group first, and the group spreads out to show it. In a pile the tallest pictures lie at
 the back and the shortest on top, so that each shows over the one behind it.

@@ -64,6 +64,7 @@ is Ctrl off a Mac.
 | Cmd+A | Pick out everything |
 | N | Show every note, or only the one pointed at |
 | O | Organize: everything in tidy rows |
+| E | Expand all: every group spread out at once, or back in its pile |
 | Cmd+F | Search |
 | Cmd+1 | All of the board |
 | Esc | Step back: out of a note, a picture, a group spread out, then the board |

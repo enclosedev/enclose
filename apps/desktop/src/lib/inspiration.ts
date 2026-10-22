@@ -21,6 +21,7 @@ import {
   picturesOf,
   PILE_WIDTH,
   placed,
+  spreadBoxOf,
   widthFor,
   type Box,
 } from "@/components/inspiration/layout"
@@ -52,6 +53,13 @@ type InspirationStore = {
   dropping: ((files: File[], x: number, y: number) => void) | null
   /** Organizes the board on screen (see `organizedBoard`): null while there is none. */
   organizing: (() => void) | null
+  /** every group on the board is spread out at once, and not only one at a time */
+  expanded: boolean
+  /**
+   * Spreads every group of the board on screen out, or puts them all back in their
+   * piles (see `expanded`): null while there is no board on screen.
+   */
+  expanding: ((on: boolean) => void) | null
 
   /** Read a project's board from its folder, if it has not been read yet. */
   load(projectId: string): Promise<void>
@@ -135,12 +143,23 @@ export function takenOn(board: InspirationBoard): Box[] {
 
 /**
  * A board organized (see `organized`): its piles and the pictures that lie by
- * themselves in rows, about as wide as `aspect` (width for height) has them.
+ * themselves in rows, about as wide as `aspect` (width for height) has them. Or, with
+ * every group `spread` out, its groups as they lie so, each with room over it for its
+ * title.
  */
 export function organizedBoard(
   board: InspirationBoard,
-  aspect: number
+  aspect: number,
+  spread = false
 ): InspirationBoard {
+  const boxes = new Map(
+    board.groups.flatMap((group) => {
+      const box = spread
+        ? spreadBoxOf(board.images, group)
+        : pileBoxOf(board, group)
+      return box ? [[group.id, box] as const] : []
+    })
+  )
   const placed = organized(
     [
       ...board.images
@@ -150,10 +169,7 @@ export function organizedBoard(
           box: boxOf(image),
           aspect: image.pixels[0] / image.pixels[1],
         })),
-      ...board.groups.flatMap((group) => {
-        const box = pileBoxOf(board, group)
-        return box ? [{ id: `g:${group.id}`, box }] : []
-      }),
+      ...[...boxes].map(([id, box]) => ({ id: `g:${id}`, box })),
     ],
     aspect
   )
@@ -163,9 +179,20 @@ export function organizedBoard(
       const to = placed.get(`i:${image.id}`)
       return to ? { ...image, at: to.at, width: to.width } : image
     }),
+    // (each group goes as far as its box went: spread out, that takes in the room over it
+    // for its title, and so is not round where the group lies)
     groups: board.groups.map((group) => {
       const to = placed.get(`g:${group.id}`)
-      return to ? { ...group, at: to.at } : group
+      const box = boxes.get(group.id)
+      return to && box
+        ? {
+            ...group,
+            at: [
+              Math.round(group.at[0] + to.at[0] - box.x),
+              Math.round(group.at[1] + to.at[1] - box.y),
+            ],
+          }
+        : group
     }),
   }
 }
@@ -178,6 +205,8 @@ export const useInspiration = create<InspirationStore>((set, get) => ({
   focused: null,
   dropping: null,
   organizing: null,
+  expanded: false,
+  expanding: null,
 
   async load(projectId) {
     if (get().boards[projectId]) return

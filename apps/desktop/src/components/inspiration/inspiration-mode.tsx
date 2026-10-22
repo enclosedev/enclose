@@ -19,8 +19,10 @@
 // the title, and a click on the pile spreads them out, pushing the rest aside. Pictures
 // dragged over a group open its pile up, and let go there they go into it. Delete
 // takes what is picked out off the board, once it is asked whether to; Cmd+Delete takes
-// it off without asking. O organizes the board, everything in tidy rows. Esc steps back
-// out of each of these, the last first, and then out of the board.
+// it off without asking. O organizes the board, everything in tidy rows. E spreads every
+// group out at once, all the rest moved apart to give them room, and shows all of it; E
+// again puts them back in their piles. Esc steps back out of each of the rest, the last
+// first, and then out of the board.
 import * as React from "react"
 import { cn } from "cn"
 import { LayoutGridIcon } from "lucide-react"
@@ -44,6 +46,7 @@ import { flatZoom, PINCH } from "@/components/viewport/rig"
 import { BoardSearch, useBoardFinding } from "./board-search"
 import { Card, type Key, type Shown, type Writing } from "./card"
 import {
+  allSpread,
   boundsOf,
   boxOf,
   fitting,
@@ -163,6 +166,12 @@ function Board({
     spreadOne !== null && board.groups.some((group) => group.id === spreadOne)
       ? spreadOne
       : null
+  const expanded = useInspiration((s) => s.expanded)
+  /** where each picture lies with every group spread out: null while they are not */
+  const laidOut = React.useMemo(
+    () => (expanded ? allSpread(board.images, board.groups) : null),
+    [expanded, board]
+  )
   const [writing, setWriting] = React.useState<Writing | null>(null)
   const [moving, setMoving] = React.useState<{
     keys: Key[]
@@ -190,8 +199,11 @@ function Board({
     const out: Shown[] = []
     for (const group of board.groups) {
       const pictures = picturesOf(board.images, group)
-      if (group.id === spread) {
-        spreadOf(pictures, group.at).forEach((box, index) =>
+      if (laidOut || group.id === spread) {
+        const boxes = laidOut
+          ? pictures.map((image) => laidOut.get(image.id) ?? boxOf(image))
+          : spreadOf(pictures, group.at)
+        boxes.forEach((box, index) =>
           out.push({
             image: pictures[index],
             key: `i:${pictures[index].id}`,
@@ -234,7 +246,7 @@ function Board({
         out.push({
           image,
           key: `i:${image.id}`,
-          box: boxOf(image),
+          box: laidOut?.get(image.id) ?? boxOf(image),
           turn: 0,
           z: 1,
           pile: null,
@@ -294,7 +306,7 @@ function Board({
         if (keys.has(one.key) || keys.has(`g:${one.image.group}`)) one.z += 3
     }
     return out
-  }, [board, spread, focused, moving, over])
+  }, [board, laidOut, spread, focused, moving, over])
 
   /** What can be picked out, each as the box it takes: a picture, or a pile. */
   const units = React.useMemo(() => {
@@ -450,6 +462,7 @@ function Board({
   const homeOf = (id: string): Box | null => {
     const image = board.images.find((one) => one.id === id)
     if (!image) return null
+    if (laidOut) return laidOut.get(id) ?? null
     if (image.group === null) return boxOf(image)
     const group = board.groups.find((one) => one.id === image.group)
     if (!group || group.id !== spread) return null
@@ -475,7 +488,8 @@ function Board({
   const spreadOut = (groupId: string, on = board) => {
     const group = on.groups.find((one) => one.id === groupId)
     const at = camera.current
-    if (!group || !at) return
+    // (with every group spread out, it is already)
+    if (!group || !at || laidOut) return
     // (another spread out is put back first: the camera goes back to before it)
     if (spread === null) back.current.push(at)
     setSpread(groupId)
@@ -485,6 +499,23 @@ function Board({
     const all = boundsOf(spreadOf(picturesOf(on.images, group), group.at))
     // brought into view where it does not fit as the board is seen
     if (all) glide(closeTo(all, SPREAD_FILL, Math.max(at.zoom, 0.6)))
+  }
+  /**
+   * Spread every group out at once, or put them all back in their piles: and show all of
+   * the board as it lies then.
+   */
+  const expandAll = (on: boolean) => {
+    if (on && board.groups.length === 0)
+      return say("There are no groups on the board to expand yet")
+    back.current = []
+    setWriting(null)
+    setFocused(null)
+    setSpread(null)
+    useInspiration.setState({ expanded: on })
+    const all = boundsOf(
+      on ? [...allSpread(board.images, board.groups).values()] : takenOn(board)
+    )
+    if (all) glide(fitting(all, view.current, EDGES, 0.9, 1))
   }
   const putBack = () => {
     const wasFocused = focused !== null
@@ -671,7 +702,9 @@ function Board({
       const group = groups.find((one) => one.id === id)
       if (!group) continue
       const pictures = picturesOf(images, group)
-      const boxes = spreadOf(pictures, group.at)
+      const boxes = laidOut
+        ? pictures.map((image) => laidOut.get(image.id) ?? boxOf(image))
+        : spreadOf(pictures, group.at)
       const laid = new Map(
         pictures.map((image, index) => [image.id, boxes[index]])
       )
@@ -726,7 +759,8 @@ function Board({
 
   /**
    * Lay everything on the board out in tidy rows (see `organizedBoard`), shaped for the
-   * view, and show all of it: out of whatever was gone up to or spread out first.
+   * view, and show all of it: out of whatever was gone up to or spread out first, but
+   * with every group still spread out where they all are.
    */
   const organize = () => {
     if (board.images.length === 0)
@@ -736,14 +770,19 @@ function Board({
     const down = height - EDGES.top - EDGES.bottom
     const next = organizedBoard(
       board,
-      across > 0 && down > 0 ? across / down : 1.5
+      across > 0 && down > 0 ? across / down : 1.5,
+      expanded
     )
     back.current = []
     setWriting(null)
     setFocused(null)
     setSpread(null)
     changed(next)
-    const all = boundsOf(takenOn(next))
+    const all = boundsOf(
+      expanded
+        ? [...allSpread(next.images, next.groups).values()]
+        : takenOn(next)
+    )
     if (all) glide(fitting(all, view.current, EDGES, 0.9, 1))
   }
 
@@ -913,7 +952,8 @@ function Board({
     if (found.size === 1) {
       const [only] = found
       const one = board.images.find((image) => image.id === only)
-      if (one?.group && one.group !== spread) return spreadOut(one.group)
+      if (one?.group && !laidOut && one.group !== spread)
+        return spreadOut(one.group)
       useStore.getState().find(null)
       return focusOn(only)
     }
@@ -943,6 +983,7 @@ function Board({
     moveBy,
     whole,
     organize,
+    expandAll,
   }
   const now = React.useRef(latest)
   React.useLayoutEffect(() => {
@@ -1007,15 +1048,23 @@ function Board({
       if (!held && !event.shiftKey && event.key.toLowerCase() === "o") {
         taken()
         if (!event.repeat) it.organize()
+        return
+      }
+      if (!held && !event.shiftKey && event.key.toLowerCase() === "e") {
+        taken()
+        if (!event.repeat) it.expandAll(!useInspiration.getState().expanded)
       }
     }
     window.addEventListener("keydown", key, true)
     return () => window.removeEventListener("keydown", key, true)
   }, [glide, setFocused])
-  // and so is the button that does it, beside the board
+  // and so are the buttons that do them, beside the board
   React.useEffect(() => {
-    useInspiration.setState({ organizing: () => now.current.organize() })
-    return () => useInspiration.setState({ organizing: null })
+    useInspiration.setState({
+      organizing: () => now.current.organize(),
+      expanding: (on) => now.current.expandAll(on),
+    })
+    return () => useInspiration.setState({ organizing: null, expanding: null })
   }, [])
 
   // --- the pointer --------------------------------------------------------------------

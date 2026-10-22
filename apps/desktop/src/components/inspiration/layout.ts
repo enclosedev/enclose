@@ -1,7 +1,8 @@
 // Where the pictures of an inspiration board lie, and how they move: where a new one is
-// put, how a group lies in its pile and how it spreads out, and how what is in the way
-// is pushed aside when a picture is gone up to or a group spread out. All of it in the
-// board's own units, which are pixels while the board is seen at its own size.
+// put, how a group lies in its pile and how it spreads out, how what is in the way is
+// pushed aside when a picture is gone up to or a group spread out, and how everything is
+// moved apart when every group is. All of it in the board's own units, which are pixels
+// while the board is seen at its own size.
 import type {
   InspirationGroup,
   InspirationImage,
@@ -344,6 +345,104 @@ export function pushedAside(
     moved.set(id, [ux * t, uy * t])
   })
   return moved
+}
+
+/** The most times over what still covers something is pushed apart (see `keptApart`). */
+const ROUNDS = 200
+
+/**
+ * How far each of these is moved for none to cover another, kept `gap` apart, by what
+ * it is known by: each two that do pushed apart the shorter way, across or up and down,
+ * the bigger of them moved the less, over and over until none do. What is not moved is
+ * not in what comes back.
+ */
+export function keptApart(
+  items: { id: string; box: Box }[],
+  gap: number
+): Map<string, [number, number]> {
+  const boxes = items.map(({ box }) => ({ ...box }))
+  for (let round = 0; round < ROUNDS; round++) {
+    let pushed = false
+    for (let i = 0; i < boxes.length; i++)
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i]
+        const b = boxes[j]
+        // (by less than a unit is near enough: what is moved does not land on the unit)
+        const across = (a.w + b.w) / 2 + gap - Math.abs(b.x - a.x)
+        const down = (a.h + b.h) / 2 + gap - Math.abs(b.y - a.y)
+        if (across <= 1 || down <= 1) continue
+        pushed = true
+        const share = (b.w * b.h) / (a.w * a.h + b.w * b.h)
+        if (across <= down) {
+          const way = b.x >= a.x ? 1 : -1
+          a.x -= way * across * share
+          b.x += way * across * (1 - share)
+        } else {
+          const way = b.y >= a.y ? 1 : -1
+          a.y -= way * down * share
+          b.y += way * down * (1 - share)
+        }
+      }
+    if (!pushed) break
+  }
+  const moved = new Map<string, [number, number]>()
+  items.forEach(({ id, box }, index) => {
+    const dx = boxes[index].x - box.x
+    const dy = boxes[index].y - box.y
+    if (dx !== 0 || dy !== 0) moved.set(id, [dx, dy])
+  })
+  return moved
+}
+
+/**
+ * How much room is kept over a group spread out among the rest, for its title: in units,
+ * as much as the title takes at the most, which is seen from far off (see where the
+ * titles are drawn, in inspiration-mode.tsx).
+ */
+const TITLE_ROOM = 90
+
+/** The box a group spread out takes, with room over it for its title: null for none. */
+export function spreadBoxOf(
+  images: InspirationImage[],
+  group: InspirationGroup
+): Box | null {
+  const all = boundsOf(spreadOf(picturesOf(images, group), group.at))
+  return all && { ...all, y: all.y - TITLE_ROOM / 2, h: all.h + TITLE_ROOM }
+}
+
+/**
+ * Where each picture lies with every group spread out at once: each group about where
+ * its pile lies (see `spreadOf`), and each picture by itself about where it lies, all
+ * moved apart for none to cover another, nor a group's title (see `keptApart`). By what
+ * each picture is known by.
+ */
+export function allSpread(
+  images: InspirationImage[],
+  groups: InspirationGroup[]
+): Map<string, Box> {
+  const units: { id: string; box: Box }[] = []
+  for (const group of groups) {
+    const box = spreadBoxOf(images, group)
+    if (box) units.push({ id: `g:${group.id}`, box })
+  }
+  for (const image of images)
+    if (image.group === null)
+      units.push({ id: `i:${image.id}`, box: boxOf(image) })
+  const moved = keptApart(units, GAP)
+  const out = new Map<string, Box>()
+  const put = (id: string, box: Box, [dx, dy]: [number, number] = [0, 0]) =>
+    out.set(id, { ...box, x: box.x + dx, y: box.y + dy })
+  for (const group of groups) {
+    const pictures = picturesOf(images, group)
+    const by = moved.get(`g:${group.id}`)
+    spreadOf(pictures, group.at).forEach((box, index) =>
+      put(pictures[index].id, box, by)
+    )
+  }
+  for (const image of images)
+    if (image.group === null)
+      put(image.id, boxOf(image), moved.get(`i:${image.id}`))
+  return out
 }
 
 /**

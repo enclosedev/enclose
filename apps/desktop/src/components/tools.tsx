@@ -6,6 +6,7 @@ import {
   BoxesIcon,
   DownloadIcon,
   DraftingCompassIcon,
+  ExpandIcon,
   Grid3x3Icon,
   HammerIcon,
   ImagesIcon,
@@ -728,6 +729,7 @@ export function Tools({
   const find = useStore((state) => state.find)
   const notesShown = useInspiration((state) => state.notesShown)
   const setNotesShown = useInspiration((state) => state.setNotesShown)
+  const expanded = useInspiration((state) => state.expanded)
   // (put away only at the last of Cmd+.'s steps: the first is of the cards alone)
   const bare = useStore((state) => state.cleared === "all")
   // While one sheet of the blueprint has the view to itself there is none of them:
@@ -777,6 +779,14 @@ export function Tools({
       >
         <LayoutDashboardIcon />
       </Press>
+      <Switch
+        label="Expand all"
+        shortcut="E"
+        on={expanded}
+        onChange={(on) => useInspiration.getState().expanding?.(on)}
+      >
+        <ExpandIcon />
+      </Switch>
       <Switch
         label="Search"
         shortcut={MAC ? "⌘F" : "Ctrl F"}

@@ -1,15 +1,23 @@
 import { describe, expect, it } from "vitest"
 
+import type {
+  InspirationGroup,
+  InspirationImage,
+} from "@shared/inspiration-format"
 import {
+  allSpread,
   boundsOf,
+  boxOf,
   fitting,
   GAP,
+  keptApart,
   onBoard,
   organized,
   overlaps,
   pileOf,
   placed,
   pushedAside,
+  spreadBoxOf,
   spreadOf,
   takenIn,
   widthFor,
@@ -133,6 +141,128 @@ describe("pushedAside", () => {
         overlaps({ x: dx, y: dy, w: 100, h: 100 }, clear, 9),
         `the ${index ? "second" : "first"}`
       ).toBe(false)
+  })
+})
+
+describe("keptApart", () => {
+  it("moves only what covers something, apart the shorter way, the bigger the less", () => {
+    const big = { x: 0, y: 0, w: 600, h: 400 }
+    const small = { x: 350, y: 50, w: 200, h: 100 }
+    const moved = keptApart(
+      [
+        { id: "big", box: big },
+        { id: "small", box: small },
+        { id: "far", box: { x: 3000, y: 0, w: 100, h: 100 } },
+      ],
+      20
+    )
+    expect([...moved.keys()]).toEqual(["big", "small"])
+    const [bx, by] = moved.get("big")!
+    const [sx, sy] = moved.get("small")!
+    expect([by, sy]).toEqual([0, 0])
+    expect(bx).toBeLessThan(0)
+    expect(sx).toBeGreaterThan(-bx * 5)
+    expect(small.x + sx - (big.x + bx)).toBeCloseTo((600 + 200) / 2 + 20)
+  })
+
+  it("leaves nothing over anything, however much of it lies in one place", () => {
+    const random = seeded(5)
+    const items = Array.from({ length: 24 }, (_, index) => ({
+      id: String(index),
+      box: {
+        x: random() * 200,
+        y: index === 1 ? 0 : random() * 200,
+        w: 100 + random() * 400,
+        h: 100 + random() * 300,
+      },
+    }))
+    items[1].box.x = items[0].box.x
+    items[1].box.y = items[0].box.y
+    const moved = keptApart(items, GAP)
+    const boxes = items.map(({ id, box }) => {
+      const [dx, dy] = moved.get(id) ?? [0, 0]
+      return { ...box, x: box.x + dx, y: box.y + dy }
+    })
+    for (const [index, box] of boxes.entries())
+      for (const other of boxes.slice(index + 1))
+        expect(overlaps(box, other, GAP - 2)).toBe(false)
+  })
+})
+
+describe("allSpread", () => {
+  const image = (
+    id: string,
+    at: [number, number],
+    group: string | null,
+    pixels: [number, number] = [1200, 800]
+  ): InspirationImage => ({
+    id,
+    file: `${id}.png`,
+    name: id,
+    pixels,
+    at,
+    width: 300,
+    group,
+    notes: [],
+    overview: null,
+    added: 0,
+  })
+
+  it("spreads a group out where its pile lies, with nothing in its way", () => {
+    const group: InspirationGroup = { id: "g", title: "Look", at: [100, 50] }
+    const images = Array.from({ length: 5 }, (_, index) =>
+      image(`p${index}`, [0, 0], "g", index % 2 ? [800, 1200] : [1600, 900])
+    )
+    const laid = allSpread(images, [group])
+    expect(images.map((one) => laid.get(one.id))).toEqual(
+      spreadOf(images, group.at)
+    )
+  })
+
+  it("moves every group and picture apart, none over another nor a group's title", () => {
+    const groups: InspirationGroup[] = [
+      { id: "a", title: "Materials", at: [0, 0] },
+      { id: "b", title: "Look & feel", at: [250, 120] },
+      { id: "c", title: "Rooms", at: [-200, 300] },
+    ]
+    const images = [
+      ...Array.from({ length: 6 }, (_, index) =>
+        image(`a${index}`, [0, 0], "a")
+      ),
+      ...Array.from({ length: 4 }, (_, index) =>
+        image(`b${index}`, [0, 0], "b")
+      ),
+      ...Array.from({ length: 9 }, (_, index) =>
+        image(`c${index}`, [0, 0], "c", [900, 1200])
+      ),
+      image("loose", [120, 60], null),
+      image("aside", [3000, 0], null),
+    ]
+    const laid = allSpread(images, groups)
+    expect(laid.size).toBe(images.length)
+    // what is clear of everything stays where it is
+    expect(laid.get("aside")).toEqual(boxOf(images.at(-1)!))
+
+    const boxes = [...laid.values()]
+    for (const [index, box] of boxes.entries())
+      for (const other of boxes.slice(index + 1))
+        expect(overlaps(box, other)).toBe(false)
+
+    // each group lies as it does spread out by itself, moved as one, with its title clear
+    for (const group of groups) {
+      const pictures = images.filter((one) => one.group === group.id)
+      const alone = spreadOf(pictures, group.at)
+      const is = pictures.map((one) => laid.get(one.id)!)
+      const [dx, dy] = [is[0].x - alone[0].x, is[0].y - alone[0].y]
+      is.forEach((box, index) => {
+        expect(box.x - alone[index].x).toBeCloseTo(dx)
+        expect(box.y - alone[index].y).toBeCloseTo(dy)
+      })
+      const taken = spreadBoxOf(images, group)!
+      const there = { ...taken, x: taken.x + dx, y: taken.y + dy }
+      for (const one of images.filter((other) => other.group !== group.id))
+        expect(overlaps(there, laid.get(one.id)!), one.id).toBe(false)
+    }
   })
 })
 
