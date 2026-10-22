@@ -44,14 +44,18 @@ export const COMPACT = "/compact"
 export const compacting = (text: string) => /^\/compact(\s|$)/.test(text.trim())
 
 /**
- * How many tokens a conversation may take up before the app has it compacted, ahead of
- * the next message: so many, or most of a smaller window. The agents compact on their
- * own only once the window is nearly full, which for a window of a million tokens is
- * long after every message has come to cost a great deal more than it needs to.
+ * How many tokens a conversation has room for: its agent's window, up to a million (as
+ * much as any of them has).
  */
-export const COMPACT_PAST = 200_000
-export const roomOf = (use: ContextUse) =>
-  Math.min(COMPACT_PAST, Math.floor(use.window * 0.85))
+export const MOST_ROOM = 1_000_000
+export const roomOf = (use: ContextUse) => Math.min(MOST_ROOM, use.window)
+
+/**
+ * How many tokens a conversation may take up before the app has it compacted, ahead of
+ * the next message: most of its room, so that it is not left to the agent to do in the
+ * middle of a turn, once the window is all but full.
+ */
+export const fullOf = (use: ContextUse) => Math.floor(roomOf(use) * 0.85)
 
 /** One conversation about a project, in as much as a card in the sidebar has room for. */
 export type ConversationSummary = {

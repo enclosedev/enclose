@@ -4,7 +4,7 @@ import path from "node:path"
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { COMPACT_PAST, type Seen } from "../shared/api"
+import { type Seen } from "../shared/api"
 import { fakeAgent, until } from "./testing"
 import {
   answersTo,
@@ -900,7 +900,7 @@ describe("compacting a conversation", () => {
     const { threads, say, said, go, heard, full, compactsTo, now, idle } =
       talking(dir)
     go()
-    full(COMPACT_PAST + 14_000)
+    full(864_000)
     const into = say("Make a lid", null) as string
     await idle()
     full(null)
@@ -911,7 +911,7 @@ describe("compacting a conversation", () => {
     // the app's own asking is no message of the user's: what came of it is said
     expect(said(into)).toEqual(["Make a lid", "Make it taller"])
     expect(notices(threads, into)).toEqual([
-      "Compacted automatically at 214k tokens\nEarlier messages were summarized to make room.",
+      "Compacted automatically at 864k tokens\nEarlier messages were summarized to make room.",
     ])
     expect(now().context).toEqual({ used: 30_000, window: 1_000_000 })
     // and not again, now that it has room
@@ -920,7 +920,18 @@ describe("compacting a conversation", () => {
     expect(heard()).toHaveLength(4)
   })
 
-  it("goes by most of a smaller window, where that comes first", async () => {
+  it("is not done while there is still plenty of room", async () => {
+    const { say, go, heard, full, idle } = talking(dir)
+    go()
+    full(400_000)
+    const into = say("Make a lid", null) as string
+    await idle()
+    say("Make it taller", into)
+    await idle()
+    expect(heard()).toEqual(["Make a lid", "Make it taller"])
+  })
+
+  it("goes by most of a smaller window", async () => {
     const { say, go, heard, full, idle } = talking(dir)
     go()
     full(180_000, 200_000)
@@ -935,7 +946,7 @@ describe("compacting a conversation", () => {
   it("is not done over and over where the agent does not say it has room now", async () => {
     const { say, go, heard, full, now, idle } = talking(dir)
     go()
-    full(COMPACT_PAST)
+    full(900_000)
     const into = say("Make a lid", null) as string
     await idle()
     full(null)

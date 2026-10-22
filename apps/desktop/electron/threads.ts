@@ -20,7 +20,7 @@ import {
 import {
   COMPACT,
   compacting,
-  roomOf,
+  fullOf,
   type Access,
   type Attached,
   type ConversationSummary,
@@ -239,7 +239,7 @@ type Asked = {
   compact?: true
   /**
    * it is the app's own asking for that, ahead of a message, the conversation having
-   * taken up this many tokens (see COMPACT_PAST)
+   * taken up this many tokens (see fullOf)
    */
   full?: number
 }
@@ -2234,7 +2234,7 @@ export class Threads {
     const { context } = conversation
     if (
       context &&
-      context.used >= roomOf(context) &&
+      context.used >= fullOf(context) &&
       conversation.sessionId !== null &&
       !asked.compact &&
       asked.arrange === undefined &&

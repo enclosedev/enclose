@@ -401,9 +401,9 @@ const AROUND = 2 * Math.PI * 6
 
 /**
  * How full the open conversation's context window is, as a ring beside its agent's mark:
- * full where the conversation is compacted (see COMPACT_PAST). Hovered, it says how
- * full, in tokens; pressed, it has the conversation compacted now, which waits its turn
- * as a message would. Nothing, until the agent has said how full it is.
+ * the whole of the room it has (see roomOf), which it is compacted well before. Hovered,
+ * it says how full, in tokens; pressed, it has the conversation compacted now, which
+ * waits its turn as a message would. Nothing, until the agent has said how full it is.
  */
 function Context({
   conversation,
