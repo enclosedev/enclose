@@ -571,10 +571,7 @@ export async function runTurn<Hello>(
     ])
     state.hush()
     if (turn.compact && (stopReason === "end_turn" || stopReason === null))
-      turn.notice(
-        "info",
-        "What was said before this has been summed up, to make room."
-      )
+      turn.compacted()
     else if (stopReason === "refusal")
       turn.notice("error", `${agent.name} declined to answer this.`)
     else if (stopReason === "max_tokens" || stopReason === "max_turn_requests")

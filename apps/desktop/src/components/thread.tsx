@@ -709,7 +709,10 @@ function JobPiece({
       <div
         className={cn(
           "text-xs",
-          piece.tone === "error" ? "text-destructive" : "text-muted-foreground"
+          // (what the app says may come in lines: an error, as it came, does not)
+          piece.tone === "error"
+            ? "text-destructive"
+            : "whitespace-pre-line text-muted-foreground"
         )}
       >
         {piece.text}

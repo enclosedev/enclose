@@ -498,9 +498,7 @@ on("session/prompt", async (params) => {
     expect(JSON.parse(fs.readFileSync(log, "utf8"))).toEqual([
       [{ type: "text", text: "/compact keep the hinge" }],
     ])
-    expect(kept.notices).toEqual([
-      "info: What was said before this has been summed up, to make room.",
-    ])
+    expect(kept.notices).toEqual(["compacted"])
     expect(kept.contexts).toEqual([{ used: 12000, window: 200000 }])
 
     // one it could not take up again has nothing to sum up

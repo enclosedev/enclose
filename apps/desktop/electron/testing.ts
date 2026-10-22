@@ -28,6 +28,8 @@ export function fakeTurn(given: Partial<Turn> & Pick<Turn, "launch" | "cwd">) {
     notice: (tone, text) => notices.push(`${tone}: ${text}`),
     doing: () => {},
     context: (use) => contexts.push(use),
+    compacted: (tokens) =>
+      notices.push(`compacted${tokens === undefined ? "" : ` at ${tokens}`}`),
     ask: async (wanted): Promise<PermissionAnswer> => {
       asked.push(wanted)
       return "allow"

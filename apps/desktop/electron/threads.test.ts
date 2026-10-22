@@ -891,7 +891,7 @@ describe("compacting a conversation", () => {
     expect(heard()).toEqual(["Make a lid", "<compacted>"])
     expect(said(into)).toEqual(["Make a lid", "/compact"])
     expect(notices(threads, into)).toEqual([
-      "What was said before this has been summed up, to make room.",
+      "Conversation compacted\nEarlier messages were summarized to make room.",
     ])
     expect(now().context).toEqual({ used: 12_000, window: 1_000_000 })
   })
@@ -908,11 +908,10 @@ describe("compacting a conversation", () => {
     expect(say("Make it taller", into)).toBe(into)
     await idle()
     expect(heard()).toEqual(["Make a lid", "<compacted>", "Make it taller"])
-    // the app's own asking is no message of the user's: it is said what it is
+    // the app's own asking is no message of the user's: what came of it is said
     expect(said(into)).toEqual(["Make a lid", "Make it taller"])
     expect(notices(threads, into)).toEqual([
-      "This conversation has taken up 214k tokens, so it is being compacted before your message is sent.",
-      "What was said before this has been summed up, to make room.",
+      "Compacted automatically at 214k tokens\nEarlier messages were summarized to make room.",
     ])
     expect(now().context).toEqual({ used: 30_000, window: 1_000_000 })
     // and not again, now that it has room

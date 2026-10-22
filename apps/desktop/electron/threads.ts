@@ -1373,6 +1373,18 @@ const SUMMARIES_AFTER_MS = 2000
 const NAME_LENGTH = 80
 
 /** When something was last said or done in a conversation. */
+/**
+ * That a conversation has been compacted, in two lines: of its own accord, at so many
+ * tokens, where that is known; and what that means.
+ */
+export const compactedSaid = (tokens?: number) =>
+  [
+    tokens === undefined
+      ? "Conversation compacted"
+      : `Compacted automatically at ${Math.round(tokens / 1000)}k tokens`,
+    "Earlier messages were summarized to make room.",
+  ].join("\n")
+
 const lastAt = (conversation: Conversation) =>
   conversation.items.at(-1)?.at ?? 0
 
@@ -2257,15 +2269,9 @@ export class Threads {
       objects,
       asked
     )
-    // (what the app asks for itself is no message of the user's: it is said what it is)
-    if (asked.full !== undefined)
-      this.notice(
-        projectId,
-        conversation,
-        "info",
-        `This conversation has taken up ${Math.round(asked.full / 1000)}k tokens, so it is being compacted before your message is sent.`
-      )
-    else this.put(projectId, conversation, said)
+    // (what the app asks for itself is no message of the user's: what came of it is said
+    // once it is done)
+    if (asked.full === undefined) this.put(projectId, conversation, said)
     // the user is not left to think an agent saw what it cannot be shown
     if (pictures.length > 0 && !TAKES_PICTURES[conversation.provider])
       this.notice(
@@ -2315,6 +2321,7 @@ export class Threads {
         content,
         arrange: asked.arrange,
         compact: asked.compact === true,
+        full: asked.full,
       })
     )
     return conversation.id
@@ -2352,7 +2359,13 @@ export class Threads {
     run: Run,
     finished: Promise<void>,
     manner: Manner,
-    asked: { content: Content; arrange?: Arranging; compact: boolean }
+    asked: {
+      content: Content
+      arrange?: Arranging
+      compact: boolean
+      /** how many tokens it had taken up, where the app asked for it to be compacted */
+      full?: number
+    }
   ) {
     const { conversation, abort, finish } = run
     const { provider } = conversation
@@ -2508,6 +2521,13 @@ export class Threads {
         this.deps.onSummary()
       },
       compact: asked.compact,
+      compacted: (tokens) =>
+        this.notice(
+          projectId,
+          conversation,
+          "info",
+          compactedSaid(asked.full ?? tokens)
+        ),
       ask: (wanted, signal) =>
         new Promise<PermissionAnswer>((resolve) => {
           const id = `ask-${++this.counter}-${Date.now()}`
@@ -2786,6 +2806,14 @@ export class Threads {
       doing: () => {},
       // (the board's session is its own: how full it is says nothing of the conversation's)
       context: () => {},
+      compacted: (tokens) =>
+        putIn({
+          kind: "notice",
+          id: `note-${++this.counter}-${Date.now()}`,
+          at: Date.now(),
+          tone: "info",
+          text: compactedSaid(tokens),
+        }),
       ask: (wanted, signal) =>
         new Promise<PermissionAnswer>((resolve) => {
           const id = `ask-${++this.counter}-${Date.now()}`
@@ -3166,10 +3194,8 @@ export class Threads {
         return
       }
       if (message.type === "system" && message.subtype === "compact_boundary") {
-        turn.notice(
-          "info",
-          "What was said before this has been summed up, to make room."
-        )
+        const { trigger, pre_tokens } = message.compact_metadata
+        turn.compacted(trigger === "auto" ? pre_tokens : undefined)
         return
       }
       if (message.type === "stream_event") {

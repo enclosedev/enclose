@@ -267,11 +267,7 @@ export async function runCodex(turn: Turn): Promise<void> {
   let turnId: string | null = null
   let troubled = false
   // that what was said has been summed up
-  const compacted = () =>
-    turn.notice(
-      "info",
-      "What was said before this has been summed up, to make room."
-    )
+  const compacted = () => turn.compacted()
   let over = () => {}
   const finished = new Promise<void>((resolve) => (over = resolve))
 

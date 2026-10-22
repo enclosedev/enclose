@@ -328,9 +328,7 @@ on("thread/compact/start", (params) => {
     })
     await runCodex(compacted.turn)
     expect(compacted.items()).toEqual([])
-    expect(compacted.notices).toEqual([
-      "info: What was said before this has been summed up, to make room.",
-    ])
+    expect(compacted.notices).toEqual(["compacted"])
     expect(doing).toEqual(["compacting", null])
     expect(compacted.contexts).toEqual([{ used: 31000, window: 272000 }])
 

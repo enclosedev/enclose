@@ -462,21 +462,16 @@ function Context({
       <TooltipContent
         align="start"
         alignOffset={-6}
-        className="max-w-64 flex-col items-start gap-0.5 py-2"
+        className="max-w-none flex-col items-start gap-0.5 py-2 whitespace-nowrap"
       >
         <span className="font-medium">
           {compacting
             ? "Compacting the conversation"
-            : `Context ${Math.round(share * 100)}% full`}
+            : `Using ${Math.round(share * 100)}% of context`}
         </span>
         <span className="tabular-nums opacity-60">
-          {few(use.used)} of {few(room)} tokens
-          {room < use.window ? ` (the window holds ${few(use.window)})` : ""}.
-          Past that, it is compacted before your next message.
+          {few(use.used)} of {few(room)} tokens. Will compact automatically
         </span>
-        {!compacting && (
-          <span className="opacity-60">Click to compact it now</span>
-        )}
       </TooltipContent>
     </Tooltip>
   )

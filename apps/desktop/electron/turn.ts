@@ -64,6 +64,11 @@ export type Turn = {
   /** Say how full the conversation's context window is, as the agent says it now. */
   context(use: ContextUse): void
   /**
+   * Say that what was said so far has been summed up, to make room: at so many tokens,
+   * where the agent did it of its own accord and said how full it was.
+   */
+  compacted(tokens?: number): void
+  /**
    * The turn is the asking for the conversation to be compacted (see COMPACT): the agent
    * sums up what was said so far, each in its own way, and is told nothing else. What it
    * is given (`content`) is what was written, which may say what the summary is to keep.
