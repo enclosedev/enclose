@@ -18,11 +18,40 @@ export type ThreadStatus = "idle" | "working" | "asking"
  * What an agent at work is at where nothing it says or does shows it. Thinking: since
  * when (ms), and about how many tokens it has thought, to the thousand below, where it
  * says (its words are kept from the app). Retrying: its maker's API did not answer, and
- * it is trying again, the how-manyth time of how many it will.
+ * it is trying again, the how-manyth time of how many it will. Compacting: summing up
+ * what was said so far, to make room in its context window, since when (ms).
  */
 export type Doing =
   | { kind: "thinking"; since: number; tokens: number | null }
   | { kind: "retrying"; attempt: number; of: number }
+  | { kind: "compacting"; since: number }
+
+/**
+ * How full a conversation's context window is, as its agent last said: the tokens it
+ * takes up, of how many there is room for. Each agent sums what was said up on its own
+ * as the window fills; it can be told to sooner (see COMPACT).
+ */
+export type ContextUse = { used: number; window: number }
+
+/**
+ * What is said in a conversation to have its agent sum up what was said so far, to make
+ * room: each agent is told it in its own way. Anything after it is what the summary is
+ * to keep, where the agent takes that.
+ */
+export const COMPACT = "/compact"
+
+/** Whether a message is the asking for a conversation to be compacted. */
+export const compacting = (text: string) => /^\/compact(\s|$)/.test(text.trim())
+
+/**
+ * How many tokens a conversation may take up before the app has it compacted, ahead of
+ * the next message: so many, or most of a smaller window. The agents compact on their
+ * own only once the window is nearly full, which for a window of a million tokens is
+ * long after every message has come to cost a great deal more than it needs to.
+ */
+export const COMPACT_PAST = 200_000
+export const roomOf = (use: ContextUse) =>
+  Math.min(COMPACT_PAST, Math.floor(use.window * 0.85))
 
 /** One conversation about a project, in as much as a card in the sidebar has room for. */
 export type ConversationSummary = {
@@ -46,6 +75,8 @@ export type ConversationSummary = {
    * while it is saying or doing something, and from an agent that does not tell.
    */
   doing: Doing | null
+  /** how full its context window is, as its agent last said; null until one has */
+  context: ContextUse | null
   /**
    * What the card says: what was asked, while Claude is at work on it, and otherwise the
    * last thing said by either. In one line, as it was said.

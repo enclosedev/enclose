@@ -76,6 +76,19 @@ describe("AcpTurn", () => {
     ])
   })
 
+  it("says how full the session is, where the agent says so of its window", () => {
+    const { fake, told } = make()
+    told({ sessionUpdate: "usage_update", used: 53000, size: 256000 })
+    // (one that knows no window says nothing of how full it is)
+    told({ sessionUpdate: "usage_update", used: 9, size: 0 })
+    told({ sessionUpdate: "usage_update", used: 61000, size: 256000 })
+    expect(fake.contexts).toEqual([
+      { used: 53000, window: 256000 },
+      { used: 61000, window: 256000 },
+    ])
+    expect(fake.items()).toEqual([])
+  })
+
   it("leaves out a subagent's session, and what is played back of this one", () => {
     const { fake, state, told } = make()
     state.notification("session/update", {

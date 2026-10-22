@@ -5,7 +5,12 @@ import { randomBytes } from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
 
-import { PROVIDERS, type ProviderId, type ThreadItem } from "../shared/api"
+import {
+  PROVIDERS,
+  type ContextUse,
+  type ProviderId,
+  type ThreadItem,
+} from "../shared/api"
 import { setAside, writeWhole, writeWholeSoon } from "./atomic"
 
 export type Conversation = {
@@ -29,6 +34,8 @@ export type Conversation = {
   items: ThreadItem[]
   /** what one of its messages comes to in a few words, and which message: see gist.ts */
   gist: { of: string; text: string } | null
+  /** how full its context window is, as its agent last said: none until one has */
+  context?: ContextUse
   /**
    * Only the few of its items the sidebar needs have been read (see `readShelved`): the
    * rest are in its file, to be read when they are wanted. Never written down so.
@@ -82,8 +89,18 @@ const fileOf = ({
   name,
   items,
   gist,
+  context,
 }: Conversation) =>
-  JSON.stringify({ provider, sessionId, guided, inspired, name, items, gist })
+  JSON.stringify({
+    provider,
+    sessionId,
+    guided,
+    inspired,
+    name,
+    items,
+    gist,
+    context,
+  })
 
 export function writeConversation(
   dir: string,
@@ -140,6 +157,17 @@ function adopt(dir: string, projectId: string, session: () => string | null) {
   fs.unlinkSync(old)
 }
 
+/** How full a context window was, as it was written down: nothing, where it was not. */
+function contextOf(kept: unknown): { context?: ContextUse } {
+  const { used, window } = (kept ?? {}) as { used?: unknown; window?: unknown }
+  return typeof used === "number" &&
+    typeof window === "number" &&
+    used >= 0 &&
+    window > 0
+    ? { context: { used, window } }
+    : {}
+}
+
 /**
  * A conversation from what its file says: null where it is not one of ours, or has
  * nothing said in it. Throws where the file cannot be read, or is not JSON.
@@ -147,16 +175,25 @@ function adopt(dir: string, projectId: string, session: () => string | null) {
 function readFile(file: string, id: string): Conversation | null {
   const read: unknown = JSON.parse(fs.readFileSync(file, "utf8"))
   try {
-    const { provider, sessionId, guided, inspired, name, items, gist } =
-      read as {
-        provider?: unknown
-        sessionId?: unknown
-        guided?: unknown
-        inspired?: unknown
-        name?: unknown
-        items?: unknown
-        gist?: unknown
-      }
+    const {
+      provider,
+      sessionId,
+      guided,
+      inspired,
+      name,
+      items,
+      gist,
+      context,
+    } = read as {
+      provider?: unknown
+      sessionId?: unknown
+      guided?: unknown
+      inspired?: unknown
+      name?: unknown
+      items?: unknown
+      gist?: unknown
+      context?: unknown
+    }
     if (!Array.isArray(items) || items.length === 0) return null
     const { of, text } = (gist ?? {}) as { of?: unknown; text?: unknown }
     return {
@@ -172,6 +209,7 @@ function readFile(file: string, id: string): Conversation | null {
         typeof of === "string" && typeof text === "string"
           ? { of, text }
           : null,
+      ...contextOf(context),
     }
   } catch {
     // not one of ours: passed over, and left alone
@@ -280,6 +318,7 @@ export type Summed = {
   inspired?: string
   name: string | null
   gist: { of: string; text: string } | null
+  context?: ContextUse
   items: ThreadItem[]
 }
 
@@ -292,6 +331,7 @@ export const summedOf = (
     inspired,
     name,
     gist,
+    context,
     items,
     shelved,
   }: Conversation,
@@ -304,6 +344,7 @@ export const summedOf = (
   ...(inspired !== undefined && { inspired }),
   name,
   gist,
+  ...(context !== undefined && { context }),
   items: shelved ? items : digestOf(items),
 })
 
@@ -354,6 +395,7 @@ export function readShelved(
         }),
         name: summed.name ?? null,
         gist: summed.gist ?? null,
+        ...contextOf(summed.context),
         items: summed.items,
         shelved: true,
       }

@@ -4,7 +4,7 @@ import path from "node:path"
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import type { Seen } from "../shared/api"
+import { COMPACT_PAST, type Seen } from "../shared/api"
 import { fakeAgent, until } from "./testing"
 import {
   answersTo,
@@ -702,6 +702,10 @@ function talking(
 ) {
   const flag = path.join(dir, "go")
   const heard = path.join(dir, "heard.jsonl")
+  // how full the thread is said to be at the end of a turn, and once it is compacted:
+  // nothing is said of it where there is no file of it
+  const full = path.join(dir, "full.json")
+  const compacted = path.join(dir, "compacted.json")
   const file = fakeAgent(
     dir,
     false,
@@ -718,9 +722,25 @@ on("turn/start", (params) => {
     clearInterval(ticking)
     if (${JSON.stringify(each)}) fs.rmSync(${JSON.stringify(flag)}, { force: true })
     tell("item/completed", { threadId: "thread-1", item: { type: "agentMessage", id: "m" + Date.now(), text: "Done." } })
+    usage(${JSON.stringify(full)})
     tell("turn/completed", { threadId: "thread-1", turn: { id: "turn-1", status: "completed" } })
   }, 5)
   return { turn: { id: "turn-1" } }
+})
+const usage = (file) => {
+  if (!fs.existsSync(file)) return
+  const [used, window] = JSON.parse(fs.readFileSync(file, "utf8"))
+  tell("thread/tokenUsage/updated", { threadId: "thread-1", turnId: "turn-1", tokenUsage: { total: { totalTokens: used }, last: { totalTokens: used }, modelContextWindow: window } })
+}
+on("thread/compact/start", () => {
+  fs.appendFileSync(${JSON.stringify(heard)}, JSON.stringify("<compacted>") + "\\n")
+  setTimeout(() => {
+    tell("item/started", { threadId: "thread-1", item: { type: "contextCompaction", id: "k" } })
+    tell("item/completed", { threadId: "thread-1", item: { type: "contextCompaction", id: "k" } })
+    usage(${JSON.stringify(compacted)})
+    tell("turn/completed", { threadId: "thread-1", turn: { id: "turn-1", status: "completed" } })
+  }, 5)
+  return {}
 })
 on("turn/interrupt", () => {
   clearInterval(ticking)
@@ -791,6 +811,13 @@ on("turn/interrupt", () => {
         .items(ID, conversation)
         .flatMap((item) => (item.kind === "user" ? [item.text] : [])),
     go: () => fs.writeFileSync(flag, ""),
+    /** how full the thread is to be said to be after each turn, and after compacting */
+    full: (used: number | null, window = 1_000_000) =>
+      used === null
+        ? fs.rmSync(full, { force: true })
+        : fs.writeFileSync(full, JSON.stringify([used, window])),
+    compactsTo: (used: number, window = 1_000_000) =>
+      fs.writeFileSync(compacted, JSON.stringify([used, window])),
     hold: () => fs.rmSync(flag, { force: true }),
     /** what the agent was given at the start of each turn, as words */
     heard: (): string[] =>
@@ -823,6 +850,109 @@ on("turn/interrupt", () => {
     },
   }
 }
+
+describe("compacting a conversation", () => {
+  let dir: string
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "enclose-threads-"))
+  })
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  const notices = (threads: Threads, conversation: string) =>
+    threads
+      .items(ID, conversation)
+      .flatMap((item) => (item.kind === "notice" ? [item.text] : []))
+
+  it("says how full the conversation is, and keeps it with the conversation", async () => {
+    const { say, go, full, now, idle } = talking(dir)
+    go()
+    full(52_000, 272_000)
+    say("Make a lid", null)
+    await idle()
+    expect(now().context).toEqual({ used: 52_000, window: 272_000 })
+    // read again, as on the app's being opened again
+    const again = talking(dir)
+    expect(again.now().context).toEqual({ used: 52_000, window: 272_000 })
+  })
+
+  it("is done when asked, in the agent's own way, and nothing else is said to it", async () => {
+    const { threads, say, said, go, heard, full, compactsTo, now, idle } =
+      talking(dir)
+    go()
+    full(90_000)
+    const into = say("Make a lid", null) as string
+    await idle()
+    full(null)
+    compactsTo(12_000)
+    expect(say("/compact", into)).toBe(into)
+    await idle()
+    expect(heard()).toEqual(["Make a lid", "<compacted>"])
+    expect(said(into)).toEqual(["Make a lid", "/compact"])
+    expect(notices(threads, into)).toEqual([
+      "What was said before this has been summed up, to make room.",
+    ])
+    expect(now().context).toEqual({ used: 12_000, window: 1_000_000 })
+  })
+
+  it("is done ahead of a message, once the conversation has grown too full", async () => {
+    const { threads, say, said, go, heard, full, compactsTo, now, idle } =
+      talking(dir)
+    go()
+    full(COMPACT_PAST + 14_000)
+    const into = say("Make a lid", null) as string
+    await idle()
+    full(null)
+    compactsTo(30_000)
+    expect(say("Make it taller", into)).toBe(into)
+    await idle()
+    expect(heard()).toEqual(["Make a lid", "<compacted>", "Make it taller"])
+    // the app's own asking is no message of the user's: it is said what it is
+    expect(said(into)).toEqual(["Make a lid", "Make it taller"])
+    expect(notices(threads, into)).toEqual([
+      "This conversation has taken up 214k tokens, so it is being compacted before your message is sent.",
+      "What was said before this has been summed up, to make room.",
+    ])
+    expect(now().context).toEqual({ used: 30_000, window: 1_000_000 })
+    // and not again, now that it has room
+    say("Add a hinge", into)
+    await idle()
+    expect(heard()).toHaveLength(4)
+  })
+
+  it("goes by most of a smaller window, where that comes first", async () => {
+    const { say, go, heard, full, idle } = talking(dir)
+    go()
+    full(180_000, 200_000)
+    const into = say("Make a lid", null) as string
+    await idle()
+    full(null)
+    say("Make it taller", into)
+    await idle()
+    expect(heard()).toEqual(["Make a lid", "<compacted>", "Make it taller"])
+  })
+
+  it("is not done over and over where the agent does not say it has room now", async () => {
+    const { say, go, heard, full, now, idle } = talking(dir)
+    go()
+    full(COMPACT_PAST)
+    const into = say("Make a lid", null) as string
+    await idle()
+    full(null)
+    say("Make it taller", into)
+    await idle()
+    say("Add a hinge", into)
+    await idle()
+    expect(heard()).toEqual([
+      "Make a lid",
+      "<compacted>",
+      "Make it taller",
+      "Add a hinge",
+    ])
+    expect(now().context).toBeNull()
+  })
+})
 
 describe("a board made in the background", () => {
   let dir: string

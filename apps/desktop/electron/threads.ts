@@ -17,22 +17,25 @@ import {
   type SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk"
 
-import type {
-  Access,
-  Attached,
-  ConversationSummary,
-  Doing,
-  Manner,
-  ObjectRef,
-  PartNote,
-  PermissionAnswer,
-  ProviderId,
-  Question,
-  Quote,
-  Said,
-  Seen,
-  ThreadItem,
-  ViewportAsked,
+import {
+  COMPACT,
+  compacting,
+  roomOf,
+  type Access,
+  type Attached,
+  type ConversationSummary,
+  type Doing,
+  type Manner,
+  type ObjectRef,
+  type PartNote,
+  type PermissionAnswer,
+  type ProviderId,
+  type Question,
+  type Quote,
+  type Said,
+  type Seen,
+  type ThreadItem,
+  type ViewportAsked,
 } from "../shared/api"
 import { ASSEMBLY_FOLDER, type GuideGiven } from "../shared/assembly-format"
 import {
@@ -57,7 +60,13 @@ import { pictureMark, pictureName } from "../shared/pictures"
 import { replyOf } from "../shared/reply"
 import { Following } from "./boards"
 import type { Changes } from "./changes"
-import { followDoing, running, settingSources } from "./claude"
+import {
+  followDoing,
+  measure,
+  running,
+  settingSources,
+  takenIn,
+} from "./claude"
 import { runCodex } from "./codex"
 import { GIST_FROM, gistOf, plain } from "./gist"
 import { runGrok } from "./grok"
@@ -226,6 +235,13 @@ type Asked = {
   version?: true
   /** it is the user's, and goes with the inspiration board where that changed (see `inspirationFor`) */
   inspired?: true
+  /** it is the asking for the conversation to be compacted (see COMPACT) */
+  compact?: true
+  /**
+   * it is the app's own asking for that, ahead of a message, the conversation having
+   * taken up this many tokens (see COMPACT_PAST)
+   */
+  full?: number
 }
 
 /**
@@ -1738,6 +1754,7 @@ export class Threads {
               : "working",
           since: running?.since ?? null,
           doing: running?.doing ?? null,
+          context: conversation.context ?? null,
           lastMessage: last ? plain(wordsOf(last)) : null,
           gist:
             last && conversation.gist?.of === last.id
@@ -1948,6 +1965,19 @@ export class Threads {
     /** the circuit board on screen, in PCB mode, which the message is then about */
     board: Boarded | null = null
   ): string | null {
+    // Asking for the conversation to be compacted is said to the agent as it was written,
+    // with nothing put around it: what is on screen has nothing to do with it.
+    if (
+      compacting(text) &&
+      notes.length === 0 &&
+      objects.length === 0 &&
+      pictures.length === 0 &&
+      quotes.length === 0
+    )
+      return this.say(projectId, conversationId, text, [], [], manner, {
+        content: text.trim(),
+        compact: true,
+      })
     const asked: Asked = {
       content: (told, provider) =>
         pictured(
@@ -2187,6 +2217,36 @@ export class Threads {
     }
 
     const now = Date.now()
+    // A conversation that has grown past what it should take up is compacted first, and
+    // what was said waits for that: it is said once the conversation has been.
+    const { context } = conversation
+    if (
+      context &&
+      context.used >= roomOf(context) &&
+      conversation.sessionId !== null &&
+      !asked.compact &&
+      asked.arrange === undefined &&
+      !asked.assembly
+    ) {
+      book.waiting.unshift({
+        conversation,
+        item: saidOf(
+          `queued-${++this.counter}-${now}`,
+          now,
+          text,
+          notes,
+          objects,
+          asked
+        ),
+        manner,
+        asked,
+      })
+      return this.begin(projectId, conversation.id, COMPACT, [], [], manner, {
+        content: COMPACT,
+        compact: true,
+        full: context.used,
+      })
+    }
     const pictures = asked.pictures ?? []
     // (one said the moment another was stopped for it can begin in the same millisecond)
     const said = saidOf(
@@ -2197,7 +2257,15 @@ export class Threads {
       objects,
       asked
     )
-    this.put(projectId, conversation, said)
+    // (what the app asks for itself is no message of the user's: it is said what it is)
+    if (asked.full !== undefined)
+      this.notice(
+        projectId,
+        conversation,
+        "info",
+        `This conversation has taken up ${Math.round(asked.full / 1000)}k tokens, so it is being compacted before your message is sent.`
+      )
+    else this.put(projectId, conversation, said)
     // the user is not left to think an agent saw what it cannot be shown
     if (pictures.length > 0 && !TAKES_PICTURES[conversation.provider])
       this.notice(
@@ -2246,6 +2314,7 @@ export class Threads {
       this.turn(projectId, project, book, run, finished, manner, {
         content,
         arrange: asked.arrange,
+        compact: asked.compact === true,
       })
     )
     return conversation.id
@@ -2283,10 +2352,13 @@ export class Threads {
     run: Run,
     finished: Promise<void>,
     manner: Manner,
-    asked: { content: Content; arrange?: Arranging }
+    asked: { content: Content; arrange?: Arranging; compact: boolean }
   ) {
     const { conversation, abort, finish } = run
     const { provider } = conversation
+    // how full it was said to be before: one compacted that is not said to be any less
+    // full after is not known to be, and is not compacted again ahead of every message
+    const before = conversation.context
     // The turn is had in the folder as this conversation has it: where it was left for
     // another, it is put as this one left it first. (Its model may be somewhere else
     // then, which the agent is to be told.)
@@ -2408,14 +2480,17 @@ export class Threads {
       sessionId: conversation.sessionId,
       /** The session the agent says this conversation now is: what carries it on next time. */
       session: (sessionId) => {
+        // (a session that is only compacted is told nothing of the project: what it was
+        // told stands, and anything since is told with the next message)
+        const told = asked.compact ? conversation.guided : guided
         if (
           conversation.sessionId === sessionId &&
-          conversation.guided === guided
+          conversation.guided === told
         )
           return
         conversation.sessionId = sessionId
         // and what that session has been told of the project, or is about to be
-        conversation.guided = guided
+        conversation.guided = told
         this.keep(projectId, conversation)
       },
       signal: abort.signal,
@@ -2425,6 +2500,14 @@ export class Threads {
         run.doing = what
         this.deps.onSummary()
       },
+      context: (use) => {
+        const was = conversation.context
+        if (was?.used === use.used && was.window === use.window) return
+        conversation.context = use
+        this.keep(projectId, conversation)
+        this.deps.onSummary()
+      },
+      compact: asked.compact,
       ask: (wanted, signal) =>
         new Promise<PermissionAnswer>((resolve) => {
           const id = `ask-${++this.counter}-${Date.now()}`
@@ -2481,6 +2564,8 @@ export class Threads {
         throw new Error(
           `${AGENTS[provider]} was not found on this machine, or is switched off in the settings.`
         )
+      // (it says nothing as it sums up, which can take a minute)
+      if (asked.compact) turn.doing({ kind: "compacting", since: Date.now() })
       if (provider === "claude")
         await this.claude(turn, projectId, project.path, run, finished)
       else {
@@ -2513,6 +2598,8 @@ export class Threads {
       // What the turn did to the folder is kept as a change, before anything else can
       // be done there: a turn that was stopped part of the way has that much to take back.
       // (Not of a project that was taken off the list meanwhile: nothing of it is kept.)
+      if (asked.compact && conversation.context === before)
+        delete conversation.context
       if (pending && this.books.get(projectId) === book && busy === null)
         await this.deps.changes
           .after(
@@ -2697,6 +2784,8 @@ export class Threads {
         }),
       // (the card says how long it has been at the board, and what it did last)
       doing: () => {},
+      // (the board's session is its own: how full it is says nothing of the conversation's)
+      context: () => {},
       ask: (wanted, signal) =>
         new Promise<PermissionAnswer>((resolve) => {
           const id = `ask-${++this.counter}-${Date.now()}`
@@ -3048,6 +3137,9 @@ export class Threads {
     const replyOf = new Map<string, string>()
     // what it is at where nothing shows it: thinking, above all, which can go on for minutes
     const doing = followDoing((what) => turn.doing(what))
+    // what Claude's last reply took in, and what it wrote: how full the conversation is
+    // where Claude Code is too old to say so itself
+    let taken: number | null = null
 
     const handle = (message: SDKMessage) => {
       doing(message)
@@ -3085,6 +3177,7 @@ export class Threads {
         const event = message.event
         if (event.type === "message_start") {
           messageId = event.message.id
+          taken = takenIn(event.message.usage)
         } else if (event.type === "message_delta" && messageId) {
           if (event.usage.output_tokens > 0)
             used.set(messageId, event.usage.output_tokens)
@@ -3257,7 +3350,14 @@ export class Threads {
           },
         },
       })
-      for await (const message of messages) handle(message)
+      for await (const message of messages) {
+        // asked before the turn is let end, while the session is still there to say
+        if (message.type === "result") {
+          const use = await measure(messages, message, taken)
+          if (use) turn.context(use)
+        }
+        handle(message)
+      }
     } catch (error) {
       if (abort.signal.aborted) throw error
       // why has been said already

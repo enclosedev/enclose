@@ -7,8 +7,10 @@ import {
   commandChoices,
   extraArgs,
   followDoing,
+  measure,
   modelChoices,
   settingSources,
+  takenIn,
 } from "./claude"
 
 describe("settingSources", () => {
@@ -271,5 +273,70 @@ describe("followDoing", () => {
       { kind: "retrying", attempt: 2, of: 10 },
       null,
     ])
+  })
+
+  it("says Claude Code is compacting the conversation, until it has", () => {
+    vi.useFakeTimers({ now: 7000 })
+    const { said, follow } = followed()
+    follow(system({ subtype: "status", status: "requesting" }))
+    follow(system({ subtype: "status", status: "compacting" }))
+    follow(system({ subtype: "status", status: "compacting" }))
+    follow(system({ subtype: "compact_boundary", compact_metadata: {} }))
+    follow(system({ subtype: "status", status: "compacting" }))
+    follow(system({ subtype: "status", status: null }))
+    expect(said).toEqual([
+      { kind: "compacting", since: 7000 },
+      null,
+      { kind: "compacting", since: 7000 },
+      null,
+    ])
+  })
+})
+
+describe("measure", () => {
+  const result = (windows: number[]) =>
+    ({
+      type: "result",
+      modelUsage: Object.fromEntries(
+        windows.map((contextWindow, index) => [`m${index}`, { contextWindow }])
+      ),
+    }) as unknown as Extract<SDKMessage, { type: "result" }>
+
+  it("says how full the conversation is as Claude Code counts it", async () => {
+    const getContextUsage = vi.fn(async () => ({
+      totalTokens: 15039,
+      rawMaxTokens: 1_000_000,
+    }))
+    expect(
+      await measure({ getContextUsage } as never, result([200_000]), 900)
+    ).toEqual({ used: 15039, window: 1_000_000 })
+    expect(getContextUsage).toHaveBeenCalledWith({ detail: "summary" })
+  })
+
+  it("goes by the last reply where Claude Code is too old to say", async () => {
+    const old = {
+      getContextUsage: async () => {
+        throw new Error("Unsupported control request")
+      },
+    } as never
+    expect(await measure(old, result([200_000, 1_000_000]), 52000)).toEqual({
+      used: 52000,
+      window: 1_000_000,
+    })
+    expect(await measure(old, result([]), 52000)).toBeNull()
+    expect(await measure(old, result([200_000]), null)).toBeNull()
+  })
+
+  it("counts all that a reply took in, read from the cache or not", () => {
+    expect(
+      takenIn({
+        input_tokens: 3,
+        cache_creation_input_tokens: 1200,
+        cache_read_input_tokens: 40000,
+      })
+    ).toBe(41203)
+    expect(takenIn({ input_tokens: 10, cache_read_input_tokens: null })).toBe(
+      10
+    )
   })
 })

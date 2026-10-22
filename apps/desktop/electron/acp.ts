@@ -51,6 +51,9 @@ export type AcpToolCall = {
 export type AcpUpdate = AcpToolCall & {
   sessionUpdate?: string
   content?: { type?: string; text?: string } | null
+  /** how many tokens the session takes up, of how many its context window has room for */
+  used?: number
+  size?: number
 }
 
 export type AcpOption = { optionId: string; kind: string }
@@ -155,6 +158,12 @@ export class AcpTurn {
 
   update(given: AcpUpdate) {
     switch (given.sessionUpdate) {
+      case "usage_update": {
+        const { used, size } = given
+        if (typeof used === "number" && typeof size === "number" && size > 0)
+          this.turn.context({ used, window: size })
+        return
+      }
       case "agent_message_chunk": {
         const text = given.content?.type === "text" ? given.content.text : ""
         if (!text || (!this.speech.now && !text.trim())) return
@@ -542,10 +551,16 @@ export async function runTurn<Hello>(
         )
       })
 
+    // A session asked to compact is told its command for that as it was written, and
+    // nothing else: each of them has one, by the same name. One that could not be taken
+    // up again has nothing to sum up.
+    if (turn.compact && !resumed) return
     const answered = peer
       .request<{ stopReason?: string | null }>("session/prompt", {
         sessionId: state.sessionId,
-        prompt: agent.prompt(turn, resumed, piecesOf(turn.content)),
+        prompt: turn.compact
+          ? piecesOf(turn.content)
+          : agent.prompt(turn, resumed, piecesOf(turn.content)),
       })
       .then((result) => result?.stopReason ?? null)
     const stopReason = await Promise.race([
@@ -555,7 +570,12 @@ export async function runTurn<Hello>(
       died,
     ])
     state.hush()
-    if (stopReason === "refusal")
+    if (turn.compact && (stopReason === "end_turn" || stopReason === null))
+      turn.notice(
+        "info",
+        "What was said before this has been summed up, to make room."
+      )
+    else if (stopReason === "refusal")
       turn.notice("error", `${agent.name} declined to answer this.`)
     else if (stopReason === "max_tokens" || stopReason === "max_turn_requests")
       turn.notice(

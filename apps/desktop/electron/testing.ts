@@ -3,7 +3,7 @@
 import fs from "node:fs"
 import path from "node:path"
 
-import type { PermissionAnswer, ThreadItem } from "../shared/api"
+import type { ContextUse, PermissionAnswer, ThreadItem } from "../shared/api"
 import { viewportTools } from "./tools"
 import type { Asked, Turn } from "./turn"
 
@@ -13,6 +13,7 @@ export function fakeTurn(given: Partial<Turn> & Pick<Turn, "launch" | "cwd">) {
   const notices: string[] = []
   const sessions: string[] = []
   const asked: Asked[] = []
+  const contexts: ContextUse[] = []
   const abort = new AbortController()
   let count = 0
   const turn: Turn = {
@@ -26,6 +27,7 @@ export function fakeTurn(given: Partial<Turn> & Pick<Turn, "launch" | "cwd">) {
     put: (item) => items.set(item.id, item),
     notice: (tone, text) => notices.push(`${tone}: ${text}`),
     doing: () => {},
+    context: (use) => contexts.push(use),
     ask: async (wanted): Promise<PermissionAnswer> => {
       asked.push(wanted)
       return "allow"
@@ -47,6 +49,8 @@ export function fakeTurn(given: Partial<Turn> & Pick<Turn, "launch" | "cwd">) {
     notices,
     sessions,
     asked,
+    /** how full the context window was said to be, each time it was */
+    contexts,
     /** the items in the order they were first put, each as it last stood */
     items: () => [...items.values()],
   }

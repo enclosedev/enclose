@@ -8,6 +8,7 @@ import {
   EyeIcon,
   FilePlusIcon,
   FileTextIcon,
+  FoldVerticalIcon,
   GitBranchPlusIcon,
   GlobeIcon,
   ListIcon,
@@ -138,8 +139,8 @@ export function tokensSaid(count: number): string {
 /**
  * What Claude is at where nothing it says or does shows it, in a line: thinking, and for
  * how long (and about how much, where that was asked for in the settings); or trying the
- * API again. Among steps, with a picture as each of them has, so that the words stay
- * where theirs are.
+ * API again; or compacting the conversation, and for how long. Among steps, with a
+ * picture as each of them has, so that the words stay where theirs are.
  */
 export function Meanwhile({
   doing,
@@ -150,12 +151,21 @@ export function Meanwhile({
 }) {
   const now = useNow(1000)
   const tokens = usePreferences((state) => state.thinkingTokens)
-  const Icon = doing.kind === "thinking" ? BrainIcon : RotateCwIcon
+  const Icon =
+    doing.kind === "thinking"
+      ? BrainIcon
+      : doing.kind === "compacting"
+        ? FoldVerticalIcon
+        : RotateCwIcon
   return (
     <>
       {among && <Icon className="size-3.5 shrink-0" aria-hidden />}
       <span className={cn("shrink-0", LIVE)}>
-        {doing.kind === "thinking" ? "Thinking" : "Retrying"}
+        {doing.kind === "thinking"
+          ? "Thinking"
+          : doing.kind === "compacting"
+            ? "Compacting"
+            : "Retrying"}
       </span>
       <span className="min-w-0 truncate tabular-nums">
         {doing.kind === "thinking"
@@ -166,7 +176,9 @@ export function Meanwhile({
             ]
               .filter(Boolean)
               .join(" ")
-          : `attempt ${doing.attempt} of ${doing.of}`}
+          : doing.kind === "compacting"
+            ? elapsed(now - doing.since)
+            : `attempt ${doing.attempt} of ${doing.of}`}
       </span>
     </>
   )

@@ -20,6 +20,7 @@ const left = (
   status,
   since: null,
   doing: null,
+  context: null,
   lastMessage: null,
   gist: null,
   failed: false,

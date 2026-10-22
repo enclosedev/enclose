@@ -40,6 +40,7 @@ import { PALETTE, type PaletteName } from "@shared/palette"
 import { MOST_AT_ONCE, PICTURE_TYPES, withoutMark } from "@shared/pictures"
 
 import {
+  COMPACT,
   EFFORTS,
   PROVIDERS,
   type Access,
@@ -942,6 +943,11 @@ type State = {
   setEffort(provider: ProviderId, effort: Effort | null): void
   /** Send what is in the open project's message box, with what has been said of its parts. */
   send(): void
+  /**
+   * Have the conversation open in the active project compacted: its agent sums up what
+   * was said so far, to make room. Waits its turn there as a message would.
+   */
+  compact(): void
   /**
    * Have Claude look over a project's model, of files just opened, from what the view
    * shows of it: answered the way a message would be, as far as that is chosen.
@@ -2205,6 +2211,27 @@ export const useStore = create<State>()((set, get) => ({
         },
         () => refused()
       )
+  },
+
+  compact() {
+    const { activeId, projects, picked } = get()
+    const project = projects.find((p) => p.id === activeId)
+    if (!project) return
+    const { open } = stackOf(
+      project.conversations,
+      picked[project.id],
+      usePreferences.getState().settleDays,
+      Date.now()
+    )
+    if (!open) return
+    const refused = () =>
+      get().say("The conversation could not be compacted just now")
+    set({ threadOpen: true })
+    void window.cad.thread
+      .send(project.id, open.id, COMPACT, [], [], mannerIn(get(), open))
+      .then((id) => {
+        if (!id) refused()
+      }, refused)
   },
 
   setMeshes(projectId, any) {

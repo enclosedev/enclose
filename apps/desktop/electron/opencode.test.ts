@@ -461,6 +461,63 @@ on("session/prompt", (params) => {
     expect(lost.items()).toMatchObject([{ kind: "assistant", text: "2" }])
   }, 15_000)
 
+  it("compacts a session with its own command, and nothing else said with it", async () => {
+    const log = path.join(dir, "prompts.json")
+    const file = fakeAgent(
+      dir,
+      true,
+      `
+const prompts = []
+on("initialize", () => ({}))
+on("authenticate", () => ({}))
+on("session/load", (params) => {
+  if (params.sessionId === "lost") throw new Error("session not found")
+  return {}
+})
+on("session/new", () => ({ sessionId: "fresh", configOptions: [] }))
+on("session/set_config_option", () => ({ configOptions: [] }))
+on("session/prompt", async (params) => {
+  prompts.push(params.prompt)
+  ;(await import("node:fs")).writeFileSync(${JSON.stringify(log)}, JSON.stringify(prompts))
+  tell("session/update", { sessionId: params.sessionId, update: { sessionUpdate: "usage_update", used: 12000, size: 200000 } })
+  return { stopReason: "end_turn" }
+})
+`
+    )
+    const kept = fakeTurn({
+      launch: launch(file),
+      cwd: dir,
+      manner: { ...opencode, access: "full" },
+      sessionId: "kept",
+      // (what it was told of the project has changed: that is told with the next message)
+      guideChanged: true,
+      content: "/compact keep the hinge",
+      compact: true,
+    })
+    await runOpencode(kept.turn)
+    expect(JSON.parse(fs.readFileSync(log, "utf8"))).toEqual([
+      [{ type: "text", text: "/compact keep the hinge" }],
+    ])
+    expect(kept.notices).toEqual([
+      "info: What was said before this has been summed up, to make room.",
+    ])
+    expect(kept.contexts).toEqual([{ used: 12000, window: 200000 }])
+
+    // one it could not take up again has nothing to sum up
+    const lost = fakeTurn({
+      launch: launch(file),
+      cwd: dir,
+      manner: { ...opencode, access: "full" },
+      sessionId: "lost",
+      content: "/compact",
+      compact: true,
+    })
+    await runOpencode(lost.turn)
+    expect(JSON.parse(fs.readFileSync(log, "utf8"))).toHaveLength(1)
+    expect(lost.notices).toHaveLength(1)
+    expect(lost.notices[0]).toMatch(/^info: opencode could not find its record/)
+  }, 15_000)
+
   it("tells opencode to stop when the turn is stopped, and ends what was in flight", async () => {
     const cancelled = path.join(dir, "cancelled.json")
     const file = fakeAgent(

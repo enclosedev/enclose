@@ -227,6 +227,11 @@ type Told = {
   turn?: { id: string; status?: string; error?: { message?: string } | null }
   error?: { message?: string } | null
   willRetry?: boolean
+  /** how much the thread has taken in, of how much room its model has */
+  tokenUsage?: {
+    last?: { totalTokens?: number }
+    modelContextWindow?: number | null
+  }
 }
 
 type Wanted = {
@@ -261,6 +266,12 @@ export async function runCodex(turn: Turn): Promise<void> {
   let threadId = ""
   let turnId: string | null = null
   let troubled = false
+  // that what was said has been summed up
+  const compacted = () =>
+    turn.notice(
+      "info",
+      "What was said before this has been summed up, to make room."
+    )
   let over = () => {}
   const finished = new Promise<void>((resolve) => (over = resolve))
 
@@ -329,6 +340,9 @@ export async function runCodex(turn: Turn): Promise<void> {
         return
       case "item/started": {
         const item = told.item
+        // it is compacting the thread, of its own accord or as it was asked to
+        if (item?.type === "contextCompaction")
+          turn.doing({ kind: "compacting", since: Date.now() })
         const shown = item && step(item)
         if (!item || !shown) return
         if (item.type === "fileChange") changed.set(item.id, shown.detail)
@@ -346,6 +360,11 @@ export async function runCodex(turn: Turn): Promise<void> {
       case "item/completed": {
         const item = told.item
         if (!item) return
+        if (item.type === "contextCompaction") {
+          turn.doing(null)
+          compacted()
+          return
+        }
         if (item.type === "agentMessage") {
           said(item.id, { text: item.text ?? "" }, false)
           turn.touched()
@@ -369,12 +388,21 @@ export async function runCodex(turn: Turn): Promise<void> {
         turn.touched()
         return
       }
+      // (as one older than the item that says it says it)
       case "thread/compacted":
-        turn.notice(
-          "info",
-          "What was said before this has been summed up, to make room."
-        )
+        compacted()
         return
+      case "thread/tokenUsage/updated": {
+        const used = told.tokenUsage?.last?.totalTokens
+        const window = told.tokenUsage?.modelContextWindow
+        if (
+          typeof used === "number" &&
+          typeof window === "number" &&
+          window > 0
+        )
+          turn.context({ used, window })
+        return
+      }
       case "error":
         if (told.willRetry) return
         troubled = true
@@ -490,7 +518,12 @@ export async function runCodex(turn: Turn): Promise<void> {
       ...(manner.model ? { model: manner.model } : {}),
     }
     type Opened = { thread: { id: string } }
-    const begin = () => peer.request<Opened>("thread/start", opening)
+    // (a thread begun afresh has nothing in it to compact)
+    let fresh = false
+    const begin = () => {
+      fresh = true
+      return peer.request<Opened>("thread/start", opening)
+    }
     const opened = await Promise.race([
       turn.sessionId
         ? peer
@@ -514,6 +547,19 @@ export async function runCodex(turn: Turn): Promise<void> {
     ])
     threadId = opened.thread.id
     turn.session(threadId)
+
+    // Asked to compact the thread, it does that and nothing else: it says so as a turn of
+    // its own, which ends as any other does.
+    if (turn.compact) {
+      if (fresh) return
+      await Promise.race([
+        peer.request("thread/compact/start", { threadId }),
+        halt,
+        died,
+      ])
+      await Promise.race([finished, halt, died])
+      return
+    }
 
     const pieces = piecesOf(turn.content)
     const started = await Promise.race([

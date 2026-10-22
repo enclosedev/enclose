@@ -16,13 +16,14 @@ import {
   type LucideIcon,
 } from "lucide-react"
 
-import type {
-  Access,
-  Attached,
-  ConversationSummary,
-  Effort,
-  Provider,
-  ProviderId,
+import {
+  roomOf,
+  type Access,
+  type Attached,
+  type ConversationSummary,
+  type Effort,
+  type Provider,
+  type ProviderId,
 } from "@shared/api"
 import { BoardIcon, ProviderIcon, ReferenceIcon } from "@/components/icons"
 import { MentionMenu, type Choice } from "@/components/mention-menu"
@@ -49,6 +50,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import {
   ACCESS_WORDS,
   chosenEffort,
@@ -380,6 +386,99 @@ function Manner({
         </Tabs>
       </PopoverContent>
     </Popover>
+  )
+}
+
+/** A count of tokens, short: "820", "92k", "1M". */
+function few(count: number): string {
+  if (count >= 1_000_000)
+    return `${(count / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`
+  return count >= 1000 ? `${Math.round(count / 1000)}k` : String(count)
+}
+
+/** How far it is round the ring the context is drawn as, its radius being 6. */
+const AROUND = 2 * Math.PI * 6
+
+/**
+ * How full the open conversation's context window is, as a ring beside its agent's mark:
+ * full where the conversation is compacted (see COMPACT_PAST). Hovered, it says how
+ * full, in tokens; pressed, it has the conversation compacted now, which waits its turn
+ * as a message would. Nothing, until the agent has said how full it is.
+ */
+function Context({
+  conversation,
+}: {
+  conversation: ConversationSummary | null
+}) {
+  const compact = useStore((state) => state.compact)
+  const use = conversation?.context
+  if (!conversation || !use) return null
+  const room = roomOf(use)
+  const share = Math.min(1, use.used / room)
+  const compacting = conversation.doing?.kind === "compacting"
+  return (
+    <Tooltip disableHoverablePopup>
+      <TooltipTrigger
+        render={
+          <InputGroupButton
+            size="icon-xs"
+            disabled={compacting}
+            // (close to the mark it is beside: the line has room of its own before it)
+            className={`-mr-1.5 shrink-0 ${LOW} disabled:opacity-100`}
+            onClick={compact}
+          />
+        }
+      >
+        <svg
+          viewBox="0 0 16 16"
+          className={cn("size-3.5! -rotate-90", compacting && "animate-pulse")}
+          aria-hidden
+        >
+          <circle
+            cx="8"
+            cy="8"
+            r="6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            opacity="0.25"
+          />
+          <circle
+            cx="8"
+            cy="8"
+            r="6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeDasharray={`${share * AROUND} ${AROUND}`}
+            // (its round ends would draw a dot of nothing)
+            opacity={share > 0 ? 1 : 0}
+          />
+        </svg>
+        <span className="sr-only">Compact the conversation</span>
+      </TooltipTrigger>
+      {/* (over the box, which it is about, and not out over the view beside it) */}
+      <TooltipContent
+        align="start"
+        alignOffset={-6}
+        className="max-w-64 flex-col items-start gap-0.5 py-2"
+      >
+        <span className="font-medium">
+          {compacting
+            ? "Compacting the conversation"
+            : `Context ${Math.round(share * 100)}% full`}
+        </span>
+        <span className="tabular-nums opacity-60">
+          {few(use.used)} of {few(room)} tokens
+          {room < use.window ? ` (the window holds ${few(use.window)})` : ""}.
+          Past that, it is compacted before your next message.
+        </span>
+        {!compacting && (
+          <span className="opacity-60">Click to compact it now</span>
+        )}
+      </TooltipContent>
+    </Tooltip>
   )
 }
 
@@ -1096,6 +1195,7 @@ export const Composer = React.memo(function Composer({
         // not: that is kept as far from the side as it is from the bottom
         className="gap-1 pr-3 pl-1.5"
       >
+        <Context conversation={open ?? null} />
         <Manner conversation={open ?? null} />
         <input
           ref={picker}

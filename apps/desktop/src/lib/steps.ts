@@ -127,6 +127,7 @@ export function atWork(
       : null
   if (doing?.kind === "retrying")
     return `Retrying, attempt ${doing.attempt} of ${doing.of}`
+  if (doing?.kind === "compacting") return "Compacting the conversation"
   if (last.kind !== "assistant" && last.kind !== "tool") return null
   if (doing?.kind === "thinking") return "Thinking"
   if (last.kind === "assistant") return "Writing what it found"

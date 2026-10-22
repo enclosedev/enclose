@@ -7,6 +7,7 @@ import path from "node:path"
 import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk"
 
 import type {
+  ContextUse,
   Doing,
   Manner,
   PermissionAnswer,
@@ -60,6 +61,14 @@ export type Turn = {
    * again only when that would be shown otherwise: not at every token thought.
    */
   doing(what: Doing | null): void
+  /** Say how full the conversation's context window is, as the agent says it now. */
+  context(use: ContextUse): void
+  /**
+   * The turn is the asking for the conversation to be compacted (see COMPACT): the agent
+   * sums up what was said so far, each in its own way, and is told nothing else. What it
+   * is given (`content`) is what was written, which may say what the summary is to keep.
+   */
+  compact?: boolean
   /**
    * Put a question to the user, and wait for the answer. Stopping the turn answers no,
    * and so does `signal`, where the agent can take a question back.

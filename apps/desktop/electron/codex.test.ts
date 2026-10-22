@@ -275,6 +275,77 @@ on("turn/start", (params) => {
     expect(lost.notices[0]).toMatch(/^info: Codex could not find its record/)
   })
 
+  it("says how full the thread is, and compacts it when asked, telling it nothing else", async () => {
+    const file = fakeAgent(
+      dir,
+      false,
+      `
+on("initialize", () => ({}))
+on("thread/resume", (params) => ({ thread: { id: params.threadId } }))
+on("thread/start", () => ({ thread: { id: "fresh" } }))
+const usage = (used, window) => ({
+  total: { totalTokens: used * 3 },
+  last: { totalTokens: used },
+  modelContextWindow: window,
+})
+on("turn/start", (params) => {
+  setTimeout(() => {
+    tell("thread/tokenUsage/updated", { threadId: params.threadId, turnId: "t", tokenUsage: usage(214000, 272000) })
+    // (one that does not know its window says nothing of how full it is)
+    tell("thread/tokenUsage/updated", { threadId: params.threadId, turnId: "t", tokenUsage: usage(1, null) })
+    tell("turn/completed", { threadId: params.threadId, turn: { id: "t", status: "completed" } })
+  }, 5)
+  return { turn: { id: "t" } }
+})
+on("thread/compact/start", (params) => {
+  setTimeout(() => {
+    tell("turn/started", { threadId: params.threadId, turn: { id: "c" } })
+    tell("item/started", { threadId: params.threadId, item: { type: "contextCompaction", id: "k" } })
+    tell("item/completed", { threadId: params.threadId, item: { type: "contextCompaction", id: "k" } })
+    tell("thread/tokenUsage/updated", { threadId: params.threadId, turnId: "c", tokenUsage: usage(31000, 272000) })
+    tell("turn/completed", { threadId: params.threadId, turn: { id: "c", status: "completed" } })
+  }, 5)
+  return {}
+})
+`
+    )
+    const asked = fakeTurn({
+      launch: launch(file),
+      cwd: dir,
+      sessionId: "kept",
+    })
+    await runCodex(asked.turn)
+    expect(asked.contexts).toEqual([{ used: 214000, window: 272000 }])
+
+    const doing: unknown[] = []
+    const compacted = fakeTurn({
+      launch: launch(file),
+      cwd: dir,
+      sessionId: "kept",
+      content: "/compact",
+      compact: true,
+      doing: (what) => doing.push(what?.kind ?? null),
+    })
+    await runCodex(compacted.turn)
+    expect(compacted.items()).toEqual([])
+    expect(compacted.notices).toEqual([
+      "info: What was said before this has been summed up, to make room.",
+    ])
+    expect(doing).toEqual(["compacting", null])
+    expect(compacted.contexts).toEqual([{ used: 31000, window: 272000 }])
+
+    // a thread that had to be begun afresh has nothing in it to compact
+    const lost = fakeTurn({
+      launch: launch(file),
+      cwd: dir,
+      content: "/compact",
+      compact: true,
+    })
+    await runCodex(lost.turn)
+    expect(lost.sessions).toEqual(["fresh"])
+    expect(lost.notices).toEqual([])
+  })
+
   it("says what went wrong in a turn that failed", async () => {
     const file = fakeAgent(
       dir,

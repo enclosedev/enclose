@@ -21,6 +21,7 @@ import {
   EFFORTS,
   type Command,
   type Commands,
+  type ContextUse,
   type Doing,
   type ModelChoice,
 } from "../shared/api"
@@ -118,14 +119,17 @@ function alike(a: Doing | null, b: Doing | null): boolean {
     return a.since === b.since && a.tokens === b.tokens
   if (a?.kind === "retrying" && b?.kind === "retrying")
     return a.attempt === b.attempt && a.of === b.of
+  // (compacting is shown for as long as it has been at it)
+  if (a?.kind === "compacting" && b?.kind === "compacting") return true
   return a === b
 }
 
 /**
  * Follows what Claude is at where nothing it says or does shows it, from the messages
  * Claude Code sends: thinking, which comes as a block of its message with no words in
- * it and an estimate of the tokens now and then; or trying the API again. `say` is
- * told each time that would be shown otherwise, and null once Claude goes on.
+ * it and an estimate of the tokens now and then; trying the API again; or compacting
+ * the conversation, which it says it is at, and when it is done. `say` is told each
+ * time that would be shown otherwise, and null once Claude goes on.
  */
 export function followDoing(
   say: (doing: Doing | null) => void
@@ -169,7 +173,15 @@ export function followDoing(
           attempt: message.attempt,
           of: message.max_retries,
         })
-      }
+      } else if (message.subtype === "status") {
+        if (message.status === "compacting")
+          tell({ kind: "compacting", since: Date.now() })
+        else if (doing?.kind === "compacting") tell(null)
+      } else if (
+        message.subtype === "compact_boundary" &&
+        doing?.kind === "compacting"
+      )
+        tell(null)
     } else if (message.type === "result") {
       block = null
       tell(null)
@@ -179,6 +191,50 @@ export function followDoing(
 
 /** How long Claude Code is given to say what it has. */
 const ASKING_TIMEOUT_MS = 20_000
+
+/** How long it is given to say how full the conversation is, once it has answered. */
+const MEASURING_MS = 3000
+
+/**
+ * How full the conversation is, as the session says at the end of a turn: as Claude
+ * Code counts it for itself, against the window it compacts by. From one too old to
+ * say, what its last reply took in (`taken`, null if none came), against the most room
+ * any model it ran in the turn has. Null, where neither can be known.
+ */
+export async function measure(
+  session: Pick<Query, "getContextUsage">,
+  result: Extract<SDKMessage, { type: "result" }>,
+  taken: number | null
+): Promise<ContextUse | null> {
+  let timer: NodeJS.Timeout | undefined
+  const said = await Promise.race([
+    session.getContextUsage({ detail: "summary" }).catch(() => null),
+    new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), MEASURING_MS)
+    }),
+  ])
+  clearTimeout(timer)
+  if (said && said.rawMaxTokens > 0)
+    return { used: said.totalTokens, window: said.rawMaxTokens }
+  const window = Math.max(
+    0,
+    ...Object.values(result.modelUsage ?? {}).map((one) => one.contextWindow)
+  )
+  return taken !== null && window > 0 ? { used: taken, window } : null
+}
+
+/**
+ * What one of Claude's replies took in, from what the API says of it as it begins: all
+ * that was put before the model, read from the cache or not.
+ */
+export const takenIn = (usage: {
+  input_tokens: number
+  cache_creation_input_tokens?: number | null
+  cache_read_input_tokens?: number | null
+}) =>
+  usage.input_tokens +
+  (usage.cache_creation_input_tokens ?? 0) +
+  (usage.cache_read_input_tokens ?? 0)
 
 /**
  * Ask the installed Claude Code something about itself, through a session that is given
