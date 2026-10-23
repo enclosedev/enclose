@@ -30,7 +30,9 @@ const SCRIPT = [
 ].join("\n")
 
 beforeEach(() => {
-  root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "enclose-test-")))
+  root = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "enclose-test-"))
+  )
 })
 afterEach(() => {
   fs.rmSync(root, { recursive: true, force: true })
@@ -99,6 +101,24 @@ describe("startFrom", () => {
     expect(
       fs.existsSync(path.join(root, "app/examples/clock/enclose.py"))
     ).toBe(false)
+  })
+
+  it("leaves out what it is told to, wherever it is in the folder", () => {
+    write("app/examples/clock/.git/HEAD", "ref")
+    write("app/examples/clock/pcb/.git/HEAD", "ref")
+    const dir = startFrom(
+      path.join(root, "app/examples/clock"),
+      "Table clock",
+      path.join(root, "projects"),
+      path.join(root, "app/kit/enclose.py"),
+      made,
+      new Set([".git"])
+    )
+    expect(fs.existsSync(path.join(dir, ".git"))).toBe(false)
+    expect(fs.existsSync(path.join(dir, "pcb/.git"))).toBe(false)
+    expect(read(`${path.relative(root, dir)}/model.py`)).not.toContain(
+      "sys.path"
+    )
   })
 
   it("makes another project the second time", () => {

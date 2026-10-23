@@ -99,11 +99,14 @@ import {
   makingTools,
   MODEL,
   modelTools,
+  PROJECTS,
+  projectTools,
   VERSIONS,
   versionTools,
   VIEWPORT,
   viewportTools,
   type AppTool,
+  type NewProject,
   type Serving,
   type ToolServer,
 } from "./tools"
@@ -165,6 +168,13 @@ type Run = {
    * one: when the turn is over, a conversation is begun with it (see `goOn`).
    */
   goesOn: string | null
+  /** its conversation began with it, as a new project's first: it starts no other */
+  madeFrom: boolean
+  /**
+   * The new project the agent asked for, if it did: when the turn is over, that is made,
+   * and a conversation begun in it (see `startProject`).
+   */
+  newProject: NewProject | null
   /**
    * The circuit board the agent asked to have made in detail in the background, if it
    * did, and its brief: when the turn is over, that is begun (see `startJob`).
@@ -233,6 +243,12 @@ type Asked = {
    * there: the conversation it begins is a new version of the project
    */
   version?: true
+  /**
+   * It is what the user asked for in a conversation about another project, the one
+   * called this, as the agent summed it up there: the conversation it begins is the new
+   * project's first
+   */
+  madeFrom?: string
   /** it is the user's, and goes with the inspiration board where that changed (see `inspirationFor`) */
   inspired?: true
   /** it is the asking for the conversation to be compacted (see COMPACT) */
@@ -326,6 +342,21 @@ export type ThreadsDeps = {
     to: string,
     manner: Manner
   ) => void
+  /**
+   * Make a new project as any is made, as the agent was asked to in a conversation about
+   * another (`from`): empty, or with a copy of that one's files. The pictures that came
+   * with what was asked are kept for it as well. Returns its id; throws where it could
+   * not be made.
+   */
+  startProject: (from: string, copy: boolean, pictures: Shown[]) => string
+  /**
+   * The new project was begun, from that conversation: the conversation begun in it is
+   * `to`.
+   */
+  onProject: (
+    from: { projectId: string; conversationId: string },
+    to: { projectId: string; conversationId: string }
+  ) => void
   /** a conversation's status or last message changed: the sidebar needs redrawing */
   onSummary: () => void
   /** a board made in the background is over: how that went */
@@ -367,6 +398,7 @@ const toolName = (set: string, name: string) => `mcp__${set}__${name}`
 const ARRANGE_TOOL = toolName(MODEL, "arrange")
 const GUIDE_TOOL = toolName(ASSEMBLY, "guide")
 const BEGIN_TOOL = toolName(VERSIONS, "begin")
+const START_TOOL = toolName(PROJECTS, "start")
 const MAKE_BOARD_TOOL = toolName(BOARDS, "make")
 const TELL_BOARD_TOOL = toolName(BOARDS, "tell")
 const STOP_BOARD_TOOL = toolName(BOARDS, "stop")
@@ -471,6 +503,8 @@ function describeTool(name: string, input: unknown, root: string) {
       return { name: "Write", detail: "the assembly guide" }
     case BEGIN_TOOL:
       return { name: "Create", detail: "a new version" }
+    case START_TOOL:
+      return { name: "Create", detail: "a new project" }
     case MAKE_BOARD_TOOL:
       return {
         name: "Create",
@@ -835,6 +869,56 @@ export function versionAsked(brief: string): string {
   ].join("\n")
 }
 
+/**
+ * What an agent is told of new projects: that one is nothing it makes by hand, but a
+ * project the app makes, with what the user asked for said there as their own; and how
+ * it differs from a new version.
+ */
+export function projecting(
+  tool: (set: string, name: string) => string
+): string[] {
+  return [
+    `- When the user asks for a new project (a project of its own in the app's list, and not one more version of this one): to make one of the parts of this model on its own, to start from the whole of this model and go another way, or to make something else altogether, never make one by hand: make no folder, copy no file, and change nothing here. Call ${tool(PROJECTS, "start")} before anything else, with a brief of what they want made there: with copy where it is made from this model, and the ids of the parts where it is made from some of them alone (all the parts of each object they picked out). The app makes the project as it makes any new one, begins a conversation there with your brief as the user's own message and takes them to it, and the work goes on there, knowing nothing of this conversation but the brief.`,
+    "- Once that call has gone through, this turn is over: say in a few words that the work goes on in the new project, and do nothing more here. Where it did not go through, tell the user why, as it says. Never start a project unasked: where the user may mean a new version of this one, ask which they want.",
+  ]
+}
+
+/**
+ * What an agent is asked in the first conversation of a project begun from another's:
+ * that this is one, what it has of the other, and then what the user asked for there,
+ * as the agent summed it up.
+ */
+export function projectAsked(
+  from: string,
+  asked: Pick<NewProject, "brief" | "copy" | "parts">
+): string {
+  const lines = [
+    "<new-project>",
+    `This is a new project, which the user asked for in a conversation about another of their projects, "${from}". The app made it as it makes any new one. What follows this block is what they asked for there, as you summed it up to begin this one with: take it as their message to you, and do it here. Nothing else that was said there is known here. This is the new project already: do not start another for it.`,
+  ]
+  if (!asked.copy)
+    lines.push(
+      `It begins empty: nothing of "${from}" is here. Make what is asked for from nothing, as for any new project.`
+    )
+  else if (asked.parts.length === 0)
+    lines.push(
+      `Its files are a copy of that project's as they were, built model and all: change them as you need to, for "${from}" is left as it was.`
+    )
+  else
+    lines.push(
+      `Its files are a copy of that project's as they were, built model and all: change them as you need to, for "${from}" is left as it was. It is to be made of these of that model's parts alone: ${asked.parts.map((id) => `@${id}`).join(", ")}. Before anything else, take every other part out of the model, and what is there only for them (their assembly guides, circuit boards, tools and files), keeping what those parts are made with. Build it, and check that what is left is those parts, where they were. Then do what is asked.`
+    )
+  lines.push("</new-project>", "", asked.brief)
+  return lines.join("\n")
+}
+
+/** What the conversation a new project was asked for in says of it, once it is made. */
+const STARTED = "A new project was created from here."
+
+/** What an agent is told when the new project it asked for is to be made. */
+const STARTING =
+  "The new project is being made. This turn is over: say in a few words that the work goes on in the new project, and do nothing more here. Change no file. When the turn ends the app makes it, opens a conversation there with your brief as the user's message, and it is taken up there."
+
 /** What the conversation a new version was asked for in says of it, once it is begun. */
 const BEGUN = "A new version was created from here."
 
@@ -941,6 +1025,7 @@ function guide(
     ...(trying ? wiring(tool, kit, canAsk) : []),
     ...(job ? locked(tool, job) : []),
     ...(trying ? versioning(tool) : []),
+    ...(trying ? projecting(tool) : []),
     ...keepingHistory(history),
     ...SIZES,
     ...(canAsk ? QUESTIONS : []),
@@ -1358,6 +1443,7 @@ function saidOf(
     ...(asked.arrange ? { lookOver: true as const } : {}),
     ...(asked.assembly ? { assembly: true as const } : {}),
     ...(asked.version ? { version: true as const } : {}),
+    ...(asked.madeFrom !== undefined ? { madeFrom: asked.madeFrom } : {}),
   }
 }
 
@@ -2311,6 +2397,8 @@ export class Threads {
       pictures,
       version: asked.version === true,
       goesOn: null,
+      madeFrom: asked.madeFrom !== undefined,
+      newProject: null,
       boardJob: null,
       builds: buildsOf(manner.access, project.path),
     }
@@ -2437,6 +2525,9 @@ export class Threads {
             }),
             [VERSIONS]: versionTools((brief) =>
               this.wanted(projectId, run, brief)
+            ),
+            [PROJECTS]: projectTools(async (wanted) =>
+              this.wantedProject(run, wanted)
             ),
             [BOARDS]: boardTools({
               make: async (board, brief) => {
@@ -2653,6 +2744,10 @@ export class Threads {
       // What was said here meanwhile is said now, if the turn got through, or was stopped
       // to make way for it. After one that was stopped, or went wrong, it waits to be
       // sent by hand: what was wanted next may no longer be.
+      // A turn that asked for a new project ends in one, made beside this, which goes on
+      // as it would have: unless it was stopped, which takes the asking back.
+      if (!abort.signal.aborted && this.books.get(projectId) === book)
+        this.startProject(projectId, run)
       // A turn that asked for a new version of the project ends in one, which is then
       // what is carried on: unless it was stopped, which takes the asking back.
       const goesOn =
@@ -2989,6 +3084,68 @@ export class Threads {
     run.goesOn = text
     this.deps.onSummary()
     return BEGINNING
+  }
+
+  /**
+   * The agent asks, in a turn, for a new project to be started, with what the user wants
+   * made in it. That is done when the turn is over (see `startProject`). Resolves to what
+   * the agent is told of it; rejects where none can be started, in words that say why.
+   */
+  private wantedProject(run: Run, wanted: NewProject): string {
+    const brief = wanted.brief.trim()
+    if (!brief)
+      throw new Error(
+        "Give a brief: what the user wants made in the new project."
+      )
+    if (run.madeFrom)
+      throw new Error(
+        "This project is the new one that was asked for: do the work here, and start no other."
+      )
+    if (run.abort.signal.aborted) throw new Error("Stopped.")
+    run.newProject = { ...wanted, brief }
+    return STARTING
+  }
+
+  /**
+   * Make the new project a turn asked for, now that the turn is over, and begin its
+   * first conversation: with what the agent gave as the user's own message, with the
+   * pictures that came with what was asked, and answered as that turn was. Where it
+   * could not be made, the conversation it was asked for in says why.
+   */
+  private startProject(projectId: string, run: Run) {
+    const { conversation: from, newProject: wanted, pictures, manner } = run
+    const project = this.deps.projects.get(projectId)
+    if (wanted === null || !project) return
+    let made: string
+    try {
+      made = this.deps.startProject(projectId, wanted.copy, pictures)
+    } catch (error) {
+      console.error("[threads]", error)
+      this.notice(
+        projectId,
+        from,
+        "error",
+        "The new project could not be made."
+      )
+      return
+    }
+    const called = project.name ?? path.basename(project.path)
+    this.notice(projectId, from, "info", STARTED)
+    const into = this.begin(made, null, wanted.brief, [], [], manner, {
+      content: (_, provider) =>
+        pictured(
+          projectAsked(called, wanted),
+          pictures,
+          TAKES_PICTURES[provider]
+        ),
+      pictures,
+      madeFrom: called,
+    })
+    if (into !== null)
+      this.deps.onProject(
+        { projectId, conversationId: from.id },
+        { projectId: made, conversationId: into }
+      )
   }
 
   /**

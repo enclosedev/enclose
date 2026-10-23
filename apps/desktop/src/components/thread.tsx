@@ -7,6 +7,7 @@ import {
   ChevronDownIcon,
   ClockIcon,
   EyeIcon,
+  FolderPlusIcon,
   GitBranchPlusIcon,
   PanelRightCloseIcon,
   PlusIcon,
@@ -176,6 +177,15 @@ const UserMessage = React.memo(function UserMessage({
         >
           <GitBranchPlusIcon data-icon="inline-start" />
           New version
+        </Badge>
+      )}
+      {item.madeFrom !== undefined && (
+        <Badge
+          variant="outline"
+          title={`What you asked for in ${item.madeFrom}, summed up by the agent`}
+        >
+          <FolderPlusIcon data-icon="inline-start" />
+          From {item.madeFrom}
         </Badge>
       )}
       {item.objects && item.objects.length > 0 && (

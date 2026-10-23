@@ -68,7 +68,7 @@ import {
   type Theme,
 } from "../shared/theme-format"
 import { Analytics, modelSaid, POSTHOG } from "./analytics"
-import { unpack, type Filed } from "./archive"
+import { LEFT_BEHIND, unpack, type Filed } from "./archive"
 import { fileGuide, guideOf, guidesIn, removeGuide } from "./assembly"
 import { boardsIn } from "./boards"
 import { Drafts } from "./drafts"
@@ -790,6 +790,52 @@ function newFolder(): { dir: string; name: string } {
 }
 
 /**
+ * What of a project's folder a project begun from it does not have: its history, which
+ * the new one keeps for itself, and the Pythons made in it, which work only where they
+ * were made.
+ */
+const NOT_COPIED = new Set([...LEFT_BEHIND, ".git", ".venv", "venv"])
+
+/**
+ * Make a new project, as one is made from the welcome screen: a folder where new projects
+ * go, under a stand-in name until what is made in it gives it one, with its history kept
+ * from the start. It is empty, or begun with a copy of another project's files (`from`),
+ * its model with them: made, where that has none built. Returns its id.
+ */
+function startProject(
+  from: { path: string; name: string } | null,
+  how: "new" | "conversation"
+): string {
+  let made: { dir: string; name: string }
+  if (from) {
+    const name = standInName()
+    const { projectsFolder } = settings.get()
+    made = {
+      dir: startFrom(
+        from.path,
+        name,
+        projectsFolder,
+        KIT,
+        new Date(),
+        NOT_COPIED
+      ),
+      name,
+    }
+  } else made = newFolder()
+  const id = projects.add(made.dir, { name: made.name, standIn: true })
+  void backups.prepare(
+    id,
+    from ? `Started from ${from.name}` : "Started in Enclose"
+  )
+  analytics?.record("project added", {
+    from: how,
+    ...(how === "conversation" && { copy: from !== null }),
+  })
+  if (from && !projects.get(id)?.manifest) makeModel(id)
+  return id
+}
+
+/**
  * A project's folder was renamed: what Claude Code keeps of it, in its home wherever the
  * user has that, follows it there.
  */
@@ -1253,10 +1299,7 @@ function wire() {
     openFor(Array.isArray(paths) ? paths.map(String) : [])
   )
   ipcMain.handle(CHANNEL.projectsCreate, () => {
-    const made = newFolder()
-    const id = projects.add(made.dir, { name: made.name, standIn: true })
-    void backups.prepare(id, "Started in Enclose")
-    analytics?.record("project added", { from: "new" })
+    const id = startProject(null, "new")
     return list().find((p) => p.id === id) ?? null
   })
   ipcMain.handle(CHANNEL.projectsExample, async (_, wanted: unknown) => {
@@ -2423,6 +2466,27 @@ if (!app.requestSingleInstanceLock()) {
         // the window turns to it, where it was showing the one it was asked for in
         send(CHANNEL.versionsBegun, projectId, from, to)
         analytics?.record("version begun", mannerSaid(manner))
+      },
+      startProject: (fromId, copy, shown) => {
+        const from = projects.get(fromId)
+        if (!from) throw new Error("The project is not there any more.")
+        const id = startProject(
+          copy
+            ? { path: from.path, name: from.name ?? path.basename(from.path) }
+            : null,
+          "conversation"
+        )
+        pictures.share(
+          fromId,
+          id,
+          shown.map((picture) => picture.id)
+        )
+        return id
+      },
+      onProject: (from, to) => {
+        // the window has it in the list before it is told to turn to it
+        broadcast()
+        send(CHANNEL.projectsStarted, from, to)
       },
       onSummary: () => {
         // a turn may have begun, or be over: the model is built as it is written meanwhile

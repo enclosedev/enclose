@@ -113,6 +113,19 @@ export class Pictures {
     return found.sort((a, b) => a.number - b.number)
   }
 
+  /**
+   * Keep some of a project's pictures for another as well: the message they came with
+   * is said there too. One that is not there any more is gone without.
+   */
+  share(from: string, to: string, ids: string[]) {
+    for (const id of ids) {
+      const file = this.file(from, id)
+      if (!file || !fs.existsSync(file)) continue
+      fs.mkdirSync(this.folder(to), { recursive: true })
+      fs.copyFileSync(file, path.join(this.folder(to), id))
+    }
+  }
+
   /** Forget every picture of a project: it is being taken off the list. */
   forget(projectId: string) {
     fs.rmSync(this.folder(projectId), { recursive: true, force: true })

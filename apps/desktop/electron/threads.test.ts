@@ -18,6 +18,8 @@ import {
   lookOverAsked,
   pictured,
   picturing,
+  projectAsked,
+  projecting,
   questionsOf,
   Threads,
   versionAsked,
@@ -685,6 +687,8 @@ const manner = {
   access: "full",
 } as const
 const ID = "project"
+/** the project the agent has started, where it starts one */
+const NEW = "new-project"
 
 /**
  * A project's conversations, kept in `dir` and had with a Codex that answers "Done." to
@@ -755,6 +759,13 @@ on("turn/interrupt", () => {
   const begun: { from: string; to: string }[] = []
   /** how each board made in the background went */
   const made: BoardMade[] = []
+  /** the new projects that were made, and what each was made of */
+  const projects: { from: string; copy: boolean; pictures: string[] }[] = []
+  /** the new projects that were started: where each was asked for, and where it is */
+  const started: {
+    from: { projectId: string; conversationId: string }
+    to: { projectId: string; conversationId: string }
+  }[] = []
   /** how many times the project was asked to take the name of its model */
   let christened = 0
   const threads = new Threads({
@@ -787,6 +798,15 @@ on("turn/interrupt", () => {
     viewport: async () => null,
     onItem: () => {},
     onVersion: (_, from, to) => begun.push({ from, to }),
+    startProject: (from, copy, pictures) => {
+      projects.push({
+        from,
+        copy,
+        pictures: pictures.map((picture) => picture.id),
+      })
+      return NEW
+    },
+    onProject: (from, to) => started.push({ from, to }),
     onSummary: () => {},
     onBoardMade: (_, how) => made.push(how),
     onSignedOut: () => {},
@@ -800,6 +820,8 @@ on("turn/interrupt", () => {
     now,
     begun,
     made,
+    projects,
+    started,
     christened: () => christened,
     /** how many turns have been given the app's tools: under way, with all they need */
     served: () => given.length,
@@ -837,6 +859,15 @@ on("turn/interrupt", () => {
       await until(() => given.length >= turn)
       const tool = given[turn - 1].versions.find((one) => one.name === "begin")
       return tool!.run({ brief } as never)
+    },
+    /** The agent asks for a new project to be started, as `begin` does. */
+    start: async (
+      asked: { brief: string; copy: boolean; parts?: string[] },
+      turn = 1
+    ): Promise<ToolResult> => {
+      await until(() => given.length >= turn)
+      const tool = given[turn - 1].projects.find((one) => one.name === "start")
+      return tool!.run(asked as never)
     },
     /** The agent asks for a board to be made in the background, as `begin` does. */
     make: async (
@@ -1840,5 +1871,195 @@ describe("a new version the agent is asked for", () => {
     ).toMatchObject([{ text: "And in red" }])
     go()
     await until(() => threads.summaries(ID)[0].status === "idle")
+  })
+})
+
+describe("projecting", () => {
+  const lines = projecting((set, name) => `${set}__${name}`).join("\n")
+
+  it("names the tool a new project is started with as the agent knows it", () => {
+    expect(lines).toContain("Call projects__start before anything else")
+  })
+
+  it("has none made by hand, and none started unasked", () => {
+    expect(lines).toContain("make no folder, copy no file")
+    expect(lines).toContain("Never start a project unasked")
+  })
+})
+
+describe("projectAsked", () => {
+  it("leads with what the project is, and then gives what was asked for", () => {
+    const asked = projectAsked("Clock", {
+      brief: "Make a stand for a phone",
+      copy: false,
+      parts: [],
+    })
+    expect(asked.startsWith("<new-project>\n")).toBe(true)
+    expect(asked.endsWith("</new-project>\n\nMake a stand for a phone")).toBe(
+      true
+    )
+    expect(asked).toContain('"Clock"')
+    expect(asked).toContain("It begins empty")
+    expect(asked).toContain("do not start another for it")
+  })
+
+  it("says what of the other project it has: the whole of it, or some parts", () => {
+    const whole = projectAsked("Clock", {
+      brief: "Make it round",
+      copy: true,
+      parts: [],
+    })
+    expect(whole).toContain("a copy of that project's")
+    expect(whole).not.toContain("parts alone")
+    const some = projectAsked("Clock", {
+      brief: "Give it a hinge",
+      copy: true,
+      parts: ["lid", "hinge_pin"],
+    })
+    expect(some).toContain("parts alone: @lid, @hinge_pin")
+    expect(some).toContain("take every other part out of the model")
+  })
+})
+
+describe("a new project the agent is asked for", () => {
+  let dir: string
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "enclose-threads-"))
+  })
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  const text = (result: ToolResult) =>
+    result.content.flatMap((one) => (one.type === "text" ? [one.text] : []))[0]
+  const notices = (threads: Threads, project: string, conversation: string) =>
+    threads
+      .items(project, conversation)
+      .flatMap((item) => (item.kind === "notice" ? [item.text] : []))
+
+  it("is made when the turn is over, and begun with what the agent gave as the user's own", async () => {
+    const { threads, projects, started, said, heard, go, start } = talking(
+      dir,
+      { each: true }
+    )
+    const sketch = {
+      id: "0123456789abcdef.png",
+      name: "sketch.png",
+      mimeType: "image/png",
+      bytes: 3,
+      number: 1,
+      data: "AAAA",
+    }
+    const from = threads.send(
+      ID,
+      null,
+      "A project of its own for the lid",
+      [],
+      [],
+      manner,
+      null,
+      [sketch]
+    ) as string
+    const told = await start({
+      brief: "Give the lid a hinge at the back",
+      copy: true,
+      parts: ["lid"],
+    })
+    expect(told.isError).toBeUndefined()
+    expect(text(told)).toContain("This turn is over")
+    // (nothing is made until the turn is over)
+    expect(projects).toEqual([])
+    go()
+    await until(() => threads.summaries(NEW).length === 1)
+    expect(projects).toEqual([{ from: ID, copy: true, pictures: [sketch.id] }])
+    const [{ id: to }] = threads.summaries(NEW)
+    expect(started).toEqual([
+      {
+        from: { projectId: ID, conversationId: from },
+        to: { projectId: NEW, conversationId: to },
+      },
+    ])
+    expect(said(from)).toEqual(["A project of its own for the lid"])
+    expect(notices(threads, ID, from)).toEqual([
+      "A new project was created from here.",
+    ])
+    expect(threads.items(NEW, to)[0]).toMatchObject({
+      kind: "user",
+      text: "Give the lid a hinge at the back",
+      madeFrom: "Box",
+      pictures: [{ id: sketch.id, number: 1 }],
+    })
+    // it is answered as any first message is, told what the project is
+    await until(() => heard().length === 2)
+    expect(heard()[1]).toContain("<new-project>")
+    expect(heard()[1]).toContain("@lid")
+    expect(heard()[1]).toContain("Give the lid a hinge at the back")
+    go()
+    await until(() => threads.summaries(NEW)[0].status === "idle")
+    expect(threads.summaries(ID)[0].status).toBe("idle")
+  })
+
+  it("begins empty where it is asked to", async () => {
+    const { threads, projects, go, start } = talking(dir)
+    threads.send(ID, null, "A new project for a stand", [], [], manner)
+    await start({ brief: "Make a phone stand", copy: false })
+    go()
+    await until(() => threads.summaries(NEW).length === 1)
+    expect(projects).toEqual([{ from: ID, copy: false, pictures: [] }])
+  })
+
+  it("goes by what it was asked for last in the turn, and is a copy where it has parts", async () => {
+    const { threads, projects, heard, go, start } = talking(dir)
+    threads.send(ID, null, "A new project for the lid", [], [], manner)
+    await start({ brief: "Make a phone stand", copy: false })
+    await start({ brief: "Make the lid", copy: false, parts: ["lid"] })
+    go()
+    await until(() => heard().length === 2)
+    expect(projects).toEqual([{ from: ID, copy: true, pictures: [] }])
+    expect(heard()[1]).toContain("Make the lid")
+    expect(heard()[1]).not.toContain("phone stand")
+  })
+
+  it("is not started again from the project it began", async () => {
+    const { threads, projects, say, go, start } = talking(dir, { each: true })
+    say("A project of its own for the lid", null)
+    await start({ brief: "Make the lid", copy: true, parts: ["lid"] })
+    go()
+    await until(() => threads.summaries(NEW).length === 1)
+    const again = await start({ brief: "Make the lid", copy: true }, 2)
+    expect(again.isError).toBe(true)
+    expect(text(again)).toContain("This project is the new one")
+    go()
+    await until(() => threads.summaries(NEW)[0].status === "idle")
+    expect(projects).toHaveLength(1)
+  })
+
+  it("is not made where the turn that asked for it was stopped", async () => {
+    const { threads, projects, say, idle, start } = talking(dir)
+    const from = say("A project of its own for the lid", null) as string
+    await start({ brief: "Make the lid", copy: true })
+    threads.stop(ID)
+    await idle()
+    expect(projects).toEqual([])
+    expect(threads.summaries(NEW)).toEqual([])
+    expect(notices(threads, ID, from)).toEqual(["Stopped."])
+  })
+
+  it("says so where it could not be made", async () => {
+    const { threads, started, say, go, idle, start } = talking(dir, {
+      deps: {
+        startProject: () => {
+          throw new Error("No room")
+        },
+      },
+    })
+    const from = say("A project of its own for the lid", null) as string
+    await start({ brief: "Make the lid", copy: true })
+    go()
+    await idle()
+    expect(started).toEqual([])
+    expect(notices(threads, ID, from)).toEqual([
+      "The new project could not be made.",
+    ])
   })
 })

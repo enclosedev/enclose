@@ -2587,6 +2587,28 @@ function begun(projectId: string, from: string, to: string) {
 }
 
 /**
+ * The agent started a new project, as it was asked to in a conversation about another:
+ * the window turns to it, and to the conversation begun there, where it was showing the
+ * one that was asked in.
+ */
+function started(
+  from: { projectId: string; conversationId: string },
+  to: { projectId: string; conversationId: string }
+) {
+  const { projects, picked, activeId } = useStore.getState()
+  const project = projects.find((p) => p.id === from.projectId)
+  if (!project || activeId !== from.projectId) return
+  const { open } = stackOf(
+    project.conversations,
+    picked[from.projectId],
+    usePreferences.getState().settleDays,
+    Date.now()
+  )
+  if (open?.id !== from.conversationId) return
+  useStore.getState().openConversation(to.projectId, to.conversationId)
+}
+
+/**
  * Bring the list of conversations finished and not yet seen up to date: with what has
  * just come to an end, given the projects as they were a moment ago, and without what
  * is now being looked at.
@@ -2653,6 +2675,7 @@ export function connect() {
   })
   cad.versions.onTurned(turned)
   cad.versions.onBegun(begun)
+  cad.projects.onStarted(started)
   cad.thread.onItem((_projectId, conversationId, item) => {
     useStore.setState((state) => ({
       items: {

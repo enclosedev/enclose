@@ -107,7 +107,9 @@ export function startFrom(
   name: string,
   into: string,
   kit: string,
-  now = new Date()
+  now = new Date(),
+  /** what of a folder that is copied is not, by name, wherever it is in it */
+  leaving: Set<string> = LEFT_BEHIND
 ): string {
   const dir = makeFolder(into, folderName(name, now))
   try {
@@ -116,7 +118,7 @@ export function startFrom(
         recursive: true,
         // where the disk can, a copy that shares the original's blocks: no wait, no room
         mode: fs.constants.COPYFILE_FICLONE,
-        filter: (from) => !LEFT_BEHIND.has(path.basename(from)),
+        filter: (from) => !leaving.has(path.basename(from)),
       })
     else
       for (const file of example) {

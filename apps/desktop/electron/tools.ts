@@ -60,6 +60,7 @@ export const MODEL = "model"
 export const ASSEMBLY = "assembly"
 export const VERSIONS = "versions"
 export const BOARDS = "boards"
+export const PROJECTS = "projects"
 
 /**
  * The tools an agent sees what the user sees with. `ask` puts a question to the window.
@@ -355,6 +356,55 @@ export function versionTools(
           ),
       },
       async ({ brief }) => begin(brief).then(words, failed)
+    ),
+  ]
+}
+
+/** A new project an agent asks for: what is to be made in it, and what it begins with. */
+export type NewProject = {
+  brief: string
+  /** it begins with a copy of this project's files, and not empty */
+  copy: boolean
+  /** the parts of this model it is to be made of alone, by id: none, for all of it */
+  parts: string[]
+}
+
+/**
+ * What an agent begins a new project with, beside the one it is working in, with what the
+ * user wants made there. `start` says what the agent is to do now, or rejects, in words
+ * it can tell the user why by.
+ */
+export function projectTools(
+  start: (asked: NewProject) => Promise<string>
+): AppTool[] {
+  return [
+    appTool(
+      "start",
+      "Start a new project, when the user asks for one: a project of its own in the app's list, beside this one, which is left as it is. It begins empty, or with a copy of this project's files, to be made from the whole of this model or from some of its parts. Call it before you change anything, and once in a turn. When this turn ends, the app makes the project, as it makes any new one, opens a conversation there with your brief as the user's own message, takes the user to it, and the work goes on there. Called again in the same turn, it takes the place of what the turn asked for before.",
+      {
+        brief: z
+          .string()
+          .describe(
+            'What the user wants made in the new project, written as they would have written it to you, in their voice ("Make this lid on its own, with a hinge at the back"). It is all the new project knows of this conversation, so it has to stand by itself: every size, name and choice they gave that bears on it goes in. Say what is to be made, and not that a new project is wanted: that it is one is known there. Pictures that came with the message you are answering go with it by themselves.'
+          ),
+        copy: z
+          .boolean()
+          .describe(
+            "Whether the new project begins with a copy of this project's files (true), as it does where it is to be made from this model or a part of it; or empty (false), for something new altogether."
+          ),
+        parts: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "Where it is to be made of some of this model's parts alone, and not of the whole of it: their ids, as the manifest has them (every part of each object the user picked out). Only with copy."
+          ),
+      },
+      async ({ brief, copy, parts }) =>
+        start({
+          brief,
+          copy: copy || (parts?.length ?? 0) > 0,
+          parts: parts ?? [],
+        }).then(words, failed)
     ),
   ]
 }

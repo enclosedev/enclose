@@ -32,6 +32,7 @@ const api: CadApi = {
       ipcRenderer.invoke(CHANNEL.projectsTrustSettings, id, trusted),
     reveal: (id) => ipcRenderer.invoke(CHANNEL.projectsReveal, id),
     onChange: (listener) => on(CHANNEL.projectsChanged, listener),
+    onStarted: (listener) => on(CHANNEL.projectsStarted, listener),
   },
   model: {
     read: (projectId) => ipcRenderer.invoke(CHANNEL.modelRead, projectId),

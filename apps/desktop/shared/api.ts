@@ -355,6 +355,12 @@ export type ThreadItem =
        * project.
        */
       version?: true
+      /**
+       * Not written by the user: what they asked for in a conversation about another
+       * project, the one called this, as the agent summed it up there, for this project
+       * to begin with.
+       */
+      madeFrom?: string
     }
   | {
       kind: "assistant"
@@ -882,6 +888,16 @@ export type CadApi = {
     trustSettings(id: string, trusted: boolean): Promise<void>
     reveal(id: string): Promise<void>
     onChange(listener: (projects: Project[]) => void): () => void
+    /**
+     * The agent started a new project, as it was asked to in a conversation about another
+     * (`from`): the conversation begun in it is `to`. The list has it already.
+     */
+    onStarted(
+      listener: (
+        from: { projectId: string; conversationId: string },
+        to: { projectId: string; conversationId: string }
+      ) => void
+    ): () => void
   }
   model: {
     read(projectId: string): Promise<ModelSource | null>
@@ -1258,6 +1274,7 @@ export const CHANNEL = {
   projectsTrustSettings: "projects:trust-settings",
   projectsReveal: "projects:reveal",
   projectsChanged: "projects:changed",
+  projectsStarted: "projects:started",
   modelRead: "model:read",
   modelSaveCopy: "model:save-copy",
   modelSaveCopies: "model:save-copies",
