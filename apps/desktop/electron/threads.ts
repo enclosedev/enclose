@@ -106,6 +106,7 @@ import {
   VIEWPORT,
   viewportTools,
   type AppTool,
+  type Fitting,
   type NewProject,
   type Serving,
   type ToolServer,
@@ -203,6 +204,8 @@ type Job = {
   following: Following
   /** how drafts of the model may be built meanwhile */
   builds: Builds
+  /** what the model needs changed for the board, which its conversation sees to after */
+  fitting: Fitting[]
 }
 
 /** How the making of a board in the background went, once it is over. */
@@ -249,6 +252,11 @@ type Asked = {
    * project's first
    */
   madeFrom?: string
+  /**
+   * It is the app passing on what the model needs changed for the board called this,
+   * just made in detail in the background, and nothing the user wrote
+   */
+  fitting?: string
   /** it is the user's, and goes with the inspiration board where that changed (see `inspirationFor`) */
   inspired?: true
   /** it is the asking for the conversation to be compacted (see COMPACT) */
@@ -800,7 +808,10 @@ export function wiring(
     `- A board in detail is not made in a turn of this conversation but in the background, by another agent, while the conversation goes on. When the user wants it, set the board up first where it has not been, as a rough board fitted into the model (read_board), so that the model takes the detailed one in when it is done; then hand it to ${tool(BOARDS, "make")}, with a brief that stands by itself, and end the turn: say in a few words that the detailed board is being made, in its own card in the conversation, and that the model is locked until it is done.`,
     `- A message that holds a <board> block was written with that board open in PCB mode, and is about it: the block's id is what its files are called (${BOARD_FOLDER}/<id>.circuit.tsx). Change the board, build it, and build the model again too where what you changed moves anything it is fitted to. Where the board is finished, its build ends with the checks it is ordered by: say in the short reply how they came out.`,
     `- When the user is about to order a board from JLCPCB, or asks whether one is ready to order, check it: build it, where it was changed since its last build, then run node "${check}" ${BOARD_FOLDER}/<name>.circuit.tsx, mend what fails as the reference says, and build again. Say how each check came out, and what the user is to look at themselves on JLCPCB's site (where each part's pin 1 is, for the parts the check could not tell). They save the files to order it with from PCB mode, with the download button.`,
-    `- A message that begins with a <board-job> block is the app asking you to make that board in detail, in the background, while the user goes on in the conversation without you. Nobody is there to answer a question: decide as someone who makes such boards would, and say what you decided. Change only the board's own files (${BOARD_FOLDER}/<id>.*, and what it imports from ${BOARD_FOLDER}/), build it in steps as the reference says, say which step you are at with ${tool(BOARDS, "step")} as you begin each one and whenever you go back to one, which the user watches, and mark it finished when it is: when every check it is ordered by passes, as the reference says. Leave the model's files as they are: when the board is done, run the model's build command once, so that it takes the board in, and change nothing else. A message that begins "The user says, for the board:" is passed on to you from the conversation meanwhile: go by it. End with a short reply: what the board is now, how each of its checks came out, and anything the model needs changed to fit it, which the conversation will see to.`,
+    `- A message that begins with a <board-job> block is the app asking you to make that board in detail, in the background, while the user goes on in the conversation without you. Nobody is there to answer a question: decide as someone who makes such boards would, and say what you decided. Change only the board's own files (${BOARD_FOLDER}/<id>.*, and what it imports from ${BOARD_FOLDER}/), build it in steps as the reference says, say which step you are at with ${tool(BOARDS, "step")} as you begin each one and whenever you go back to one, which the user watches, and mark it finished when it is: when every check it is ordered by passes, as the reference says. Leave the model's files as they are: when the board is done, run the model's build command once, so that it takes the board in, and change nothing else. Check, as the reference says, that the model leaves each connector room for its plug and its cable, and its openings in the case where the board now has them; each change the model needs for that, or for anything else on the board to fit, say with ${tool(BOARDS, "fit")}, which the conversation sees to once the board is done. A message that begins "The user says, for the board:" is passed on to you from the conversation meanwhile: go by it. End with a short reply: what the board is now, how each of its checks came out, and the changes to the model you asked for.`,
+    canAsk
+      ? `- A message that begins with a <board-fit> block is the app passing on the changes the model needs for a board just made in detail, from the agent that made it. Make the small ones now, as the reference says for fitting a board, build the model, and check the board and its connectors in it in a screenshot. Make no large one yet: ask the user first, with AskUserQuestion, saying for each what it would change in the thing and why the board needs it, and make it once they agree. End with a short reply: what you changed, and what was left as it was.`
+      : `- A message that begins with a <board-fit> block is the app passing on the changes the model needs for a board just made in detail, from the agent that made it. Make the small ones now, as the reference says for fitting a board, build the model, and check the board and its connectors in it in a screenshot. Make no large one: say in the reply what each would change in the thing and why the board needs it, for the user to say whether to make it.`,
   ]
 }
 
@@ -839,6 +850,34 @@ export function jobAsked(board: string, name: string, brief: string): string {
 
 /** What is passed on to the agent making a board, from the conversation meanwhile. */
 const passedOn = (note: string) => `The user says, for the board: ${note}`
+
+/** What the turn that fits the model to a board just made is put as, in the conversation. */
+const fitText = (name: string) => `Fit the model to ${name}`
+
+/**
+ * What the conversation a board was made in detail for is asked once it is done: the
+ * changes the agent that made it said the model needs, the small ones to be made and
+ * the large ones asked about.
+ */
+export function fitAsked(
+  board: string,
+  name: string,
+  fitting: Fitting[]
+): string {
+  const said = (large: boolean) =>
+    fitting
+      .filter((one) => one.large === large)
+      .map((one) => `- ${one.change.replace(/\s+/g, " ")}`)
+  const small = said(false)
+  const large = said(true)
+  return [
+    `<board-fit id="${board}" name="${name.replace(/"/g, "'").replace(/\s+/g, " ")}">`,
+    "The board has been made in detail in the background, and the model is no longer locked. The agent that made it says the model needs these changes for the board to fit it and be used. See to them as your instructions say for a <board-fit> block.",
+    ...(small.length > 0 ? ["", "Small:", ...small] : []),
+    ...(large.length > 0 ? ["", "Large:", ...large] : []),
+    "</board-fit>",
+  ].join("\n")
+}
 
 /**
  * What an agent is told of versions: that each conversation has the project its own
@@ -1444,6 +1483,7 @@ function saidOf(
     ...(asked.assembly ? { assembly: true as const } : {}),
     ...(asked.version ? { version: true as const } : {}),
     ...(asked.madeFrom !== undefined ? { madeFrom: asked.madeFrom } : {}),
+    ...(asked.fitting !== undefined ? { fitting: asked.fitting } : {}),
   }
 }
 
@@ -2826,6 +2866,7 @@ export class Threads {
       what: `Made ${name} in detail`,
       following,
       builds: buildsOf(manner.access, project.path),
+      fitting: [],
     }
     book.job = job
     const show = (item: Job["item"]) => {
@@ -2873,9 +2914,12 @@ export class Threads {
         (wanted) => this.deps.viewport(projectId, wanted),
         false
       ),
-      [BOARDS]: makingTools((step) => {
-        if (following.say(step)) this.deps.onSummary()
-      }),
+      [BOARDS]: makingTools(
+        (step) => {
+          if (following.say(step)) this.deps.onSummary()
+        },
+        (fitting) => job.fitting.push(fitting)
+      ),
     }
     const turn: Turn = {
       cwd: project.path,
@@ -3038,6 +3082,28 @@ export class Threads {
           conversation.name ?? null,
           said?.kind === "assistant" ? said.text : ""
         )
+        // What the model needs changed for the board is seen to in its conversation
+        // before anything else is done in the folder: the model is just unlocked.
+        if (outcome === "done" && job.fitting.length > 0) {
+          const asked: Asked = {
+            content: fitAsked(board, name, job.fitting),
+            fitting: name,
+          }
+          const at = Date.now()
+          book.waiting.unshift({
+            conversation,
+            item: saidOf(
+              `queued-${++this.counter}-${at}`,
+              at,
+              fitText(name),
+              [],
+              [],
+              asked
+            ),
+            manner,
+            asked,
+          })
+        }
         const waited = book.waiting[0]
         if (!book.run && waited) this.next(projectId, book, waited.conversation)
       }

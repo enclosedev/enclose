@@ -8,6 +8,7 @@ import {
   ToolServer,
   versionTools,
   viewportTools,
+  type Fitting,
 } from "./tools"
 
 const viewport = viewportTools(async ({ kind }) => {
@@ -279,7 +280,10 @@ describe("answerTo", () => {
 describe("makingTools", () => {
   it("says which step of making a board the agent is at, and takes only those", async () => {
     const said: string[] = []
-    const [step] = makingTools((one) => said.push(one))
+    const [step] = makingTools(
+      (one) => said.push(one),
+      () => {}
+    )
     const answer = await answerTo("boards", [step], {
       id: 1,
       method: "tools/call",
@@ -294,6 +298,37 @@ describe("makingTools", () => {
     })
     expect(said).toEqual(["routing"])
     expect(JSON.stringify(wrong)).toMatch(/isError|error/)
+  })
+
+  it("keeps each change the model needs for the board, and whether it is large", async () => {
+    const noted: Fitting[] = []
+    const [, fit] = makingTools(
+      () => {},
+      (one) => noted.push(one)
+    )
+    const small = await answerTo("boards", [fit], {
+      id: 1,
+      method: "tools/call",
+      params: {
+        name: "fit",
+        arguments: { change: " Widen J1's opening by 2 mm. ", large: false },
+      },
+    })
+    await answerTo("boards", [fit], {
+      id: 2,
+      method: "tools/call",
+      params: {
+        name: "fit",
+        arguments: { change: "Make the case 6 mm deeper.", large: true },
+      },
+    })
+    expect(noted).toEqual([
+      { change: "Widen J1's opening by 2 mm.", large: false },
+      { change: "Make the case 6 mm deeper.", large: true },
+    ])
+    expect(JSON.stringify(small)).toContain(
+      "will be made once the board is done"
+    )
   })
 })
 

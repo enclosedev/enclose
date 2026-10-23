@@ -363,6 +363,11 @@ export type ThreadItem =
        * to begin with.
        */
       madeFrom?: string
+      /**
+       * Not written by the user: asked by the app itself once the board called this was
+       * made in detail, that the model be changed for it as its agent said it needs
+       */
+      fitting?: string
     }
   | {
       kind: "assistant"

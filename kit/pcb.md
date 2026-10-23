@@ -396,3 +396,16 @@ through the case, say.
   screenshot.
 - When the board needs more room than the thing has, say so, and change the one the user
   cares less about: the case to fit the board, or the board to fit the case. Say which.
+- Leave each connector room to be used, not only to sit in. Room for the plug to go in
+  straight and be held while it does, as wide as the plug's body and its latch, with
+  0.5 mm more all round. Room for the cable to come out and bend no tighter than its
+  maker's drawing allows, a flat flex cable most of all. Room for fingers where the plug is
+  pushed in or pulled out by hand: about 8 mm on the side it is gripped from. An opening
+  in the case for a connector is the plug's size with 0.5 mm all round. Look at each one
+  in a screenshot with the model built, from the side the plug comes in from.
+- Where the model needs changing for that, a small change is made without asking:
+  moving or widening an opening, a post or a rib by a few millimetres, or a wall made a
+  little thicker or thinner where nothing else depends on it. A large one is asked
+  first: what it would change in the thing and why the board needs it. A change to the
+  thing's outer size, to how it comes apart, to where its parts go, or to how it looks
+  is large.

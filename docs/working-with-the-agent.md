@@ -221,6 +221,12 @@ change when it is done. Cmd+Z waits for the board too, and so does what is said 
 another conversation, which goes on once the board is done or stopped. What was made
 of a stopped board stays in its files.
 
+The board's agent also checks that the model leaves each connector room for its plug,
+its cable and fingers, and notes what the model needs changed for that. Once the board is
+done, the conversation's agent takes a turn of its own for it ("Enclose asked for the
+model to be fitted to …"). It makes the small changes, such as an opening moved or
+widened by a few millimetres. A large change, such as a bigger case, it asks you about first.
+
 When the agent builds a board on the way to a change you asked of the model, the view
 stays on the model: a ring goes round the **PCB** button, and **Checking the PCB** (or
 **Making the PCB**, for a board not built before) floats at the foot of the view, with

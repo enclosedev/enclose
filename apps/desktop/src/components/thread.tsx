@@ -152,6 +152,12 @@ const UserMessage = React.memo(function UserMessage({
         Enclose asked for the files you opened to be looked over
       </div>
     )
+  if (item.fitting !== undefined)
+    return (
+      <div className="text-center text-xs text-muted-foreground">
+        Enclose asked for the model to be fitted to {item.fitting}
+      </div>
+    )
   return (
     <div className="flex flex-col items-end gap-1.5">
       {item.part && (

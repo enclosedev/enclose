@@ -26,6 +26,7 @@ import {
   versioning,
   wiring,
   locked,
+  fitAsked,
   jobAsked,
   withNotes,
   type BoardMade,
@@ -564,6 +565,18 @@ describe("wiring", () => {
     expect(told).toContain("with mcp__boards__step as you begin each one")
   })
 
+  it("has the model's changes for a board said by its agent, and seen to after", () => {
+    const asking = wiring(claude, "/app/kit/enclose.py", true).join("\n")
+    const telling = wiring(claude, "/app/kit/enclose.py", false).join("\n")
+    expect(asking).toContain("say with mcp__boards__fit")
+    expect(asking).toContain("<board-fit> block")
+    expect(asking).toMatch(
+      /Make no large one yet: ask the user first, with AskUserQuestion/
+    )
+    expect(telling).toContain("<board-fit> block")
+    expect(telling).toMatch(/Make no large one: say in the reply/)
+  })
+
   it("says where a board is built from, and where how to make one is said", () => {
     const told = wiring(claude, "/app/kit/enclose.py", true).join("\n")
     expect(told).toContain('node "/app/kit/board.mjs" pcb/<name>.circuit.tsx')
@@ -599,6 +612,29 @@ describe("locked", () => {
     expect(told).toContain("write, move or delete no file")
     expect(told).toContain("mcp__boards__tell")
     expect(told).toContain("mcp__boards__stop")
+  })
+})
+
+describe("fitAsked", () => {
+  it("names the board, and lists the small changes apart from the large", () => {
+    const asked = fitAsked("main", 'The "clock" board', [
+      { change: "Widen J1's\nopening by 2 mm.", large: false },
+      { change: "Make the case 6 mm deeper.", large: true },
+      { change: "Move the post under H2 1 mm left.", large: false },
+    ])
+    expect(asked).toContain('<board-fit id="main" name="The \'clock\' board">')
+    expect(asked).toContain(
+      "Small:\n- Widen J1's opening by 2 mm.\n- Move the post under H2 1 mm left.\n\nLarge:\n- Make the case 6 mm deeper."
+    )
+    expect(asked.endsWith("</board-fit>")).toBe(true)
+  })
+
+  it("leaves out a kind there is none of", () => {
+    const asked = fitAsked("main", "Main board", [
+      { change: "Widen J1's opening.", large: false },
+    ])
+    expect(asked).toContain("Small:")
+    expect(asked).not.toContain("Large:")
   })
 })
 
@@ -879,6 +915,16 @@ on("turn/interrupt", () => {
       const tool = given[turn - 1].boards.find((one) => one.name === "make")
       return tool!.run({ board, brief } as never)
     },
+    /** The agent making a board says a change the model needs for it, as `begin` does. */
+    fit: async (
+      change: string,
+      large: boolean,
+      turn = 2
+    ): Promise<ToolResult> => {
+      await until(() => given.length >= turn)
+      const tool = given[turn - 1].boards.find((one) => one.name === "fit")
+      return tool!.run({ change, large } as never)
+    },
   }
 }
 
@@ -1077,6 +1123,54 @@ describe("a board made in the background", () => {
     expect(how.steps.placing).toBeGreaterThanOrEqual(0)
     expect(how.steps.checking).toBeGreaterThanOrEqual(0)
     expect(how.back).toBe(0)
+    hold()
+  })
+
+  it("has the model fitted to it in its conversation once it is done, where its agent said it needs that", async () => {
+    const { threads, say, go, hold, make, fit, said, heard } = talking(dir, {
+      each: true,
+    })
+    const into = say("Make the board in detail", null) as string
+    await make("main", "A clock board.")
+    go()
+    await until(() => threads.jobOf(ID) !== null)
+    expect(
+      (await fit("Widen J1's opening by 2 mm.", false)).isError
+    ).toBeFalsy()
+    await fit("Make the case 6 mm deeper.", true)
+    go()
+    await until(() => heard().some((one) => one.includes("<board-fit")))
+    const asked = heard().find((one) => one.includes("<board-fit"))!
+    expect(asked).toContain('<board-fit id="main" name="Main board">')
+    expect(asked).toContain("Small:\n- Widen J1's opening by 2 mm.")
+    expect(asked).toContain("Large:\n- Make the case 6 mm deeper.")
+    expect(said(into)).toEqual([
+      "Make the board in detail",
+      "Fit the model to Main board",
+    ])
+    expect(
+      threads
+        .items(ID, into)
+        .find((item) => item.kind === "user" && item.fitting)
+    ).toMatchObject({ fitting: "Main board" })
+    go()
+    await until(() => threads.summaries(ID)[0].status === "idle")
+    hold()
+  })
+
+  it("has nothing more done once it is over, where its agent said the model needs nothing", async () => {
+    const { threads, say, go, hold, make, said, heard } = talking(dir, {
+      each: true,
+    })
+    const into = say("Make the board in detail", null) as string
+    await make("main", "A clock board.")
+    go()
+    await until(() => threads.jobOf(ID) !== null)
+    go()
+    await until(() => threads.jobOf(ID) === null)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(said(into)).toEqual(["Make the board in detail"])
+    expect(heard().some((one) => one.includes("<board-fit"))).toBe(false)
     hold()
   })
 

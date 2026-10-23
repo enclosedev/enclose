@@ -458,12 +458,18 @@ export function boardTools(job: {
   ]
 }
 
+/** A change the model needs for a board to fit it and be used, and whether it is large. */
+export type Fitting = { change: string; large: boolean }
+
 /**
  * What the agent making a circuit board in detail in the background says how far it has
  * got with: which step of making it it is at now, which the user watches at the foot of
- * PCB mode.
+ * PCB mode. And what the model, which it leaves as it is, needs changed for the board.
  */
-export function makingTools(say: (step: MakingStep) => void): AppTool[] {
+export function makingTools(
+  say: (step: MakingStep) => void,
+  fit: (fitting: Fitting) => void
+): AppTool[] {
   return [
     appTool(
       "step",
@@ -476,6 +482,30 @@ export function makingTools(say: (step: MakingStep) => void): AppTool[] {
       async ({ step }) => {
         say(step)
         return words(`The user sees that you are ${step} now.`)
+      }
+    ),
+    appTool(
+      "fit",
+      "Say a change the model needs for the board to fit it and be used, which you leave to the conversation the board was asked for in: room round a connector for its plug to go in, and for its cable to come out and bend as its maker's drawing has it; an opening in the case moved or made larger; a post moved under a hole that moved. Call it once for each change. Once the board is done, that conversation makes the small changes and asks the user before making a large one.",
+      {
+        change: z
+          .string()
+          .describe(
+            "The change, standing by itself: what is to change in the model, by how much (mm), and why, naming the connector or part it is for."
+          ),
+        large: z
+          .boolean()
+          .describe(
+            "Whether it changes the thing much: its outer size, how it comes apart, where its parts go, how it looks. Moving or widening an opening, a post or a wall by a few millimetres is small."
+          ),
+      },
+      async ({ change, large }) => {
+        fit({ change: change.trim(), large })
+        return words(
+          large
+            ? "Noted: the user will be asked about it once the board is done."
+            : "Noted: it will be made once the board is done."
+        )
       }
     ),
   ]
