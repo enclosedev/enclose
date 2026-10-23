@@ -60,6 +60,22 @@ type Saved = {
   sessionId?: string | null
   /** from when a project taken off the list was remembered: such a one is now forgotten */
   closed?: boolean
+  /** when the user pinned it to the top of the list, if they have */
+  pinned?: number
+}
+
+/**
+ * The projects in the order they are listed: those pinned first, the one pinned last at
+ * the top; then the rest, the one added last first.
+ */
+function listOrder(saved: Saved[]): Saved[] {
+  const latest = [...saved].reverse()
+  return [
+    ...latest
+      .filter((p) => p.pinned !== undefined)
+      .sort((a, b) => (b.pinned ?? 0) - (a.pinned ?? 0)),
+    ...latest.filter((p) => p.pinned === undefined),
+  ]
 }
 
 /** Whether what was kept of a project reads as one: it says what it goes by, and where. */
@@ -429,8 +445,11 @@ export class Projects {
       this.saved = (Array.isArray(state.projects) ? state.projects : []).filter(
         (p): p is Saved => readsAsProject(p) && !p.closed
       )
-      for (const project of this.saved)
+      for (const project of this.saved) {
         if (!fs.existsSync(project.path)) this.unavailable.add(project.id)
+        // (pinned at no time that can be told is not pinned)
+        if (!Number.isFinite(project.pinned)) delete project.pinned
+      }
       // From before the app kept which repositories it set up: those it knew then that say
       // so of themselves are taken at their word, once. A folder opened after never is.
       if (!state.kept) {
@@ -806,7 +825,7 @@ export class Projects {
    * whose folder is not there is on it as `missing`, with nothing of its folder's.
    */
   list(conversations: (id: string) => ConversationSummary[]): Project[] {
-    return [...this.saved].reverse().map((p): Project => {
+    return listOrder(this.saved).map((p): Project => {
       if (this.unavailable.has(p.id))
         return {
           id: p.id,
@@ -828,6 +847,7 @@ export class Projects {
           redo: null,
           conversations: [],
           settingsToTrust: false,
+          pinned: p.pinned !== undefined,
         }
       const manifest = this.found.get(p.id)?.manifest ?? null
       return {
@@ -865,8 +885,22 @@ export class Projects {
         conversations: conversations(p.id),
         settingsToTrust:
           !madeHere(p) && p.trusted === undefined && ownSettings(p.path),
+        pinned: p.pinned !== undefined,
       }
     })
+  }
+
+  /**
+   * Pin a project to the top of the list, over the others pinned before it; or let it go
+   * back to its place among the rest.
+   */
+  pin(id: string, pinned: boolean, now = Date.now()) {
+    const project = this.saved.find((p) => p.id === id)
+    if (!project || (project.pinned !== undefined) === pinned) return
+    if (pinned) project.pinned = now
+    else delete project.pinned
+    this.save()
+    this.onChange()
   }
 
   /**

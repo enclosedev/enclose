@@ -1381,6 +1381,9 @@ function wire() {
     projects.remove(project.id)
     analytics?.record("project removed")
   })
+  ipcMain.handle(CHANNEL.projectsPin, (_, id: string, pinned: boolean) =>
+    projects.pin(String(id), pinned === true)
+  )
   ipcMain.handle(CHANNEL.projectsRename, (_, id: string, name: string) => {
     // a folder still named after its stand-in takes the name too, unless something is
     // at work in it

@@ -4,9 +4,16 @@ A project is a folder. Drop one on the window, or use the + under the project ca
 open one (Cmd+O) or to start a new project (Cmd+N). STEP, STL and OBJ files can be
 dropped and opened the same way: see [Starting from CAD files](#starting-from-cad-files).
 
-The cards are in the order the projects were added, the newest at the top. With more of
-them than the window has room for, the cards scroll and the + stays where it can be
-reached, over the settings button.
+The cards are in the order the projects were added, the newest at the top, under any
+that are pinned. With more of them than the window has room for, the cards scroll and the
++ stays where it can be reached, over the settings button.
+
+## Pinning a project
+
+Right-click a project's card for **Pin to top**, and the card slides up to the top of the
+list. A pinned card shows a pin where it would say when its conversation was last carried
+on. Pinned projects are listed in the order they were pinned, the one pinned last at the
+top. **Unpin** sends the card back to its place among the others.
 
 ## New projects
 

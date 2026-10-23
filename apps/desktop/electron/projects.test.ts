@@ -239,6 +239,68 @@ describe("Projects", () => {
     projects.close()
   })
 
+  it("lists the pinned first, the one pinned last at the top, and so after a restart", () => {
+    const file = path.join(root, "state/projects.json")
+    const projects = new Projects(file, () => {})
+    const [first, second, third, fourth] = ["a", "b", "c", "d"].map((name) => {
+      fs.mkdirSync(path.join(root, name))
+      return projects.add(path.join(root, name))
+    })
+    projects.pin(second, true, 1)
+    projects.pin(first, true, 2)
+    const order = [first, second, fourth, third]
+    expect(projects.list(idle).map((p) => p.id)).toEqual(order)
+    expect(projects.list(idle).map((p) => p.pinned)).toEqual([
+      true,
+      true,
+      false,
+      false,
+    ])
+    expect(new Projects(file, () => {}).list(idle).map((p) => p.id)).toEqual(
+      order
+    )
+    // let go, it is back where it was among the rest
+    projects.pin(first, false)
+    expect(projects.list(idle).map((p) => p.id)).toEqual([
+      second,
+      fourth,
+      third,
+      first,
+    ])
+    projects.close()
+  })
+
+  it("tells of a pin only where it changes anything", () => {
+    fs.mkdirSync(path.join(root, "a"))
+    const file = path.join(root, "state/projects.json")
+    let told = 0
+    const projects = new Projects(file, () => void told++)
+    const id = projects.add(path.join(root, "a"))
+    told = 0
+    projects.pin(id, false)
+    projects.pin("nothing", true)
+    expect(told).toBe(0)
+    projects.pin(id, true)
+    projects.pin(id, true)
+    expect(told).toBe(1)
+    projects.close()
+  })
+
+  it("takes a project kept as pinned at no time it can tell for one not pinned", () => {
+    write("odd/model.json", MANIFEST)
+    write("state/projects.json", {
+      projects: [
+        { id: "odd", path: path.join(root, "odd"), addedAt: 1, pinned: "x" },
+      ],
+    })
+    const projects = new Projects(
+      path.join(root, "state/projects.json"),
+      () => {}
+    )
+    expect(projects.list(idle)[0]).toMatchObject({ id: "odd", pinned: false })
+    projects.close()
+  })
+
   it("forgets the projects that an earlier version only closed", () => {
     write("open/model.json", MANIFEST)
     write("shut/model.json", MANIFEST)

@@ -240,6 +240,8 @@ export type Project = {
    * yet to say whether to trust them: until they do, the agent goes by the user's alone.
    */
   settingsToTrust: boolean
+  /** the user pinned it to the top of the list */
+  pinned: boolean
 }
 
 /**
@@ -882,6 +884,11 @@ export type CadApi = {
      */
     rename(id: string, name: string): Promise<void>
     /**
+     * Pin the project to the top of the list, over those pinned before it, or let it go
+     * back to its place among the rest.
+     */
+    pin(id: string, pinned: boolean): Promise<void>
+    /**
      * Say, once, whether the agent goes by the settings the project's folder has of its
      * own (see Project.settingsToTrust).
      */
@@ -1271,6 +1278,7 @@ export const CHANNEL = {
   projectsExampleProgress: "projects:example-progress",
   projectsRemove: "projects:remove",
   projectsRename: "projects:rename",
+  projectsPin: "projects:pin",
   projectsTrustSettings: "projects:trust-settings",
   projectsReveal: "projects:reveal",
   projectsChanged: "projects:changed",

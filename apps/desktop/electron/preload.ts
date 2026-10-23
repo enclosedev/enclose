@@ -28,6 +28,7 @@ const api: CadApi = {
     pathOf: (file) => webUtils.getPathForFile(file),
     remove: (id) => ipcRenderer.invoke(CHANNEL.projectsRemove, id),
     rename: (id, name) => ipcRenderer.invoke(CHANNEL.projectsRename, id, name),
+    pin: (id, pinned) => ipcRenderer.invoke(CHANNEL.projectsPin, id, pinned),
     trustSettings: (id, trusted) =>
       ipcRenderer.invoke(CHANNEL.projectsTrustSettings, id, trusted),
     reveal: (id) => ipcRenderer.invoke(CHANNEL.projectsReveal, id),

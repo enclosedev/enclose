@@ -4,6 +4,7 @@ import {
   ChevronDownIcon,
   CornerLeftUpIcon,
   GitBranchIcon,
+  PinIcon,
   PlusIcon,
   XIcon,
 } from "lucide-react"
@@ -125,6 +126,25 @@ function When({
       className={cn(SMALL, "shrink-0 text-muted-foreground/60 tabular-nums")}
     >
       {ago(conversation.updatedAt, now)}
+    </span>
+  )
+}
+
+/**
+ * Top right of the card of a project pinned to the top, in place of when its conversation
+ * was last carried on: pinned, it is kept to hand whenever that was.
+ */
+function Pinned({
+  conversation,
+}: {
+  conversation: ConversationSummary | null
+}) {
+  const finished = useStore((state) => state.finished)
+  // (as there, news of its conversation says that instead)
+  if (newsOf(conversation, finished)) return null
+  return (
+    <span className="self-center text-muted-foreground/60">
+      <PinIcon aria-label="Pinned" className="size-3" fill="currentColor" />
     </span>
   )
 }
@@ -346,9 +366,13 @@ function ProjectCard({ project, now }: { project: Project; now: number }) {
                 {project.name}
               </span>
               {/* makes way for the close button while the pointer is on the card */}
-              {cover && !renaming && (
-                <span className="flex transition-opacity group-focus-within/card:opacity-0 group-hover/card:opacity-0">
-                  <When conversation={cover} now={now} />
+              {(cover || project.pinned) && !renaming && (
+                <span className="flex self-stretch transition-opacity group-focus-within/card:opacity-0 group-hover/card:opacity-0">
+                  {project.pinned ? (
+                    <Pinned conversation={cover} />
+                  ) : (
+                    cover && <When conversation={cover} now={now} />
+                  )}
                 </span>
               )}
             </span>
@@ -496,13 +520,16 @@ function Tucked({
   away,
   faded = false,
   children,
+  ref,
 }: {
   away: boolean
   faded?: boolean
   children: React.ReactNode
+  ref?: React.Ref<HTMLDivElement>
 }) {
   return (
     <div
+      ref={ref}
       inert={away || faded}
       data-away={away || faded || undefined}
       className={cn(
@@ -599,6 +626,15 @@ function ProjectMenu({
       <ContextMenuContent finalFocus={() => naming.current ?? true}>
         <ContextMenuGroup>
           <ContextMenuItem
+            onClick={() => {
+              // (it goes to its new place from where it is, and the others make way)
+              notePlaces()
+              void window.cad.projects.pin(project.id, !project.pinned)
+            }}
+          >
+            {project.pinned ? "Unpin" : "Pin to top"}
+          </ContextMenuItem>
+          <ContextMenuItem
             onClick={() => void window.cad.projects.reveal(project.id)}
           >
             Open folder
@@ -623,6 +659,65 @@ function ProjectMenu({
       </ContextMenuContent>
     </ContextMenu>
   )
+}
+
+/** How long a card takes to slide to its new place in the list. */
+const SLIDING_MS = 400
+
+/** The cards in the list, by project. */
+const cards = new Map<string, HTMLElement>()
+/** where each card was, before what is to change their order next */
+let were: Map<string, number> | null = null
+
+/** What holds a project's card in the list, for it to be found to slide. */
+const holding = (id: string) => (card: HTMLDivElement | null) => {
+  if (card) cards.set(id, card)
+  else cards.delete(id)
+}
+
+/**
+ * Note where every card in the list is now, ahead of something that will change their
+ * order (see `useSliding`): for a moment, after which nothing is waited for any more.
+ */
+function notePlaces() {
+  const noted = new Map(
+    [...cards].map(([id, card]) => [id, card.getBoundingClientRect().top])
+  )
+  were = noted
+  setTimeout(() => {
+    if (were === noted) were = null
+  }, 1000)
+}
+
+/**
+ * Has the cards that change places in the list slide there from where they were noted
+ * to be (see `notePlaces`), and not jump: a project pinned goes up to the top, over the
+ * ones it passes, as they make way below it. Only the same projects in another order
+ * move so: where one has come or gone, the cards are where they are drawn, as ever.
+ */
+function useSliding(order: string) {
+  React.useLayoutEffect(() => {
+    const tops = were
+    were = null
+    if (!tops || tops.size !== cards.size) return
+    if (![...cards.keys()].every((id) => tops.has(id))) return
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    for (const [id, card] of cards) {
+      const by = (tops.get(id) ?? 0) - card.getBoundingClientRect().top
+      if (Math.abs(by) < 1) continue
+      // (one going up goes over the ones it passes, which go down under it)
+      if (by > 0) card.style.zIndex = "1"
+      const sliding = card.animate(
+        [{ transform: `translateY(${by}px)` }, { transform: "none" }],
+        { duration: SLIDING_MS, easing: "cubic-bezier(0.32, 0.72, 0, 1)" }
+      )
+      void sliding.finished
+        .catch(() => {})
+        .finally(() => {
+          card.style.zIndex = ""
+        })
+    }
+  }, [order])
 }
 
 /** One of the app's examples, in the list of what a project is started from. */
@@ -690,6 +785,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
   const starting = useStore((state) => Object.keys(state.starting).length > 0)
   const [adding, setAdding] = React.useState(false)
   const now = useNow()
+  useSliding(projects.map((project) => project.id).join(" "))
   // with no projects the middle of the window is where one is started
   if (projects.length === 0 && missing.length === 0)
     return (
@@ -712,6 +808,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
         {projects.map((project) => (
           <Tucked
             key={project.id}
+            ref={holding(project.id)}
             away={oneProject && project.id !== activeId}
             faded={alone}
           >
