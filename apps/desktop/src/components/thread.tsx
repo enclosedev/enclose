@@ -4,6 +4,7 @@ import {
   ArrowUpIcon,
   BoxesIcon,
   BoxIcon,
+  CheckIcon,
   ChevronDownIcon,
   ClockIcon,
   EyeIcon,
@@ -26,7 +27,8 @@ import type {
 } from "@shared/api"
 import { Composer } from "@/components/composer"
 import { BoardIcon, ReferenceIcon } from "@/components/icons"
-import { StepsInLine } from "@/components/pcb/board-steps"
+import { StepsInLine, UnfinishedBadge } from "@/components/pcb/board-steps"
+import { useBoards } from "@/components/pcb/boards"
 import { Thumb } from "@/components/picture"
 import { QuestionCard } from "@/components/question"
 import { QUOTABLE, Quoting } from "@/components/quoting"
@@ -479,7 +481,8 @@ const Item = React.memo(function Item({
 /**
  * A circuit board made in detail in the background, beside the conversation: all of it in
  * one card. At its top, what it is at and how long it has been, with what stops it and
- * what shows the board in PCB mode. Under that, only what is going on now: while it is
+ * what shows the board in PCB mode, and once it is made, whether it is ready to be
+ * ordered or was left unfinished. Under that, only what is going on now: while it is
  * being made, the last thing the agent said and the step it is on; once it is over, what
  * came of it. "See all" opens the whole of what was done and said in making it, spelled
  * out as a turn is while Claude is at it, and "See less" folds it away again.
@@ -494,6 +497,9 @@ function JobCard({
   const now = useNow(1000)
   const setView = useStore((state) => state.setView)
   const working = item.state === "working"
+  // made, it is either ready to be ordered or was left unfinished, as the board now is
+  const board = useBoards(project)?.find((one) => one.id === item.board)
+  const made = item.state === "done" && board ? board.finished : null
   // how far it has got, as PCB mode has it at its foot, while it is being made
   const job = working
     ? (project.conversations.find(
@@ -574,6 +580,7 @@ function JobCard({
             {duration(took)}
           </span>
           <span className="ml-auto flex shrink-0 items-center gap-1.5">
+            {made === false && <UnfinishedBadge className="mr-1" />}
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -604,6 +611,22 @@ function JobCard({
                   <span className="sr-only">Stop making the board</span>
                 </TooltipTrigger>
                 <TooltipContent>Stop making the board</TooltipContent>
+              </Tooltip>
+            )}
+            {made && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <span className="flex size-8 items-center justify-center" />
+                  }
+                >
+                  <CheckIcon
+                    className="size-4 text-finished"
+                    strokeWidth={2.5}
+                  />
+                  <span className="sr-only">Ready to order</span>
+                </TooltipTrigger>
+                <TooltipContent>Ready to order</TooltipContent>
               </Tooltip>
             )}
           </span>

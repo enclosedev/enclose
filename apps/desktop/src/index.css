@@ -58,6 +58,7 @@
   --color-background: var(--background);
   --color-attention: var(--attention);
   --color-unfinished: var(--unfinished);
+  --color-finished: var(--finished);
   --color-tool: var(--tool);
   --color-tool-panel: var(--tool-panel);
   --color-tool-line: var(--tool-line);
@@ -118,6 +119,8 @@
   --attention: oklch(0.62 0.15 65);
   /* a circuit board only roughed out so far: redder than what is going on, to be told from it */
   --unfinished: oklch(0.62 0.18 45);
+  /* one made in detail and ready to be ordered */
+  --finished: oklch(0.6 0.16 150);
   /* the model's three axes, wherever they are drawn */
   --axis-x: #ff0033;
   --axis-y: #74d908;
@@ -218,6 +221,7 @@
   --section: oklch(0.7 0.17 250);
   --attention: oklch(0.82 0.15 80);
   --unfinished: oklch(0.76 0.16 55);
+  --finished: oklch(0.74 0.17 150);
   /* (said again for the dark, so that inside it they are of its colours) */
   --tool-panel: oklch(from var(--tool) calc(l - 0.135) c calc(h + 6));
   --tool-line: oklch(

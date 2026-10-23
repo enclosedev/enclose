@@ -259,6 +259,12 @@ follows it as it routes. Help it where it needs help:
 - Keep traces 0.15 mm wide or more, and those that carry the current of a motor or a
   light wider. Read the build's warnings for traces that cross, or come too close: a
   board with any is not done.
+- Pour ground over both sides of a detailed board, after its traces:
+  `<copperpour connectsTo="net.GND" layer="top" clearance="0.3mm" boardEdgeMargin="0.5mm" />`
+  and the same with `layer="bottom"`. It joins ground up where traces would not, and
+  keeps noise down. Leave a side bare only where there is a reason, such as a module's
+  antenna that wants no copper under it (an `outline` keeps the pour to the rest), and
+  say why. A rough board has none.
 
 (https://docs.tscircuit.com/elements/fanout and /elements/autoroutingphase have more.)
 

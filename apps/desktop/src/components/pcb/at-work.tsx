@@ -1,7 +1,8 @@
 // What says that an agent is at one of the project's boards while the view is not in
 // PCB mode: a length of ring going round the PCB button, and a pill at the foot of the
 // view. The view stays where it is: the board is checked on the way to the model, and
-// it is the model that was asked about. (See boardAtWork.)
+// it is the model that was asked about. (See boardAtWork.) A board made in detail in
+// the background has the ring too, but no pill: its card in the conversation is that.
 import { BoardIcon } from "@/components/icons"
 import { Floating } from "@/components/floating"
 import { Button } from "@/components/ui/button"
@@ -34,10 +35,21 @@ function useBoardAtWork(
   return boardAtWork(boards, conversations, now)
 }
 
+/** Whether an agent is making one of a project's boards in detail in the background. */
+function useMadeInDetail(projectId: string): boolean {
+  return useStore(
+    (state) =>
+      state.projects
+        .find((project) => project.id === projectId)
+        ?.conversations.some((conversation) => conversation.job !== null) ??
+      false
+  )
+}
+
 /**
- * Round the PCB button, while an agent is at one of the boards: a short length of ring
- * going round it, over and over, as round what is waited for in the middle of the view.
- * It goes with the buttons where they are put away.
+ * Round the PCB button, while an agent is at one of the boards, or making one in detail:
+ * a short length of ring going round it, over and over, as round what is waited for in
+ * the middle of the view. It goes with the buttons where they are put away.
  */
 export function BoardAtWorkRing({
   projectId,
@@ -46,7 +58,9 @@ export function BoardAtWorkRing({
   projectId: string
   boards: readonly BoardSummary[]
 }) {
-  if (!useBoardAtWork(projectId, boards)) return null
+  const atWork = useBoardAtWork(projectId, boards) !== null
+  const inDetail = useMadeInDetail(projectId)
+  if (!atWork && !inDetail) return null
   return (
     <svg
       className="pointer-events-none absolute -inset-px animate-[passing_0.9s_linear_infinite] fill-none transition-opacity duration-200 group-data-[away]/tools:opacity-0 motion-reduce:animate-none"
