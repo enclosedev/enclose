@@ -241,8 +241,8 @@ It often goes back, to routing again after a check failed, say: then the steps a
 that one are to come again. (An agent that says nothing of its steps has them gone by
 how far each build of the board got.) While it is routed, how far that has got goes
 round the step. In the technical view, each trace a build brings draws itself in along
-its way as the build comes in, and while the board is being checked a line scans across
-it.
+its way as the build comes in, and a light goes across the board at every step for as
+long as it is being made.
 
 For as long as a board is still being made, PCB mode shows it in the technical view,
 where what changes is seen first, and goes back to the view you had once nothing is at

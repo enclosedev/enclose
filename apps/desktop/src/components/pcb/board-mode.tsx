@@ -137,12 +137,6 @@ const SWEEP_WIDE = 0.14
  */
 const SWEEP_RATE = 30
 /**
- * While the board is being checked, the light is a line that scans across it, slower:
- * how wide that is, against the board, and how long it takes to go across, s.
- */
-const SCAN_WIDE = 0.012
-const SCAN_S = 3.6
-/**
  * How long a trace takes to draw itself in, as a build brings it, ms; how much later
  * each next one begins; and how many are drawn in one after another at most, the rest
  * with the last of them.
@@ -234,17 +228,11 @@ function sweptOver(
 
 /**
  * Put the light this share of the way across what it is laid over (`box`, in the
- * drawing's units): from short of it to past it, eased, as the 3D's goes; or, as a line
- * that scans (`scan`), evenly.
+ * drawing's units): from short of it to past it, eased, as the 3D's goes.
  */
-function sweepAt(
-  light: SVGLinearGradientElement,
-  box: DOMRect,
-  share: number,
-  scan = false
-) {
-  const eased = scan ? share : share * share * (3 - 2 * share)
-  const wide = box.width * (scan ? SCAN_WIDE : SWEEP_WIDE)
+function sweepAt(light: SVGLinearGradientElement, box: DOMRect, share: number) {
+  const eased = share * share * (3 - 2 * share)
+  const wide = box.width * SWEEP_WIDE
   // (leaning, its foot is further back than its head: the band has that much more to go)
   const from = box.x - wide
   const to = box.x + box.width + LEAN * (box.y + box.height) + wide
@@ -304,8 +292,8 @@ function lay(traces: SVGGeometryElement[], gone = 0) {
 /**
  * A drawing of the board, filling the view, moved about and zoomed by the hand. It
  * keeps where it was looked at as long as it is the same board drawn the same way.
- * While the board is being made (`swept`) a light goes across it, a line that scans it
- * while it is being checked (`checking`), and each trace a build brings draws itself in.
+ * While the board is being made (`swept`) a light goes across it, the same at every
+ * step, and each trace a build brings draws itself in.
  * Where it has the board as tscircuit has it (`circuit`), what the pointer is over is
  * said over it, and what was looked for is lit on it (`found`).
  */
@@ -314,7 +302,6 @@ function Drawing({
   markup,
   dark,
   swept,
-  checking = false,
   routing = null,
   circuit = null,
   board = null,
@@ -329,8 +316,6 @@ function Drawing({
   dark: boolean
   /** the board is still being made: a light goes across it, over and over */
   swept: boolean
-  /** and it is being checked: the light is a line that scans it */
-  checking?: boolean
   /** what the router is trying, while it is routed: drawn over the board */
   routing?: Routing | null
   /** the board as tscircuit has it, for what the pointer is over to be said */
@@ -611,14 +596,12 @@ function Drawing({
     const box = over.getBBox()
     let frame = 0
     const go = () => {
-      const across =
-        (performance.now() / 1000 / (checking ? SCAN_S : SWEEP_S)) % 1
-      sweepAt(light, box, across, checking)
+      sweepAt(light, box, (performance.now() / 1000 / SWEEP_S) % 1)
       frame = requestAnimationFrame(go)
     }
     go()
     return () => cancelAnimationFrame(frame)
-  }, [markup, dark, swept, checking])
+  }, [markup, dark, swept])
 
   /** What is under the pointer, while nothing is held down. */
   const point = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -1645,7 +1628,6 @@ export function BoardMode({
           markup={markup}
           dark={dark}
           swept={making}
-          checking={job?.steps.at(-1)?.step === "checking"}
           routing={routing}
           circuit={as === "pcb" ? circuit : null}
           board={as === "pcb" ? inspecting : null}
