@@ -94,7 +94,7 @@ turned with `pcbRotation`, in degrees.
 
 ```tsx
 export default () => (
-  <board width="50mm" height="30mm" thickness="1.6mm">
+  <board width="50mm" height="30mm" thickness="1.6mm" pcbStyle={{ silkscreenFontSize: "1.1mm" }}>
     <chip
       name="U1"
       footprint="soic8"
@@ -133,6 +133,16 @@ export default () => (
   Give it its layers: without them the router runs traces through it as if it were not
   there. (`<pcbkeepout>`, which tscircuit's documentation names, is not known to the
   tscircuit the app builds with: it is `<keepout>`.)
+- Lettering on the board is 1.1 mm tall. Set it once on the `<board>`, with
+  `pcbStyle={{ silkscreenFontSize: "1.1mm" }}`: every part's name and every
+  `<silkscreentext>` takes it. Give a `fontSize` only to lettering that has to be
+  bigger or smaller.
+- Put a dot by pin 1 of every connector, so that it is seen which way round its cable
+  goes: `<silkscreencircle radius="0.2mm" strokeWidth="0.4mm" />`, which comes out a
+  solid dot 0.8 mm across. (`isFilled` is not heeded: a circle of radius 0.4 mm comes
+  out a ring.) Put it just outside the connector's outline, beside pin 1, and 0.2 mm or
+  more clear of every pad, since what is printed over a pad is cut away when the board
+  is made.
 - A footprint is named as tscircuit names them (`0402`, `0603`, `soic8`, `sot23`,
   `qfn32`, `pinrow4`, `pushbutton`), or comes with a real part. To find one with its
   stock: `npm_config_allow_git=all npx --yes -p tscircuit tsci search --jlcpcb "ESP32-C3"`.
