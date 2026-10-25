@@ -153,6 +153,32 @@ export default () => (
   and never search the whole disk or the home folder for them (`find /`, `find ~`): the
   Mac stops the user to ask whether the app may look in each of their private folders.
 
+## The schematic
+
+The user reads a board's schematic in PCB mode, as well as the board itself. Draw it on
+a sheet, in sections, one for each thing the board does (its power, its controller,
+each connector and what it drives), each with a title and dashed lines between them:
+
+```tsx
+<board width="50mm" height="30mm" thickness="1.6mm">
+  <schematicsheet name="main" displayName="Main board">
+    <schematicsection name="power" displayName="Power" />
+    <schematicsection name="controller" displayName="Controller" />
+  </schematicsheet>
+  <chip name="U1" schSheetName="main" schSectionName="controller" ... />
+  <capacitor name="C1" schSheetName="main" schSectionName="power" ... />
+  ...
+</board>
+```
+
+- Put the sections inside the `<schematicsheet>`: outside it, they get no titles.
+- Give every part both `schSheetName` and `schSectionName`. A part without the sheet's
+  name is drawn off it.
+- Leave out `schX` and `schY`: tscircuit lays out each section's parts by itself, close
+  together. Placed by hand, they come out far apart.
+- Keep the sheet's own size (A4). Given a smaller `sheetWidth` and `sheetHeight`, its
+  frame shrinks from one corner and the parts spill out of it.
+
 ## Choosing parts
 
 The board is made by a board house and often put together by hand, and its traces are

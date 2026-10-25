@@ -50,10 +50,13 @@ function schematicOf(colours: PcbColours, dark: boolean) {
 }
 /**
  * And the colours tscircuit writes into some of it for itself, whatever it is told: a
- * chip's name, which is in the names' colour here; and the reds of the numbers of some
- * pins, and of some of its symbols (a crystal's, say), which are all the parts' ink.
+ * chip's name, which is in the names' colour here; the reds of the numbers of some
+ * pins, and of some of its symbols (a crystal's, say); and the black of the sections
+ * of a sheet, their titles and the dashed lines between them, unseen on the dark
+ * ground. Those are all the parts' ink.
  */
 const CHIP_NAME = "#006464"
+const SECTIONS = ['fill="#000000"', 'stroke="#000000"']
 const REDS = [
   "rgb(169, 0, 0)",
   "rgba(132, 0, 0)",
@@ -279,8 +282,10 @@ export function drawingOf(
       schematic: { background: ground, ...schematicOf(colours, dark) },
     },
   })
-  return REDS.reduce(
-    (svg, red) => svg.replaceAll(red, colours["schematic-lines"]),
-    drawn
-  ).replaceAll(CHIP_NAME, colours["schematic-names"])
+  const ink = colours["schematic-lines"]
+  const inked = SECTIONS.reduce(
+    (svg, black) => svg.replaceAll(black, black.replace("#000000", ink)),
+    REDS.reduce((svg, red) => svg.replaceAll(red, ink), drawn)
+  )
+  return inked.replaceAll(CHIP_NAME, colours["schematic-names"])
 }

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import type { PcbColours } from "@shared/theme-format"
 import {
   awayFaded,
+  drawingOf,
   fromUnder,
   holesEdged,
   poursLightened,
@@ -103,5 +104,48 @@ describe("poursLightened", () => {
         lightened
       )
     expect(Number(opacity?.[1])).toBeLessThan(0.5)
+  })
+})
+
+describe("drawingOf", () => {
+  it("draws the sections of a schematic's sheet, their titles and the lines between them, in the parts' ink", () => {
+    const colours = {
+      "schematic-lines": "#abcdef",
+      "schematic-names": "#123456",
+    } as PcbColours
+    const circuit = [
+      {
+        type: "schematic_text",
+        schematic_text_id: "schematic_text_0",
+        anchor: "top_left",
+        text: "Power",
+        font_size: 0.18,
+        color: "#000000",
+        position: { x: 0, y: 0 },
+        rotation: 0,
+      },
+      {
+        type: "schematic_line",
+        schematic_line_id: "schematic_line_0",
+        x1: -1,
+        y1: -1,
+        x2: 1,
+        y2: -1,
+        stroke_width: 0.02,
+        color: "#000000",
+        is_dashed: true,
+      },
+    ]
+    const drawn = drawingOf(
+      circuit as unknown as Parameters<typeof drawingOf>[0],
+      "schematic",
+      colours,
+      true,
+      "#111111"
+    )
+    expect(drawn).toContain("Power")
+    expect(drawn).toContain('fill="#abcdef"')
+    expect(drawn).toContain('stroke="#abcdef"')
+    expect(drawn).not.toMatch(/(fill|stroke)="#000000"/)
   })
 })
