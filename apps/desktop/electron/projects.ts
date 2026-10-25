@@ -335,6 +335,12 @@ export const OWN_SETTINGS = [
 export const ownSettings = (dir: string) =>
   OWN_SETTINGS.some((file) => fs.existsSync(path.join(dir, file)))
 
+/** Take a folder's own settings for Claude Code out of it, leaving the rest of `.claude`. */
+export const dropOwnSettings = (dir: string) => {
+  for (const file of OWN_SETTINGS)
+    fs.rmSync(path.join(dir, file), { force: true })
+}
+
 /** Whether the app made a project's folder (from before `made` was kept: by its name). */
 const madeHere = (project: Saved) => project.made ?? project.name !== undefined
 

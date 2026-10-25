@@ -115,6 +115,7 @@ import { redrawn } from "./redrawn"
 import { SaveFolder } from "./saving"
 import { serveFile } from "./serve"
 import {
+  dropOwnSettings,
   folderName,
   folderSize,
   makeFolder,
@@ -807,9 +808,12 @@ const NOT_COPIED = new Set([...LEFT_BEHIND, ".git", ".venv", "venv"])
  * go, under a stand-in name until what is made in it gives it one, with its history kept
  * from the start. It is empty, or begun with a copy of another project's files (`from`),
  * its model with them: made, where that has none built. Returns its id.
+ *
+ * The copy is the app's, which goes by its own settings for Claude Code without asking
+ * (see projects.ts): it has those of the other project only where that went by them.
  */
 function startProject(
-  from: { path: string; name: string } | null,
+  from: { path: string; name: string; ownSettings: boolean } | null,
   how: "new" | "conversation"
 ): string {
   let made: { dir: string; name: string }
@@ -827,6 +831,7 @@ function startProject(
       ),
       name,
     }
+    if (!from.ownSettings) dropOwnSettings(made.dir)
   } else made = newFolder()
   const id = projects.add(made.dir, { name: made.name, standIn: true })
   void backups.prepare(
@@ -2494,7 +2499,11 @@ if (!app.requestSingleInstanceLock()) {
         if (!from) throw new Error("The project is not there any more.")
         const id = startProject(
           copy
-            ? { path: from.path, name: from.name ?? path.basename(from.path) }
+            ? {
+                path: from.path,
+                name: from.name ?? path.basename(from.path),
+                ownSettings: projects.goesByOwnSettings(fromId),
+              }
             : null,
           "conversation"
         )

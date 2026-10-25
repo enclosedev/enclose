@@ -5,9 +5,11 @@ import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import {
+  dropOwnSettings,
   findModel,
   folderName,
   folderSize,
+  ownSettings,
   Projects,
   readBranch,
   resolveInside,
@@ -509,6 +511,20 @@ describe("Projects", () => {
     expect(again.goesByOwnSettings(plain)).toBe(false)
     projects.close()
     again.close()
+  })
+
+  it("takes a folder's own settings out of it, and nothing else of .claude", () => {
+    write("copy/.claude/settings.json", { hooks: {} })
+    write("copy/.claude/settings.local.json", { hooks: {} })
+    write("copy/.claude/commands/print.md", "Print it")
+    write("copy/.mcp.json", { mcpServers: {} })
+    const copy = path.join(root, "copy")
+    dropOwnSettings(copy)
+    expect(ownSettings(copy)).toBe(false)
+    expect(fs.existsSync(path.join(copy, ".claude/commands/print.md"))).toBe(
+      true
+    )
+    expect(() => dropOwnSettings(copy)).not.toThrow()
   })
 
   it("hands over the session of the one conversation a project used to have, once", () => {
