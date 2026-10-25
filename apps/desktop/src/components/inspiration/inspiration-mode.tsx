@@ -77,6 +77,10 @@ const SPREAD_FILL = 0.92
 const DRAG_FROM = 4
 /** How long the camera takes to go somewhere by itself, ms. */
 const GLIDE_MS = 520
+
+/** How far along a glide is, from how far through its time: fast away, slowing in (expo out). */
+const glidingAt = (t: number) => (t >= 1 ? 1 : 1 - 2 ** (-10 * t))
+
 /** How far apart what is pushed aside is kept from what it makes room for, in units. */
 const ROOM = 48
 /**
@@ -126,6 +130,40 @@ export function InspirationMode({ projectId }: { projectId: string }) {
     <div className="absolute inset-0 animate-in overflow-hidden bg-user-message duration-300 fade-in motion-reduce:animate-none">
       {board && <Board projectId={projectId} board={board} />}
     </div>
+  )
+}
+
+/**
+ * How the board's pieces come up as it opens, a group's pictures all as one: each this
+ * long after the one before it, ms, and the last no later than `spread` after the
+ * first, however many there are.
+ */
+const INTRO = { step: 45, spread: 700 }
+
+/**
+ * How long after the board opens each picture comes up, ms, by its id: a group's
+ * pictures, piled or spread out, together, and the pieces from the board's top left
+ * across and down, by their own top left corners.
+ */
+function introOf(shown: Shown[]): Map<string, number> {
+  const corners = new Map<string, number>()
+  for (const one of shown) {
+    const piece = one.image.group ?? one.image.id
+    const corner = one.box.x - one.box.w / 2 + one.box.y - one.box.h / 2
+    corners.set(piece, Math.min(corners.get(piece) ?? Infinity, corner))
+  }
+  const pieces = [...corners]
+    .sort((a, b) => a[1] - b[1])
+    .map(([piece]) => piece)
+  const step = Math.min(
+    INTRO.step,
+    INTRO.spread / Math.max(pieces.length - 1, 1)
+  )
+  return new Map(
+    shown.map((one) => [
+      one.image.id,
+      Math.round(pieces.indexOf(one.image.group ?? one.image.id) * step),
+    ])
   )
 }
 
@@ -307,6 +345,8 @@ function Board({
     }
     return out
   }, [board, laidOut, spread, focused, moving, over])
+  // (the pictures there as it opens: one put on it later comes as it always does)
+  const [intro] = React.useState(() => introOf(shown))
 
   /** What can be picked out, each as the box it takes: a picture, or a pile. */
   const units = React.useMemo(() => {
@@ -347,7 +387,7 @@ function Board({
       const began = performance.now()
       const step = () => {
         const t = Math.min(1, (performance.now() - began) / GLIDE_MS)
-        const eased = 1 - (1 - t) ** 3
+        const eased = glidingAt(t)
         // zoomed in steps that look alike, near or far
         const zoom = from.zoom * (to.zoom / from.zoom) ** eased
         camera.current = {
@@ -1285,6 +1325,7 @@ function Board({
               key={one.image.id}
               projectId={projectId}
               shown={one}
+              intro={intro.get(one.image.id)}
               // (a pile has the line round its top picture alone; and one gone up to
               // is plain enough to be seen without one)
               picked={

@@ -57,6 +57,7 @@ export const Card = React.memo(function Card({
   dim,
   moving,
   going = false,
+  intro,
   analysing,
   notesShown,
   writing,
@@ -74,6 +75,8 @@ export const Card = React.memo(function Card({
   moving: boolean
   /** being dragged, and held over a group it is to go into */
   going?: boolean
+  /** how long after the board opened it comes up, ms: none for one put on it since */
+  intro?: number
   analysing: boolean
   notesShown: boolean
   writing: Writing | null
@@ -93,7 +96,7 @@ export const Card = React.memo(function Card({
       className={cn(
         // (and no will-change: a layer of its own is drawn at the zoom it was first seen
         // at, and only stretched as the board is zoomed into, the picture and dots blurred)
-        "absolute top-0 left-0 rounded-[calc(10px/max(var(--zoom),0.6))] bg-foreground/5 shadow-[0_10px_40px_-8px_rgba(0,0,0,0.45)]",
+        "absolute top-0 left-0 bg-foreground/5 shadow-[0_10px_40px_-8px_rgba(0,0,0,0.45)]",
         !moving &&
           "transition-[translate,rotate,width,height,opacity] duration-450 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none",
         moving &&
@@ -102,7 +105,8 @@ export const Card = React.memo(function Card({
         focused ? "cursor-crosshair" : "cursor-pointer",
         // (over its neighbours while the pointer is on it, its notes' words with it)
         "hover:z-450!",
-        dim && "opacity-15"
+        dim && "opacity-15",
+        intro !== undefined && "inspiration-intro"
       )}
       style={{
         width: box.w,
@@ -114,9 +118,10 @@ export const Card = React.memo(function Card({
           ? "calc(2px / var(--zoom)) solid var(--color-primary)"
           : undefined,
         outlineOffset: "calc(3px / var(--zoom))",
+        animationDelay: intro !== undefined ? `${intro}ms` : undefined,
       }}
     >
-      <div className="absolute inset-0 overflow-hidden rounded-[inherit]">
+      <div className="absolute inset-0 overflow-hidden">
         {gone ? (
           <div className="flex size-full items-center justify-center p-4 text-center text-xs text-muted-foreground">
             {image.name}
