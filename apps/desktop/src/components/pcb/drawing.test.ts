@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest"
 
 import type { PcbColours } from "@shared/theme-format"
-import { fromUnder, holesEdged, turnedOver } from "./drawing"
+import {
+  awayFaded,
+  fromUnder,
+  holesEdged,
+  poursLightened,
+  turnedOver,
+} from "./drawing"
 import { DRAWN } from "./ground"
 
 describe("fromUnder", () => {
@@ -65,5 +71,37 @@ describe("holesEdged", () => {
     expect(edged).toContain('vector-effect="non-scaling-stroke"')
     // a pad's hole has the pad's copper round it
     expect(edged).toContain('<circle data-type="pcb_plated_hole"/>')
+  })
+})
+
+describe("awayFaded", () => {
+  const drawing =
+    '<svg width="10" height="10"><path data-pcb-layer="top"/><path data-pcb-layer="bottom"/></svg>'
+
+  it("draws the bottom faint under the top, seen from over the board", () => {
+    const faded = awayFaded(drawing, "top")
+    expect(faded).toMatch(
+      /^<svg width="10" height="10"><style>\[data-pcb-layer="bottom"\] \{ opacity: [\d.]+; \}<\/style>/
+    )
+    expect(faded).not.toContain('[data-pcb-layer="top"]')
+  })
+
+  it("draws the top faint under the bottom, seen from under it", () => {
+    const faded = awayFaded(drawing, "bottom")
+    expect(faded).toContain('[data-pcb-layer="top"] {')
+    expect(faded).not.toContain('[data-pcb-layer="bottom"] {')
+  })
+})
+
+describe("poursLightened", () => {
+  it("draws every pour of copper in less of its colour than tscircuit's half", () => {
+    const lightened = poursLightened(
+      '<svg width="10" height="10"><path fill-opacity="0.5" data-type="pcb_copper_pour"/></svg>'
+    )
+    const opacity =
+      /\[data-type="pcb_copper_pour"\] \{ fill-opacity: ([\d.]+); \}/.exec(
+        lightened
+      )
+    expect(Number(opacity?.[1])).toBeLessThan(0.5)
   })
 })

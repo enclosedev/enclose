@@ -8,6 +8,7 @@
     "viewer": "#ffffff",
     "tools": "#0065ff",
     "technical-print": "#000000",
+    "technical-edge": "#c9c9c9",
     "parts": {
       "red": "#ff130f",
       "orange": "#ff8e0f",
@@ -29,6 +30,7 @@
     "tools": "#0066ff",
     "settings-background": "#000000",
     "settings-card": "#0a0a0a",
+    "technical-edge": "#5b5b5b",
     "parts": {
       "red": "#ff3935",
       "orange": "#ff9a29",

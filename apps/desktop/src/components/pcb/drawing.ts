@@ -114,6 +114,35 @@ function pcbLook(
   }
 }
 
+/** How much of the side of the board turned away is seen, through the one looked at. */
+const AWAY = 0.12
+/**
+ * How much of its side's copper colour a pour of copper is drawn in: tscircuit draws
+ * one in half of it, which over a whole side is near as strong as the traces in it.
+ */
+const POUR = 0.25
+
+/** A drawing of a board with its pours of copper drawn lighter (see POUR). */
+export const poursLightened = (markup: string) =>
+  markup.replace(
+    /(<svg[^>]*>)/,
+    `$1<style>[data-type="pcb_copper_pour"] { fill-opacity: ${POUR}; }</style>`
+  )
+
+/**
+ * A drawing of a board with its other side, the one turned away from the eye, drawn
+ * faint: its copper, pads and print, which over the side looked at would be read as
+ * part of it. (A board with a pour has its sides told apart by it; one without has
+ * only their colours.) What goes through the board, its holes and vias, stays as it is.
+ */
+export function awayFaded(markup: string, side: "top" | "bottom"): string {
+  const away = side === "top" ? "bottom" : "top"
+  return markup.replace(
+    /(<svg[^>]*>)/,
+    `$1<style>[data-pcb-layer="${away}"] { opacity: ${AWAY}; }</style>`
+  )
+}
+
 /**
  * How far up each layer of a board is drawn, as circuit-to-svg puts them, the lowest
  * first: but with its two sides the other way round, its bottom over its top, for the
@@ -216,23 +245,33 @@ export function drawingOf(
   const elements = circuit as unknown as AnyCircuitElement[]
   if (as === "pcb" && side === "bottom")
     return turnedOver(
+      awayFaded(
+        holesEdged(
+          bottomUp(
+            poursLightened(
+              convertCircuitJsonToPcbSvg(
+                [...elements, ...placeMark(elements)],
+                pcbLook(elements, colours, ground)
+              )
+            )
+          ),
+          colours
+        ),
+        side
+      )
+    )
+  if (as === "pcb")
+    return awayFaded(
       holesEdged(
-        bottomUp(
+        poursLightened(
           convertCircuitJsonToPcbSvg(
             [...elements, ...placeMark(elements)],
             pcbLook(elements, colours, ground)
           )
         ),
         colours
-      )
-    )
-  if (as === "pcb")
-    return holesEdged(
-      convertCircuitJsonToPcbSvg(
-        [...elements, ...placeMark(elements)],
-        pcbLook(elements, colours, ground)
       ),
-      colours
+      side
     )
   const drawn = convertCircuitJsonToSchematicSvg(elements, {
     ...DRAWN,
