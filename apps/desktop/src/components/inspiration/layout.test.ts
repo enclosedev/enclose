@@ -203,6 +203,7 @@ describe("allSpread", () => {
     at,
     width: 300,
     group,
+    frames: null,
     notes: [],
     overview: null,
     added: 0,

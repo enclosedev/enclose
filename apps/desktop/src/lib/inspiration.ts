@@ -8,6 +8,7 @@ import { create } from "zustand"
 import {
   BOARD_TYPES,
   EMPTY_BOARD,
+  MOST_GIF_BYTES,
   MOST_IMAGES,
   type InspirationBoard,
   type InspirationImage,
@@ -25,6 +26,7 @@ import {
   widthFor,
   type Box,
 } from "@/components/inspiration/layout"
+import { framesOf } from "./animation"
 import { fitted } from "./pictures"
 
 /** How long after a change the board is written, ms: a drag is one change, not a hundred. */
@@ -232,12 +234,24 @@ export const useInspiration = create<InspirationStore>((set, get) => ({
     const room = MOST_IMAGES - (get().boards[projectId]?.images.length ?? 0)
     const kept = await Promise.all(
       files.slice(0, Math.max(0, room)).map(async (file) => {
-        const fit = await fitted(file, BOARD_TYPES)
+        // an animated GIF is kept as it is, to move on the board, with its frames
+        const frames =
+          file.type === "image/gif" && file.size <= MOST_GIF_BYTES
+            ? await framesOf(file)
+            : null
+        const fit = frames
+          ? { mimeType: file.type, data: await file.arrayBuffer() }
+          : await fitted(file, BOARD_TYPES)
         const pixels = fit && (await pixelsOf(fit.data, fit.mimeType))
         if (!fit || !pixels) return null
         const name = file.name || "image"
         const filed = await window.cad.inspiration
-          .add(projectId, { name, mimeType: fit.mimeType, data: fit.data })
+          .add(projectId, {
+            name,
+            mimeType: fit.mimeType,
+            data: fit.data,
+            ...(frames && { frames }),
+          })
           .catch(() => null)
         return filed && { ...filed, name, pixels }
       })
@@ -267,6 +281,7 @@ export const useInspiration = create<InspirationStore>((set, get) => ({
       group: null,
       notes: [],
       overview: null,
+      frames: one.frames,
       added: now,
     }))
     get().change(projectId, { ...board, images: [...board.images, ...images] })

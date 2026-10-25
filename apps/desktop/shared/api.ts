@@ -3,7 +3,11 @@
 
 import type { Building, StepsGone } from "./board-format"
 import type { PartColours } from "./colours-format"
-import type { InspirationBoard, InspirationState } from "./inspiration-format"
+import type {
+  InspirationBoard,
+  InspirationFrames,
+  InspirationState,
+} from "./inspiration-format"
 import type { Defaults, Theme } from "./theme-format"
 
 export type Vec3 = [number, number, number]
@@ -1064,12 +1068,22 @@ export type CadApi = {
     /**
      * Put a picture's file in the board's folder, for the picture to go on the board.
      * Resolves to what it is kept as, or to null if it is no picture an agent can be
-     * shown, or is too big.
+     * shown, or is too big. An animated GIF comes with the sheet of its frames, which
+     * the agent is shown in its place (see MOST_GIF_BYTES).
      */
     add(
       projectId: string,
-      picture: { name: string; mimeType: string; data: ArrayBuffer }
-    ): Promise<{ id: string; file: string } | null>
+      picture: {
+        name: string
+        mimeType: string
+        data: ArrayBuffer
+        frames?: InspirationFrames & { data: ArrayBuffer }
+      }
+    ): Promise<{
+      id: string
+      file: string
+      frames: InspirationFrames | null
+    } | null>
     /**
      * The picture at a link pasted on the board, or the one the page at it puts forward
      * for itself: as it was fetched, for the window to make fit to be kept. Resolves to
@@ -1114,6 +1128,16 @@ export type CadApi = {
     ): Promise<Omit<Attached, "number"> | null>
     /** Forget one that was taken back off the message before it was sent. */
     drop(projectId: string, id: string): Promise<void>
+    /**
+     * A picture of a kind the window cannot read (a photo off an iPhone, in HEIC; a
+     * scan, in TIFF), drawn again as one it can, by the system. Resolves to null where
+     * the system cannot either.
+     */
+    redrawn(picture: {
+      name: string
+      mimeType: string
+      data: ArrayBuffer
+    }): Promise<{ mimeType: string; data: ArrayBuffer } | null>
   }
   thread: {
     items(projectId: string, conversationId: string): Promise<ThreadItem[]>
@@ -1337,6 +1361,7 @@ export const CHANNEL = {
   inspirationChanged: "inspiration:changed",
   picturesAdd: "pictures:add",
   picturesDrop: "pictures:drop",
+  picturesRedrawn: "pictures:redrawn",
   threadItems: "thread:items",
   threadSend: "thread:send",
   threadLookOver: "thread:look-over",

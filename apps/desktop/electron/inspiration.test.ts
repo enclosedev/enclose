@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   INSPIRATION_FILE,
   INSPIRATION_FOLDER,
+  framesFileOf,
   readInspiration,
   type InspirationBoard,
   type InspirationImage,
@@ -75,6 +76,7 @@ const onBoard = (
   group: null,
   notes: [],
   overview: null,
+  frames: null,
   added: 1,
   ...more,
 })
@@ -111,6 +113,44 @@ describe("Inspiration", () => {
     expect(fs.readdirSync(path.join(dir, INSPIRATION_FOLDER))).toEqual([
       kept?.file,
     ])
+  })
+
+  it("keeps an animated GIF as it is, with the sheet of its frames beside it", () => {
+    const frames = { shown: 9, of: 20, seconds: 2 }
+    const kept = inspiration.add("p1", {
+      ...png("spin.gif", MOST_BYTES + 1),
+      mimeType: "image/gif",
+      frames: { ...frames, data: new Uint8Array(3).buffer },
+    })
+    expect(kept).toMatchObject({ frames })
+    expect(kept?.file).toMatch(/^spin-[0-9a-f]{4}\.gif$/)
+    expect(fs.readdirSync(path.join(dir, INSPIRATION_FOLDER)).sort()).toEqual(
+      [kept?.file, framesFileOf(kept!.file)].sort()
+    )
+    // a GIF with no frames is a still, and is drawn again as one by the window
+    expect(
+      inspiration.add("p1", { ...png("still.gif"), mimeType: "image/gif" })
+    ).toBeNull()
+  })
+
+  it("has the agent look at an animated picture by its frames, and bins them with it", async () => {
+    const frames = { shown: 4, of: 12, seconds: 1.5 }
+    const one = inspiration.add("p1", {
+      ...png("spin.gif"),
+      mimeType: "image/gif",
+      frames: { ...frames, data: new Uint8Array([9, 9]).buffer },
+    })!
+    inspiration.save("p1", { images: [onBoard(one.id, one.file, { frames })] })
+    await until(() => looked.length === 1)
+    expect(looked[0].picture).toMatchObject({
+      mimeType: "image/jpeg",
+      data: Buffer.from([9, 9]).toString("base64"),
+      frames,
+    })
+    expect(written().images[0].frames).toEqual(frames)
+    inspiration.save("p1", { images: [] })
+    await until(() => trashed.length === 2)
+    expect(trashed.sort()).toEqual([one.file, framesFileOf(one.file)].sort())
   })
 
   it("keeps nothing that is no PNG or JPEG, or of a project with no folder", () => {
@@ -278,6 +318,9 @@ describe("digestOf", () => {
           ],
         }),
         onBoard("room-2222", "room-2222.jpg"),
+        onBoard("spin-3333", "spin-3333.gif", {
+          frames: { shown: 9, of: 20, seconds: 2 },
+        }),
       ],
       groups: [
         { id: "g1", title: "Wood", at: [0, 0] },
@@ -286,7 +329,7 @@ describe("digestOf", () => {
     })
     expect(digest).toBe(
       [
-        '<inspiration-board pictures="2" groups="1">',
+        '<inspiration-board pictures="3" groups="1">',
         '<group title="Wood" pictures="1">',
         `<picture file="inspiration/desk-1111.jpg" name="my 'walnut' desk.jpg">`,
         "What: a walnut desk",
@@ -295,6 +338,9 @@ describe("digestOf", () => {
         "</picture>",
         "</group>",
         '<picture file="inspiration/room-2222.jpg" name="room-2222.jpg">',
+        "Not looked at yet: open its file to see it.",
+        "</picture>",
+        '<picture file="inspiration/spin-3333.gif" name="spin-3333.gif" frames="inspiration/spin-3333.frames.jpg">',
         "Not looked at yet: open its file to see it.",
         "</picture>",
         "</inspiration-board>",

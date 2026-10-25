@@ -30,13 +30,34 @@ export const OVERVIEW_LONGEST = 1600
 
 /**
  * The kinds of picture put on a board now, and what a file of each ends in: a picture
- * of any other kind is drawn again as one of these on its way on. (A board from before
- * may still have others, which go on being read: see PICTURE_TYPES.)
+ * of any other kind is drawn again as one of these on its way on, but for an animated
+ * GIF (see `MOST_GIF_BYTES`). (A board from before may still have others, which go on
+ * being read: see PICTURE_TYPES.)
  */
 export const BOARD_TYPES: Record<string, string> = {
   "image/png": ".png",
   "image/jpeg": ".jpg",
 }
+
+/**
+ * The most an animated GIF's file can be, in bytes. It is kept as it is, to move on the
+ * board, and is no agent's to be handed: an agent sees a GIF as its first frame and no
+ * more, so it is handed a sheet of its frames instead, kept beside it (`framesFileOf`).
+ */
+export const MOST_GIF_BYTES = 20_000_000
+
+/** An animated picture's frames, as the agent is shown them: some of them, on one sheet. */
+export type InspirationFrames = {
+  /** how many of its frames are on the sheet, and how many it has */
+  shown: number
+  of: number
+  /** how long it runs once through, s */
+  seconds: number
+}
+
+/** What the sheet of an animated picture's frames is called: "spin-4f1a.frames.jpg". */
+export const framesFileOf = (file: string) =>
+  `${file.slice(0, file.lastIndexOf("."))}.frames.jpg`
 
 /**
  * The link in what was pasted, where that is a link and nothing else: to a picture, or
@@ -83,6 +104,8 @@ export type InspirationImage = {
   notes: InspirationNote[]
   /** what the agent made of it, as an industrial designer would; null until it has looked */
   overview: string | null
+  /** for an animated GIF, its frames on the sheet beside it (`framesFileOf`); null for a still */
+  frames: InspirationFrames | null
   /** when it was put on the board, ms */
   added: number
 }
@@ -172,6 +195,19 @@ function readNote(value: unknown): InspirationNote | null {
   }
 }
 
+/** An animated picture's frames, as said: null where that is not what is said. */
+export function readFrames(value: unknown): InspirationFrames | null {
+  const { shown, of, seconds } = (value ?? {}) as Record<string, unknown>
+  if (!finite(shown) || !finite(of) || !finite(seconds)) return null
+  const count = Math.round(of)
+  if (count < 2 || shown < 1) return null
+  return {
+    shown: Math.min(Math.round(shown), count),
+    of: count,
+    seconds: Math.max(0, seconds),
+  }
+}
+
 function readImage(value: unknown): InspirationImage | null {
   const given = (value ?? {}) as Record<string, unknown>
   const { file, pixels, at, width, group, notes, overview, added } = given
@@ -199,6 +235,7 @@ function readImage(value: unknown): InspirationImage | null {
     group: typeof group === "string" && ID.test(group) ? group : null,
     notes: kept,
     overview: said || null,
+    frames: file.endsWith(".gif") ? readFrames(given.frames) : null,
     added: finite(added) ? added : 0,
   }
 }

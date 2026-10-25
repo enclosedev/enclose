@@ -118,6 +118,7 @@ const api: CadApi = {
       ipcRenderer.invoke(CHANNEL.picturesAdd, projectId, picture),
     drop: (projectId, id) =>
       ipcRenderer.invoke(CHANNEL.picturesDrop, projectId, id),
+    redrawn: (picture) => ipcRenderer.invoke(CHANNEL.picturesRedrawn, picture),
   },
   changes: {
     undo: (projectId) => ipcRenderer.invoke(CHANNEL.changesUndo, projectId),

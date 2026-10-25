@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest"
 import {
   EMPTY_BOARD,
   inspirationFile,
+  framesFileOf,
   isPictureFile,
   pastedLink,
+  readFrames,
   readInspiration,
   TITLE_LONGEST,
 } from "./inspiration-format"
@@ -120,10 +122,36 @@ describe("readInspiration", () => {
     expect(readInspiration(JSON.parse(inspirationFile(board)))).toEqual(board)
   })
 
+  it("reads an animated GIF's frames, and a still's as none", () => {
+    const frames = { shown: 9, of: 20, seconds: 2 }
+    const read = readInspiration({
+      images: [
+        image("spin-1111.gif", { frames }),
+        image("still-2222.png", { frames }),
+      ],
+    })
+    expect(read.images.map((one) => one.frames)).toEqual([frames, null])
+    expect(framesFileOf("spin-1111.gif")).toBe("spin-1111.frames.jpg")
+    expect(isPictureFile(framesFileOf("spin-1111.gif"))).toBe(false)
+  })
+
   it("reads nothing from what is no board", () => {
     expect(readInspiration(null)).toEqual(EMPTY_BOARD)
     expect(readInspiration([image("one-1111.jpg")])).toEqual(EMPTY_BOARD)
     expect(readInspiration("board")).toEqual(EMPTY_BOARD)
+  })
+})
+
+describe("readFrames", () => {
+  it("has so many frames of so many shown, and none of a still or of nonsense", () => {
+    expect(readFrames({ shown: 12.4, of: 8, seconds: -1 })).toEqual({
+      shown: 8,
+      of: 8,
+      seconds: 0,
+    })
+    expect(readFrames({ shown: 1, of: 1, seconds: 1 })).toBeNull()
+    expect(readFrames({ shown: "9", of: 20, seconds: 2 })).toBeNull()
+    expect(readFrames(null)).toBeNull()
   })
 })
 

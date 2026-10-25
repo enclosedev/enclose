@@ -16,18 +16,44 @@ const QUALITIES = [0.9, 0.75]
  * A picture made fit to be kept. One that is of a kind an agent takes (or of `kinds`,
  * where only some of those will do), and no bigger than it takes, is kept as it is. Any
  * other is drawn again, smaller where it has to be: a photo as a photo, and anything
- * else (a drawing, a screenshot) as it is, sharp, unless that comes to too much. Null
- * where it cannot be read as a picture at all.
+ * else (a drawing, a screenshot) as it is, sharp, unless that comes to too much. One the
+ * window cannot read (HEIC, TIFF) is drawn again by the system first, where it can be.
+ * Null where it cannot be read as a picture at all.
  */
 export async function fitted(
   file: Blob,
   kinds: Record<string, string> = PICTURE_TYPES
 ): Promise<Fitted | null> {
+  const fit = await fittedHere(file, kinds)
+  if (fit !== undefined) return fit
+  const drawn = await window.cad?.pictures
+    .redrawn({
+      name: file instanceof File ? file.name : "",
+      mimeType: file.type,
+      data: await file.arrayBuffer(),
+    })
+    .catch(() => null)
+  if (!drawn) return null
+  return (
+    (await fittedHere(new Blob([drawn.data], { type: drawn.mimeType }), kinds)) ??
+    null
+  )
+}
+
+/** A picture made fit to be kept, as `fitted` says: undefined where the window cannot read it. */
+async function fittedHere(
+  file: Blob,
+  kinds: Record<string, string>
+): Promise<Fitted | null | undefined> {
   const url = URL.createObjectURL(file)
   try {
     const image = new Image()
     image.src = url
-    await image.decode()
+    const read = await image.decode().then(
+      () => true,
+      () => false
+    )
+    if (!read) return undefined
     const { naturalWidth: width, naturalHeight: height } = image
     if (width === 0 || height === 0) return null
     const longest = Math.max(width, height)

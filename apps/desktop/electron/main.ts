@@ -107,6 +107,7 @@ import { Pace } from "./pace"
 import { Pictures } from "./pictures"
 import { Inspiration, lookingWith } from "./inspiration"
 import { linkedPicture } from "./linked-picture"
+import { redrawn } from "./redrawn"
 import { SaveFolder } from "./saving"
 import { serveFile } from "./serve"
 import {
@@ -1951,6 +1952,9 @@ function wire() {
   )
   ipcMain.handle(CHANNEL.picturesDrop, (_, id: string, picture: unknown) =>
     pictures.drop(String(id), picture)
+  )
+  ipcMain.handle(CHANNEL.picturesRedrawn, (_, picture: unknown) =>
+    redrawn(picture as Parameters<typeof redrawn>[0])
   )
 
   ipcMain.on(
