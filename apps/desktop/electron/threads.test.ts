@@ -4,7 +4,7 @@ import path from "node:path"
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { type Seen } from "../shared/api"
+import { type ProviderId, type Seen } from "../shared/api"
 import { fakeAgent, until } from "./testing"
 import {
   answersTo,
@@ -33,6 +33,7 @@ import {
   type ThreadsDeps,
 } from "./threads"
 import type { AppTool, ToolResult } from "./tools"
+import { guideAgain } from "./turn"
 
 const part = (id: string, label = id): Seen["parts"][number] => ({
   id,
@@ -738,6 +739,7 @@ function talking(
     each = false,
     versioned = "yes" as "yes" | "off" | "big",
     deps = {} as Partial<ThreadsDeps>,
+    provider = "codex" as ProviderId,
   } = {}
 ) {
   const flag = path.join(dir, "go")
@@ -862,7 +864,7 @@ on("turn/interrupt", () => {
     /** how many turns have been given the app's tools: under way, with all they need */
     served: () => given.length,
     say: (text: string, into: string | null) =>
-      threads.send(ID, into, text, [], [], manner),
+      threads.send(ID, into, text, [], [], { ...manner, provider }),
     /** what was said in it by the user, and in what order */
     said: (conversation: string) =>
       threads
@@ -1018,6 +1020,94 @@ describe("compacting a conversation", () => {
     say("Make it taller", into)
     await idle()
     expect(heard()).toEqual(["Make a lid", "<compacted>", "Make it taller"])
+  })
+
+  it("is not done over and over where the agent says it is as full after", async () => {
+    const { say, go, heard, full, compactsTo, now, idle } = talking(dir)
+    go()
+    full(900_000)
+    const into = say("Make a lid", null) as string
+    await idle()
+    full(null)
+    compactsTo(890_000)
+    say("Make it taller", into)
+    await idle()
+    say("Add a hinge", into)
+    await idle()
+    expect(heard()).toEqual([
+      "Make a lid",
+      "<compacted>",
+      "Make it taller",
+      "Add a hinge",
+    ])
+    expect(now().context).toBeNull()
+  })
+
+  it("tells the agent of the board again after it, as what was told is summed up", async () => {
+    const { say, go, heard, compactsTo, idle } = talking(dir, {
+      deps: { inspiration: () => "<inspiration>a radio</inspiration>" },
+    })
+    go()
+    const into = say("Make a lid", null) as string
+    await idle()
+    say("Make it taller", into)
+    await idle()
+    compactsTo(12_000)
+    say("/compact", into)
+    await idle()
+    say("Add a hinge", into)
+    await idle()
+    expect(heard().map((one) => one.includes("a radio"))).toEqual([
+      true,
+      false,
+      false,
+      true,
+    ])
+  })
+
+  it("tells opencode of the project again after it, as it is told of it in a message", async () => {
+    const prompts = path.join(dir, "prompts.jsonl")
+    const opencode = fakeAgent(
+      dir,
+      true,
+      `
+import fs from "node:fs"
+on("initialize", () => ({}))
+on("authenticate", () => ({}))
+on("session/new", () => ({ sessionId: "s1", configOptions: [] }))
+on("session/load", () => ({}))
+on("session/set_config_option", () => ({ configOptions: [] }))
+on("session/prompt", (params) => {
+  fs.appendFileSync(${JSON.stringify(prompts)}, JSON.stringify(params.prompt.map((piece) => piece.text ?? "")) + "\\n")
+  return { stopReason: "end_turn" }
+})
+`
+    )
+    const { say, idle } = talking(dir, {
+      provider: "opencode",
+      deps: { launch: () => ({ path: opencode, args: [], env: process.env }) },
+    })
+    const into = say("Make a lid", null) as string
+    await idle()
+    say("Make it taller", into)
+    await idle()
+    say("/compact", into)
+    await idle()
+    say("Add a hinge", into)
+    await idle()
+    const told = fs
+      .readFileSync(prompts, "utf8")
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as string[])
+    expect(told.map((pieces) => pieces.at(-1))).toEqual([
+      "Make a lid",
+      "Make it taller",
+      "/compact",
+      "Add a hinge",
+    ])
+    expect(told.map((pieces) => pieces.length)).toEqual([2, 1, 1, 2])
+    expect(told[3][0]).toBe(guideAgain(told[0][0]))
   })
 
   it("is not done over and over where the agent does not say it has room now", async () => {

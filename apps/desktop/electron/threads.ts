@@ -448,6 +448,25 @@ const TAKES_PICTURES: Record<ProviderId, boolean> = {
   opencode: false,
 }
 
+/**
+ * Whether an agent is told of the project with the first message of a session, and not
+ * in instructions the session keeps: opencode, which takes none. A compaction sums that
+ * message up with the rest, and it is told again with the next (see FORGOTTEN).
+ */
+const TOLD_IN_MESSAGE: Record<ProviderId, boolean> = {
+  claude: false,
+  codex: false,
+  grok: false,
+  opencode: true,
+}
+
+/**
+ * What a session is marked as having been told of the project once that was compacted
+ * away: the mark of nothing it could be told, so that it is told again with the next
+ * message (see `Conversation.guided`).
+ */
+const FORGOTTEN = "forgotten"
+
 function field(input: unknown, key: string): string {
   const value = (input as Record<string, unknown> | null)?.[key]
   return typeof value === "string" ? value : ""
@@ -2497,8 +2516,9 @@ export class Threads {
   ) {
     const { conversation, abort, finish } = run
     const { provider } = conversation
-    // how full it was said to be before: one compacted that is not said to be any less
-    // full after is not known to be, and is not compacted again ahead of every message
+    // how full it was said to be before: one compacted that is said to be as full after,
+    // or is said nothing of, is not known to be, and is not compacted again ahead of
+    // every message
     const before = conversation.context
     // The turn is had in the folder as this conversation has it: where it was left for
     // another, it is put as this one left it first. (Its model may be somewhere else
@@ -2652,13 +2672,19 @@ export class Threads {
         this.deps.onSummary()
       },
       compact: asked.compact,
-      compacted: (tokens) =>
+      compacted: (tokens) => {
+        // what was told with a message is summed up with the rest: the board always, and
+        // the project where that is how the agent is told of it
+        delete conversation.inspired
+        if (TOLD_IN_MESSAGE[provider]) conversation.guided = FORGOTTEN
+        this.keep(projectId, conversation)
         this.notice(
           projectId,
           conversation,
           "info",
           compactedSaid(asked.full ?? tokens)
-        ),
+        )
+      },
       ask: (wanted, signal) =>
         new Promise<PermissionAnswer>((resolve) => {
           const id = `ask-${++this.counter}-${Date.now()}`
@@ -2746,11 +2772,16 @@ export class Threads {
       finish()
       for (const settle of [...run.pending.values()]) settle("deny")
       for (const settle of [...run.asked.values()]) settle(null)
+      const after = conversation.context
+      if (
+        asked.compact &&
+        after &&
+        (after === before || after.used >= fullOf(after))
+      )
+        delete conversation.context
       // What the turn did to the folder is kept as a change, before anything else can
       // be done there: a turn that was stopped part of the way has that much to take back.
       // (Not of a project that was taken off the list meanwhile: nothing of it is kept.)
-      if (asked.compact && conversation.context === before)
-        delete conversation.context
       if (pending && this.books.get(projectId) === book && busy === null)
         await this.deps.changes
           .after(
