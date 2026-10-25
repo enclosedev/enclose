@@ -85,6 +85,9 @@ function ask() {
       `--capture=${path.join(scratch, "window.png")}`,
       `--script=${path.join(HERE, "sandbox/ask.js")}`,
       "--wait=1500",
+      // On a Mac, the key the app seals what it keeps with is in the login keychain, and
+      // a new Electron is asked for leave to read it: the check would wait on a dialog.
+      "--use-mock-keychain",
       // A machine in CI has no graphics card, and Chromium draws no WebGL without one
       // unless told to draw it in software: without it the model never shows, and the
       // project's tools never come up to be tried.
