@@ -232,7 +232,11 @@ describe("Inspiration", () => {
     inspiration.save("p1", { images: [onBoard(two.id, two.file)] })
     await until(() => trashed.length > 0)
     expect(trashed).toEqual([one.file])
-    expect(looked[0].signal.aborted).toBe(true)
+    // (the two are begun at once, and either can be looked at first)
+    const at = (file: string) =>
+      looked.find((look) => look.picture.name === file)
+    expect(at(one.file)?.signal.aborted).toBe(true)
+    expect(at(two.file)?.signal.aborted).toBe(false)
     expect(fs.readdirSync(path.join(dir, INSPIRATION_FOLDER)).sort()).toEqual(
       [INSPIRATION_FILE, "mine.png", two.file].sort()
     )
