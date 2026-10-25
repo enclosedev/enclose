@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   callingOn,
   matching,
+  nearness,
   notCalledOn,
   partsOf,
   putIn,
@@ -104,6 +105,29 @@ describe("matching", () => {
 
   it("finds by the other name too, whatever the case", () => {
     expect(names("TUBE 1")).toEqual(["tube_1"])
+  })
+
+  it("finds each by the names it is given to be found by", () => {
+    const picture = { name: "inspiration:image-4f1a", also: "image.png" }
+    const parts = [
+      { name: "r1", also: "R1" },
+      { name: "lid", also: "Lid" },
+    ]
+    const names = (query: string) =>
+      matching([picture, ...parts], query, (item) =>
+        item === picture ? [item.also] : [item.name, item.also]
+      ).map((x) => x.name)
+    expect(names("r")).toEqual(["r1"])
+    expect(names("i")).toEqual(["inspiration:image-4f1a", "lid"])
+  })
+})
+
+describe("nearness", () => {
+  it("says how nearly names are what was written", () => {
+    expect(nearness(["R1"], "r")).toBe(0)
+    expect(nearness(["Tube 1"], "1")).toBe(1)
+    expect(nearness(["image.png"], "m")).toBe(2)
+    expect(nearness(["image.png"], "r")).toBe(3)
   })
 })
 

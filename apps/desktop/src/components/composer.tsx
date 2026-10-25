@@ -62,7 +62,7 @@ import {
   EFFORT_WORDS,
 } from "@/lib/manner"
 import { useInspiration } from "@/lib/inspiration"
-import { matching, putIn, tokenAt } from "@/lib/mentions"
+import { matching, nearness, putIn, tokenAt } from "@/lib/mentions"
 import { isPicture } from "@/lib/pictures"
 import { inLine } from "@/lib/quotes"
 import {
@@ -796,6 +796,12 @@ const NO_PICTURES: Attached[] = []
 const NO_CHOICES: Choice[] = []
 /** What a picture of the inspiration board's goes by in the list: never a part's id. */
 const PICTURE_CHOICE = "inspiration:"
+/**
+ * What a choice is found by: a picture by what it was called alone, since what it goes by
+ * in the list (PICTURE_CHOICE) is no name of its own.
+ */
+const namesOf = (choice: Choice) =>
+  choice.picture ? [choice.also ?? ""] : [choice.name, choice.also ?? ""]
 
 /** How many times the message box has taken the typing for being asked to. */
 let answered = 0
@@ -918,14 +924,30 @@ export const Composer = React.memo(function Composer({
           : NO_CHOICES
   const query = calling?.query ?? ""
   const offered = React.useMemo(
-    () => [...matching(boardPictures, query), ...matching(all, query)],
+    () => [
+      ...matching(boardPictures, query, namesOf),
+      ...matching(all, query, namesOf),
+    ],
     [boardPictures, all, query]
   )
-  // the keys start at the top of the list each time what is written changes
+  // The keys start at what is nearest what was written, each time that changes: the
+  // pictures are shown first, but a part that begins with it comes before a picture
+  // whose name only holds it.
+  const nearest = React.useMemo(() => {
+    let best = 0
+    offered.forEach((choice, index) => {
+      if (
+        nearness(namesOf(choice), query) <
+        nearness(namesOf(offered[best]), query)
+      )
+        best = index
+    })
+    return best
+  }, [offered, query])
   const [chosen, setChosen] = React.useState({ of: "", index: 0 })
   const written = `${naming}:${query}`
   const active =
-    chosen.of === written ? Math.min(chosen.index, offered.length - 1) : 0
+    chosen.of === written ? Math.min(chosen.index, offered.length - 1) : nearest
   const move = (index: number) => setChosen({ of: written, index })
 
   // the caret goes after a name that was put in, once the box holds it

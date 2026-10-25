@@ -58,25 +58,38 @@ export function putIn(text: string, token: Token, name: string) {
 type Named = { name: string; also?: string }
 
 /**
- * Those of a list that what has been written could be: the ones that begin with it
- * first, then the ones with a word in them that does, then the ones that only hold it.
+ * How nearly a thing of these names is what has been written: 0 where one begins with
+ * it, 1 where a word in one does, 2 where one only holds it, and 3 where none does.
  */
-export function matching<T extends Named>(list: T[], query: string): T[] {
+export function nearness(names: string[], query: string): number {
   const wanted = query.toLowerCase()
-  if (!wanted) return list
-  const rank = (item: T) => {
-    const names = [item.name, item.also ?? ""].map((name) => name.toLowerCase())
-    if (names.some((name) => name.startsWith(wanted))) return 0
-    if (
-      names.some((name) =>
-        name.split(/[\s:._-]+/).some((w) => w.startsWith(wanted))
-      )
+  const lower = names.map((name) => name.toLowerCase())
+  if (lower.some((name) => name.startsWith(wanted))) return 0
+  if (
+    lower.some((name) =>
+      name.split(/[\s:._-]+/).some((w) => w.startsWith(wanted))
     )
-      return 1
-    return names.some((name) => name.includes(wanted)) ? 2 : 3
-  }
+  )
+    return 1
+  return lower.some((name) => name.includes(wanted)) ? 2 : 3
+}
+
+/**
+ * Those of a list that what has been written could be, the nearest first (`nearness`).
+ * Each is found by its names (`namesOf`): what it goes by and what else it does.
+ */
+export function matching<T extends Named>(
+  list: T[],
+  query: string,
+  namesOf: (item: T) => string[] = (item) => [item.name, item.also ?? ""]
+): T[] {
+  if (!query) return list
   return list
-    .map((item, index) => ({ item, index, rank: rank(item) }))
+    .map((item, index) => ({
+      item,
+      index,
+      rank: nearness(namesOf(item), query),
+    }))
     .filter((row) => row.rank < 3)
     .sort((a, b) => a.rank - b.rank || a.index - b.index)
     .map((row) => row.item)
