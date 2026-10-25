@@ -15,6 +15,9 @@ test('pages are addresses the middleware can see; files, assets and actions are 
     assert.ok(page.test(path), path)
   for (const path of ['/llms.txt', '/index.html.md', '/og.png', '/assets/x', '/__modulato/action/x'])
     assert.ok(!page.test(path), path)
+  for (const path of ['/download', '/download/', '/download/intel', '/download/intel/'])
+    assert.ok(!page.test(path), path)
+  assert.ok(page.test('/downloads'))
 })
 
 test('a browser goes straight to the page', () => {
@@ -30,6 +33,7 @@ test('a request that names Markdown, takes neither, or says nothing goes to the 
   assert.ok(toMiddleware('/', 'application/pdf'))
   assert.ok(toMiddleware('/'))
   assert.ok(!toMiddleware('/llms.txt', 'text/markdown'))
+  assert.ok(!toMiddleware('/download', 'text/markdown'))
 })
 
 test('the routes run the middleware and go on, for pages and for their Markdown as files', () => {

@@ -4,8 +4,12 @@
  * see every page's address first.
  */
 
-/** An address that can be a page: not a file (no dot), not the built assets, not a server action. */
-export const PAGE = '^/(?!assets/|__modulato/)[^.]*$'
+/**
+ * An address that can be a page: not a file (no dot), not the built assets, not a server
+ * action, and not a way to the app (/download, which vite.config.ts sends on to the disk
+ * image whatever is asked for).
+ */
+export const PAGE = '^/(?!assets/|__modulato/|download(?:/|$))[^.]*$'
 
 /** An Accept header that names Markdown at all, whatever it then says of it. */
 export const NAMES_MARKDOWN = 'markdown|Markdown|MARKDOWN'
