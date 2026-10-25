@@ -85,7 +85,16 @@ import {
 import { partSaid, titlesOf, underSaid, type Said } from "./hover-said"
 import { partsOf } from "./parts"
 import { viasOf } from "./vias"
-import { drawnAt, PartPopover, PartRing } from "./schematic-picking"
+import {
+  drawnAt,
+  forgetWanted,
+  PartPopover,
+  PartRing,
+  wantedOnSchematic,
+} from "./schematic-picking"
+import { drawnOf } from "./schematic-part"
+import { BoardMenu, XRay, type Clicked } from "./board-menu"
+import { connectionSaid } from "./xray"
 import { placeOf } from "./place"
 import { BoardPartsPanel } from "./parts-panel"
 import { TurningBoard } from "./turning-board"
@@ -367,7 +376,11 @@ function Drawing({
   const [seen, setSeen] = React.useState<Seen | null>(null)
   /** on the schematic, the part the pointer is over, and the one picked out */
   const [hovered, setHovered] = React.useState<string | null>(null)
-  const [picked, setPicked] = React.useState<string | null>(null)
+  // (a part asked for on the schematic, from the board, is picked out as it is drawn)
+  const [picked, setPicked] = React.useState<string | null>(() => {
+    const name = schematic ? wantedOnSchematic() : null
+    return name && schematic ? drawnOf(schematic, name) : null
+  })
   /** where a press began, and on what part of the schematic, for a click to be told */
   const pressed = React.useRef<{
     x: number
@@ -380,6 +393,9 @@ function Drawing({
     holder.current = element
     setWithin(element)
   }, [])
+  /** on the board, what was clicked, for what can be done with it; and what is X-rayed */
+  const [clicked, setClicked] = React.useState<Clicked | null>(null)
+  const [xRayed, setXRayed] = React.useState<string | null>(null)
   /** how many times the view has moved: what is ringed on it goes with it */
   const [viewed, setViewed] = React.useState(0)
   /** what the pointer is over, of which board, and where the pointer is, px */
@@ -636,6 +652,23 @@ function Drawing({
     return () => cancelAnimationFrame(frame)
   }, [markup, dark, swept])
 
+  // Esc leaves the X-ray, and is taken by it: PCB mode is not left as well
+  React.useEffect(() => {
+    if (!xRayed) return
+    const key = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return
+      event.preventDefault()
+      setXRayed(null)
+    }
+    window.addEventListener("keydown", key, true)
+    return () => window.removeEventListener("keydown", key, true)
+  }, [xRayed])
+
+  // (and once the schematic is drawn, a part asked for of it is had)
+  React.useEffect(() => {
+    if (schematic) forgetWanted()
+  }, [schematic])
+
   /** What is under the pointer, while nothing is held down. */
   const point = (event: React.PointerEvent<HTMLDivElement>) => {
     if (schematic)
@@ -660,7 +693,10 @@ function Drawing({
     <>
       <div
         ref={held}
-        className="absolute inset-0 cursor-grab touch-none select-none active:cursor-grabbing"
+        className={cn(
+          "absolute inset-0 cursor-grab touch-none select-none active:cursor-grabbing [&>svg]:transition-opacity",
+          xRayed && "[&>svg]:opacity-20"
+        )}
         onPointerMove={point}
         onPointerLeave={() => {
           setPointed(null)
@@ -678,15 +714,39 @@ function Drawing({
         onClick={(event) => {
           const press = pressed.current
           pressed.current = null
-          if (!schematic || !press) return
+          if (!press) return
           if (
             Math.hypot(event.clientX - press.x, event.clientY - press.y) >
             CLICK_PX
           )
             return
-          setPicked(press.on)
+          if (schematic) setPicked(press.on)
+          else if (pointed?.of === board && pointed)
+            setClicked({
+              under: pointed.under,
+              x: event.clientX,
+              y: event.clientY,
+            })
         }}
       />
+      {board && seen && xRayed && (
+        <>
+          <XRay board={board} joined={xRayed} seen={seen} side={side} />
+          <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-foreground px-3 py-1.5 text-xs font-medium text-background shadow-md">
+            X-ray of {connectionSaid(board, xRayed, null)}
+            <span className="ml-2 text-background/60">Esc to leave</span>
+          </div>
+        </>
+      )}
+      {board && circuit && (
+        <BoardMenu
+          clicked={clicked}
+          board={board}
+          circuit={circuit}
+          onXRay={setXRayed}
+          onClose={() => setClicked(null)}
+        />
+      )}
       {schematic && (
         <>
           <PartRing

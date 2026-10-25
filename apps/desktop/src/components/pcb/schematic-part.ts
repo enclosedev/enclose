@@ -94,3 +94,18 @@ export function schematicPartOf(
     side: pcb?.layer === "bottom" ? "bottom" : "top",
   }
 }
+
+/** A part's drawing on the schematic, by its name on the board ("U1"): null if none. */
+export function drawnOf(circuit: Circuit, name: string): string | null {
+  const source = circuit.find(
+    (element) => element.type === "source_component" && element.name === name
+  )
+  const drawn = source
+    ? circuit.find(
+        (element) =>
+          element.type === "schematic_component" &&
+          element.source_component_id === source.source_component_id
+      )?.schematic_component_id
+    : null
+  return typeof drawn === "string" ? drawn : null
+}

@@ -32,6 +32,21 @@ export const drawnAt = (target: EventTarget | null) =>
         ?.getAttribute("data-schematic-component-id") ?? null)
     : null
 
+/**
+ * A part to be picked out on the schematic as soon as it is drawn, by its name on the
+ * board: asked for from the board drawn as it is made (see board-menu.tsx), and taken by
+ * the schematic once.
+ */
+let wanted: string | null = null
+export const pickOnSchematic = (name: string) => {
+  wanted = name
+}
+/** The part asked for, if any: it is asked for until `forgetWanted`. */
+export const wantedOnSchematic = () => wanted
+export const forgetWanted = () => {
+  wanted = null
+}
+
 /** How far the ring round a part is from it, px. */
 const RING = 5
 
