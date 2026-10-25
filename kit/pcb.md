@@ -201,7 +201,10 @@ part gets one only if the board gives it, alongside the maker's own number:
   give a different part from the one asked for: check that the part it gives is that
   one, or does the same job in the same footprint. To look a number up by itself:
   https://jlcpcb.com/partdetail/C2040, or
-  https://jlcsearch.tscircuit.com/api/search?q=C2040.
+  https://jlcsearch.tscircuit.com/api/search?q=C2040. That one is tscircuit's copy of
+  JLCPCB's catalogue, and is missing many parts JLCPCB stocks, its basic resistors and
+  capacitors among them: a part it does not find is not therefore unlisted. The build's
+  checks ask JLCPCB itself for those.
 - Where the maker's part is not stocked, or is discontinued, take one that does the
   same job in the same footprint, and say in your reply which part changed and why. A
   part can be listed under one variant and not another (an encoder's 4225F and not its

@@ -20,9 +20,9 @@
 // checked (offline, say). The build uses it too: what it can mend in the zip, the BOM's
 // columns and the placement file's, it mends as it builds (`mendOrder`).
 //
-// Parts are looked up in tscircuit's copy of JLCPCB's catalogue (jlcsearch.tscircuit.com)
-// and their footprints in EasyEDA's library, which is JLCPCB's own. It needs Node.js 18
-// or later, and the internet.
+// Parts are looked up in tscircuit's copy of JLCPCB's catalogue (jlcsearch.tscircuit.com),
+// and in JLCPCB's own parts search for those the copy does not have; their footprints in
+// EasyEDA's library, which is JLCPCB's own. It needs Node.js 18 or later, and the internet.
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
@@ -287,13 +287,15 @@ function once(key, look) {
 
 let going = 0
 const waiting = []
-async function fetched(url, headers = {}) {
+async function fetched(url, headers = {}, body = undefined) {
   if (going >= AT_ONCE) await new Promise((go) => waiting.push(go))
   going++
   try {
     for (let tries = 0; ; tries++) {
       const response = await fetch(url, {
-        headers,
+        method: body === undefined ? "GET" : "POST",
+        headers: body === undefined ? headers : { ...headers, "Content-Type": "application/json" },
+        body: body === undefined ? undefined : JSON.stringify(body),
         signal: AbortSignal.timeout(LOOKUP_MS),
       })
       if (response.ok) return await response.json()
@@ -310,23 +312,59 @@ async function fetched(url, headers = {}) {
 /**
  * A part as JLCPCB's catalogue has it: { maker, package, stock, basic }; null where it
  * is not listed. Throws where it cannot be looked up.
+ *
+ * tscircuit's copy of the catalogue is asked first, and JLCPCB itself for a part the
+ * copy does not have: the copy is missing many that JLCPCB lists and stocks, among them
+ * its basic resistors and capacitors (C25804, C14663). So only JLCPCB is believed when
+ * it says a part is not listed.
  */
 export function catalogued(number) {
   return once(`part:${number}`, async () => {
-    const id = Number(number.slice(1))
-    const found = await fetched(
-      `https://jlcsearch.tscircuit.com/api/search?q=${encodeURIComponent(number)}&limit=10`
-    )
-    const part = (found?.components ?? []).find((one) => one.lcsc === id)
-    return part
-      ? {
-          maker: part.mfr || null,
-          package: part.package || null,
-          stock: typeof part.stock === "number" ? part.stock : null,
-          basic: !!part.is_basic,
-        }
-      : null
+    const copied = await inCopy(number).catch(() => null)
+    return copied ?? (await atJlcpcb(number))
   })
+}
+
+/** A part as tscircuit's copy of JLCPCB's catalogue has it; null where the copy has no such part. */
+async function inCopy(number) {
+  const id = Number(number.slice(1))
+  const found = await fetched(
+    `https://jlcsearch.tscircuit.com/api/search?q=${encodeURIComponent(number)}&limit=10`
+  )
+  const part = (found?.components ?? []).find((one) => one.lcsc === id)
+  return part
+    ? {
+        maker: part.mfr || null,
+        package: part.package || null,
+        stock: typeof part.stock === "number" ? part.stock : null,
+        basic: !!part.is_basic,
+      }
+    : null
+}
+
+/**
+ * A part as JLCPCB's own parts search has it, the one its site's parts library is
+ * searched with; null where it is not listed. The search matches loosely, so only a
+ * part of that very number is taken.
+ */
+async function atJlcpcb(number) {
+  const found = await fetched(
+    "https://jlcpcb.com/api/overseas-pcb-order/v1/shoppingCart/smtGood/selectSmtComponentList",
+    { "User-Agent": BROWSER },
+    { keyword: number, currentPage: 1, pageSize: 10 }
+  )
+  const listed = found?.data?.componentPageInfo?.list
+  if (found?.code !== 200 || !Array.isArray(listed))
+    throw new Error("JLCPCB's parts search gave no answer")
+  const part = listed.find((one) => String(one.componentCode).toUpperCase() === number.toUpperCase())
+  return part
+    ? {
+        maker: part.componentModelEn || null,
+        package: part.componentSpecificationEn || null,
+        stock: typeof part.stockCount === "number" ? part.stockCount : null,
+        basic: part.componentLibraryType === "base",
+      }
+    : null
 }
 
 /**
