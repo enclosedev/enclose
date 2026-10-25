@@ -416,7 +416,7 @@ function BoardDownloads({
         </TooltipTrigger>
         {!open && <TooltipContent side="left">Download</TooltipContent>}
       </Tooltip>
-      <DropdownMenuContent side="left" align="start" className="w-60">
+      <DropdownMenuContent side="left" align="start" className="w-64">
         {board.gerbers || board.step ? (
           <DropdownMenuGroup>
             {board.gerbers && (
@@ -877,14 +877,26 @@ export function Tools({
             <Geared away={onBoard || inspiring} delay={0}>
               <Downloads loaded={loaded} projectId={projectId} />
             </Geared>
+            {/* (the ones away still stand over the others: nothing in them is to be found
+                by the pointer, or the buttons under them could not be pressed) */}
             {board && (
-              <div className="absolute inset-0">
+              <div
+                className={cn(
+                  "absolute inset-0",
+                  !onBoard && "pointer-events-none"
+                )}
+              >
                 <Geared away={!onBoard} delay={SHIFT_MS}>
                   <BoardDownloads board={board} projectId={projectId} />
                 </Geared>
               </div>
             )}
-            <div className="absolute inset-0">
+            <div
+              className={cn(
+                "absolute inset-0",
+                !inspiring && "pointer-events-none"
+              )}
+            >
               <Geared away={!inspiring} delay={SHIFT_MS}>
                 <InspirationDownloads projectId={projectId} />
               </Geared>

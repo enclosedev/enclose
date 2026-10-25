@@ -323,6 +323,8 @@ const HATCH_PIXELS = 12
 /** How far apart they are in the model for that, in mm: set as the view is drawn. */
 const HATCH_GAP = { value: 1 }
 const HATCH_INK = new THREE.Color(EDGE)
+/** How much of a part's colour its cut face keeps, so that it stands apart from its sides. */
+const CUT_SHADE = 0.8
 /** What two parts in the same place are drawn in, where the cut shows it: not a part's colour. */
 const CLASH = new THREE.Color("#e5343b")
 
@@ -340,6 +342,7 @@ const hatched =
     shader.uniforms.hatchGap = HATCH_GAP
     shader.uniforms.hatchWay = { value: way }
     shader.uniforms.hatchInk = { value: HATCH_INK }
+    shader.uniforms.cutShade = { value: CUT_SHADE }
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying vec2 onCut;")
       .replace(
@@ -353,14 +356,15 @@ const hatched =
         varying vec2 onCut;
         uniform float hatchGap;
         uniform vec2 hatchWay;
-        uniform vec3 hatchInk;`
+        uniform vec3 hatchInk;
+        uniform float cutShade;`
       )
       .replace(
         "#include <color_fragment>",
         `#include <color_fragment>
         float across = dot(onCut, hatchWay) / hatchGap;
         float ink = 1.0 - smoothstep(0.0, fwidth(across) * 1.2, abs(fract(across - 0.5) - 0.5));
-        diffuseColor.rgb = mix(diffuseColor.rgb, hatchInk, ink * 0.45);`
+        diffuseColor.rgb = mix(diffuseColor.rgb * cutShade, hatchInk, ink * 0.45);`
       )
   }
 
