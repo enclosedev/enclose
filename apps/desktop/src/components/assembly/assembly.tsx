@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/tooltip"
 import { objectsOf } from "@/components/viewport/apart"
 import type { LoadedModel, LoadedPart } from "@/components/viewport/load"
-import { MAC } from "@/lib/platform"
+import { WINDOWS } from "@/lib/platform"
 import { allOf, goesBy, useStore } from "@/lib/store"
 import { FROM, lookingAt, roomOf, setOn } from "./cover"
 
@@ -52,7 +52,7 @@ const counted = (many: number, what: string) =>
   `${many} ${what}${many === 1 ? "" : "s"}`
 
 /** What the system calls where a file goes that is taken away, to be had back from. */
-const BIN = MAC ? "Trash" : "Recycle Bin"
+const BIN = WINDOWS ? "Recycle Bin" : "Trash"
 
 /** A day as a cover says it: "Oct 12, 2026". */
 const day = new Intl.DateTimeFormat("en-US", {

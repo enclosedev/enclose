@@ -1896,7 +1896,7 @@ function wire() {
                 `The ${called.length === 1 ? "group" : "groups"} ${called.length === 1 ? called[0] : `${called.slice(0, -1).join(", ")} and ${called.at(-1)}`} ${called.length === 1 ? "goes" : "go"} with ${count === 1 ? "it" : "them"}.`,
               ]
             : []),
-          `${count === 1 ? "Its file goes" : "Their files go"} to the ${process.platform === "darwin" ? "Trash" : "Recycle Bin"}, what was noted on ${count === 1 ? "it" : "them"} is forgotten, and the agent no longer designs by ${count === 1 ? "it" : "them"}.`,
+          `${count === 1 ? "Its file goes" : "Their files go"} to the ${process.platform === "win32" ? "Recycle Bin" : "Trash"}, what was noted on ${count === 1 ? "it" : "them"} is forgotten, and the agent no longer designs by ${count === 1 ? "it" : "them"}.`,
         ].join(" "),
         buttons: ["Delete", "Cancel"],
         defaultId: 0,
