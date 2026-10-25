@@ -103,6 +103,19 @@ describe("fileStemOf", () => {
     expect(fileStemOf("…")).toMatch(/^picture-[0-9a-f]{4}$/)
     expect(fileStemOf("x".repeat(90))).toHaveLength(45)
   })
+
+  it("never names a picture as one already is", () => {
+    const tried = new Set<string>()
+    const taken = (stem: string) => {
+      if (tried.has(stem)) return true
+      if (tried.size >= 5) return false
+      tried.add(stem)
+      return true
+    }
+    const stem = fileStemOf("image.png", taken)
+    expect(tried.size).toBe(5)
+    expect(tried.has(stem)).toBe(false)
+  })
 })
 
 describe("Inspiration", () => {

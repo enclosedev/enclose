@@ -89,9 +89,12 @@ const typeOf = (file: string) =>
 
 /**
  * What a picture's file is called, from what it was called where it came from: in plain
- * letters, short, and never the same as another's ("rams-t3-4f1a").
+ * letters, short, and never one that is `taken` ("rams-t3-4f1a").
  */
-export function fileStemOf(name: string): string {
+export function fileStemOf(
+  name: string,
+  taken: (stem: string) => boolean = () => false
+): string {
   const plain = name
     .replace(/\.[^.]+$/, "")
     .normalize("NFKD")
@@ -101,7 +104,10 @@ export function fileStemOf(name: string): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, 40)
     .replace(/-+$/, "")
-  return `${plain || "picture"}-${randomBytes(2).toString("hex")}`
+  let stem: string
+  do stem = `${plain || "picture"}-${randomBytes(2).toString("hex")}`
+  while (taken(stem))
+  return stem
 }
 
 export class Inspiration {
@@ -193,9 +199,16 @@ export class Inspiration {
     if (bytes.length > (moving ? MOST_GIF_BYTES : MOST_BYTES)) return null
     const sheet = moving && bytesOf((frames as { data?: unknown }).data)
     if (moving && (!sheet || sheet.length > MOST_BYTES)) return null
-    const id = fileStemOf(typeof name === "string" ? name : "")
-    const file = `${id}${ending}`
     fs.mkdirSync(at.folder, { recursive: true })
+    // (every pasted picture is called "image.png", and four random letters alone would
+    // now and then give two of them one file)
+    const stems = new Set(
+      fs.readdirSync(at.folder).map((file) => file.split(".")[0])
+    )
+    const id = fileStemOf(typeof name === "string" ? name : "", (stem) =>
+      stems.has(stem)
+    )
+    const file = `${id}${ending}`
     fs.writeFileSync(path.join(at.folder, file), bytes)
     if (sheet) fs.writeFileSync(path.join(at.folder, framesFileOf(file)), sheet)
     this.passed.delete(projectId)
