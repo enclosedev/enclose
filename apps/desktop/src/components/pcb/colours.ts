@@ -50,6 +50,8 @@ const EDGE: BoardColour = "board-traces"
 /** Where in COLOURS the mask is, and the keep-outs' hatching. */
 const MASK = 0
 const KEEP_OUT = COLOURS.findIndex(([theirs]) => theirs === "#ff6b6b")
+/** And bare copper, which the app draws its vias in (see `viaCopper`). */
+const PADS = COLOURS.findIndex(([theirs]) => theirs === "#ffe066")
 
 /**
  * How a keep-out is hatched by the app, in mm: a line this far from the next, this wide,
@@ -254,6 +256,12 @@ export function keepOutsOf(paint: BoardPaint, board: Circuit | null) {
     }
   }
 }
+
+/**
+ * The colour of a board's bare copper, as the app paints it: what its vias are drawn in,
+ * the same colour (changed in place, as `repaint` changes it).
+ */
+export const viaCopper = (paint: BoardPaint) => paint.colours.value[PADS]
 
 /**
  * Have one of the board's own materials drawn in the app's colours (see `BOARD_ITSELF`):

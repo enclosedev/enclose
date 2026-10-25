@@ -66,7 +66,7 @@ const DASHES = "4 3"
 const MEASURE =
   "pointer-events-none absolute text-[11px] font-medium whitespace-nowrap text-foreground tabular-nums [text-shadow:0_0_3px_var(--background),0_0_2px_var(--background)]"
 /** And what is said of a pad or a trace, in a label of its own. */
-const LABEL =
+export const LABEL =
   "pointer-events-none absolute max-w-72 rounded-lg bg-foreground px-2.5 py-1.5 text-center text-xs font-medium text-balance text-background shadow-md ring-1 ring-background/25"
 
 /** What the pointer is over on a board, said over it. */

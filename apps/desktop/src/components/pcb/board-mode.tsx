@@ -59,6 +59,7 @@ import {
   inOurColours,
   inShade,
   keepOutsOf,
+  viaCopper,
   repaint,
   shadedOf,
   type Shaded,
@@ -74,7 +75,16 @@ import {
 } from "./finding"
 import { Finding } from "./found"
 import { inspected, underAt, type Inspected, type Under } from "./inspect"
-import { Inspecting, onBoardAt, pixelsPerMm, type Seen } from "./inspecting"
+import {
+  Inspecting,
+  LABEL,
+  onBoardAt,
+  pixelsPerMm,
+  type Seen,
+} from "./inspecting"
+import { partSaid, titlesOf, underSaid, type Said } from "./hover-said"
+import { partsOf } from "./parts"
+import { viasOf } from "./vias"
 import { drawnAt, PartPopover, PartRing } from "./schematic-picking"
 import { placeOf } from "./place"
 import { BoardPartsPanel } from "./parts-panel"
@@ -716,6 +726,13 @@ function Drawing({
   )
 }
 
+/** A via, as the app draws one over the board: a disc a mm across, sized to each. */
+const VIA_DISC = new THREE.CircleGeometry(0.5, 24)
+/** How far over the board's face its vias are drawn, mm: not to be lost in it. */
+const VIA_LIFT = 0.005
+/** How much darker a via's hole is than its copper, 0 to 1. */
+const VIA_HOLE_DARK = 0.5
+
 /** How far a press can go, px, and still be a click on what it began on. */
 const CLICK_PX = 4
 
@@ -921,8 +938,33 @@ export function standing(board: THREE.Group, colours: PcbColours) {
     mesh.add(unpicked(new LineSegments2(outline, turning)))
     made.push(outline, turning)
   }
+  // its vias, drawn by the app over each of its faces as the board as tscircuit has it
+  // comes (see `vias` below): in the colour of its bare copper, as the theme has it
+  const vias = new THREE.Group()
+  const viaMaterials = {
+    copper: new THREE.MeshStandardMaterial({
+      metalness: 0.5,
+      roughness: 0.4,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    }),
+    // (its hole is lined with copper: the copper under it, darkened)
+    hole: new THREE.MeshBasicMaterial({
+      color: "#000000",
+      transparent: true,
+      opacity: VIA_HOLE_DARK,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -3,
+      polygonOffsetUnits: -3,
+    }),
+  }
+  viaMaterials.copper.color = viaCopper(paint)
+  made.push(viaMaterials.copper, viaMaterials.hole)
   holder.updateMatrixWorld(true)
   const { min, max } = new THREE.Box3().setFromObject(holder)
+  board.add(vias)
   // (the world's Y is the model's Z, and its Z the model's -Y)
   const box = new THREE.Box3(
     new THREE.Vector3(min.x, -max.z, min.y),
@@ -948,6 +990,47 @@ export function standing(board: THREE.Group, colours: PcbColours) {
     },
     /** Have its keep-outs hatched by the app, where the board as tscircuit has it says. */
     keepOuts: (circuit: Circuit | null) => keepOutsOf(paint, circuit),
+    /** And its vias drawn, as copper round a hole, where it says they are. */
+    vias: (circuit: Circuit | null) => {
+      for (const old of [...vias.children]) {
+        vias.remove(old)
+        ;(old as THREE.InstancedMesh).dispose()
+      }
+      const all = viasOf(circuit)
+      const board = circuit?.find((element) => element.type === "pcb_board")
+      const half =
+        (typeof board?.thickness === "number" ? board.thickness : 1.6) / 2
+      for (const side of ["top", "bottom"] as const) {
+        const on = all.filter((via) => via.sides.includes(side))
+        if (on.length === 0) continue
+        const up = side === "top" ? 1 : -1
+        // (a disc lies across the view's Z: turned to face up from the top, or down)
+        const facing = new THREE.Quaternion().setFromAxisAngle(
+          new THREE.Vector3(1, 0, 0),
+          (-up * Math.PI) / 2
+        )
+        for (const [material, size, over] of [
+          [viaMaterials.copper, (via: (typeof on)[number]) => via.outer, 0],
+          [viaMaterials.hole, (via: (typeof on)[number]) => via.hole, 0.002],
+        ] as const) {
+          const mesh = new THREE.InstancedMesh(VIA_DISC, material, on.length)
+          on.forEach((via, index) =>
+            mesh.setMatrixAt(
+              index,
+              new THREE.Matrix4().compose(
+                // (tscircuit's 3D has the board's X as its -X, and its Y as its Z)
+                new THREE.Vector3(-via.x, up * (half + VIA_LIFT + over), via.y),
+                facing,
+                new THREE.Vector3(size(via), size(via), 1)
+              )
+            )
+          )
+          // (not in the way of what is pointed at: the board and its parts are)
+          mesh.raycast = () => {}
+          vias.add(mesh)
+        }
+      }
+    },
     /**
      * Have the board itself drawn in other colours of the theme's: what is lit of it
      * is lit again (by `light`) to be seen in them.
@@ -1142,10 +1225,19 @@ const HOVER_REST = 0.4
 function Picking({
   shown,
   names,
+  inspecting,
+  titles,
+  label,
 }: {
   shown: ReturnType<typeof standing>
   /** what is on the board, by the names it has there: what a click picks out */
   names: Set<string>
+  /** what of the board can be pointed at, on its faces (see inspect.ts) */
+  inspecting: Inspected | null
+  /** what each part is, by its name */
+  titles: Map<string, string>
+  /** where what the pointer is over is said, beside it */
+  label: React.RefObject<HTMLDivElement | null>
 }) {
   const gl = useThree((state) => state.gl)
   const get = useThree((state) => state.get)
@@ -1165,6 +1257,71 @@ function Picking({
       const name = hit ? shown.nameOf(hit.object) : null
       return hit && name && names.has(name) ? { name, at: hit.point } : null
     }
+    /**
+     * What the pointer is over, said: a part, or, on the board's top or underside, what
+     * is there (a pad, a hole, a trace). Null for nothing to say.
+     */
+    const saidAt = (event: PointerEvent): Said | null => {
+      const box = canvas.getBoundingClientRect()
+      pointer.set(
+        ((event.clientX - box.left) / box.width) * 2 - 1,
+        -((event.clientY - box.top) / box.height) * 2 + 1
+      )
+      const camera = get().camera
+      ray.setFromCamera(pointer, camera)
+      const hit = ray.intersectObject(shown.holder, true)[0]
+      if (!hit) return null
+      const name = shown.nameOf(hit.object)
+      if (name && names.has(name)) return partSaid(name, titles)
+      if (!inspecting || !(hit.object instanceof THREE.Mesh)) return null
+      const material = [hit.object.material].flat()[
+        hit.face?.materialIndex ?? 0
+      ]
+      const side = /^TopMaterial/.test(material?.name ?? "")
+        ? "top"
+        : /^BottomMaterial/.test(material?.name ?? "")
+          ? "bottom"
+          : null
+      if (!side) return null
+      // (a pixel or two from a thing is on it: so many mm at the distance it is seen)
+      const perPixel =
+        camera instanceof THREE.OrthographicCamera
+          ? (camera.top - camera.bottom) / camera.zoom / box.height
+          : (2 *
+              hit.distance *
+              Math.tan(
+                ((camera as THREE.PerspectiveCamera).fov * Math.PI) / 360
+              )) /
+            box.height
+      const [x, y] = onBoard(hit.point)
+      const found = underAt(inspecting, { x, y }, side, perPixel * 2)
+      return found ? underSaid(found, titles) : null
+    }
+    /** Say what the pointer is over beside it, or nothing. */
+    const say = (event: PointerEvent | null) => {
+      const shown = label.current
+      if (!shown) return
+      const said = event && event.buttons === 0 ? saidAt(event) : null
+      if (!said) {
+        shown.hidden = true
+        return
+      }
+      const title = document.createElement("div")
+      title.textContent = said.title
+      const lines: HTMLElement[] = [title]
+      if (said.detail) {
+        const detail = document.createElement("div")
+        detail.className = "text-background/65"
+        detail.textContent = said.detail
+        lines.push(detail)
+      }
+      shown.replaceChildren(...lines)
+      const within = (shown.offsetParent ?? canvas).getBoundingClientRect()
+      shown.style.left = `${event!.clientX - within.left + 14}px`
+      shown.style.top = `${event!.clientY - within.top + 14}px`
+      shown.hidden = false
+    }
+    const away = () => say(null)
     let down: { x: number; y: number } | null = null
     const press = (event: PointerEvent) => {
       down = event.button === 0 ? { x: event.clientX, y: event.clientY } : null
@@ -1182,25 +1339,31 @@ function Picking({
         )
     }
     const move = (event: PointerEvent) => {
+      say(event)
       if (event.buttons !== 0) return
       canvas.style.cursor = under(event) ? "pointer" : ""
     }
     canvas.addEventListener("pointerdown", press)
     canvas.addEventListener("pointerup", release)
     canvas.addEventListener("pointermove", move)
+    canvas.addEventListener("pointerleave", away)
+    canvas.addEventListener("wheel", away, { passive: true })
     return () => {
       canvas.removeEventListener("pointerdown", press)
       canvas.removeEventListener("pointerup", release)
       canvas.removeEventListener("pointermove", move)
+      canvas.removeEventListener("pointerleave", away)
+      canvas.removeEventListener("wheel", away)
       canvas.style.cursor = ""
+      away()
     }
-  }, [gl, get, shown, names])
+  }, [gl, get, shown, names, inspecting, titles, label])
   return null
 }
 
 /**
- * The board's keep-outs hatched by the app, as soon as the board as tscircuit has it is
- * there to say where they are (see colours.ts).
+ * The board's keep-outs hatched by the app, and its vias drawn, as soon as the board as
+ * tscircuit has it is there to say where they are (see colours.ts, vias.ts).
  */
 export function KeepOuts({
   shown,
@@ -1212,6 +1375,7 @@ export function KeepOuts({
   const invalidate = useThree((state) => state.invalidate)
   React.useEffect(() => {
     shown.keepOuts(circuit)
+    shown.vias(circuit)
     invalidate()
   }, [shown, circuit, invalidate])
   return null
@@ -1286,6 +1450,7 @@ function InThreeD({
   swept,
   dark,
   circuit,
+  inspecting,
   found,
 }: {
   url: string
@@ -1295,6 +1460,8 @@ function InThreeD({
   dark: boolean
   /** the board as tscircuit has it: where its parts are, for the camera to go to */
   circuit: Circuit | null
+  /** and what of it can be pointed at (see inspect.ts): said beside the pointer */
+  inspecting: Inspected | null
   /** the parts that were looked for, by their names on the board: lit */
   found: string[] | null
 }) {
@@ -1334,46 +1501,61 @@ function InThreeD({
       ),
     [circuit]
   )
+  const titles = React.useMemo(
+    () => titlesOf(circuit ? partsOf(circuit) : []),
+    [circuit]
+  )
+  /** what the pointer is over, said beside it (put there by Picking, as it moves) */
+  const label = React.useRef<HTMLDivElement>(null)
   if (!shown) return null
   const radius = shown.box.getSize(new THREE.Vector3()).length() / 2 || 1
 
   return (
-    <Canvas
-      className="touch-none"
-      frameloop="demand"
-      resize={{ debounce: 0 }}
-      dpr={[1, 2]}
-      gl={{ antialias: true, alpha: true }}
-      camera={{
-        fov: FOV,
-        near: (radius * REACH.nearest) / 4,
-        far: radius * REACH.furthest * 2,
-        position: [radius * 3, radius * 3, radius * 3],
-      }}
-    >
-      <ambientLight intensity={0.55} />
-      <hemisphereLight args={["#ffffff", "#7d828c", 0.7]} />
-      <directionalLight position={[180, 320, 220]} intensity={1.7} />
-      <directionalLight position={[-240, 160, -180]} intensity={0.55} />
-      <primitive object={shown.holder} />
-      {/* (framed afresh for another board, and not for the same one built again) */}
-      <Rig box={shown.box} homeKey={`board:${id}`} bridged={false} />
-      {/* the light from under it, as the model has: out while it is looked down on,
+    <>
+      <Canvas
+        className="touch-none"
+        frameloop="demand"
+        resize={{ debounce: 0 }}
+        dpr={[1, 2]}
+        gl={{ antialias: true, alpha: true }}
+        camera={{
+          fov: FOV,
+          near: (radius * REACH.nearest) / 4,
+          far: radius * REACH.furthest * 2,
+          position: [radius * 3, radius * 3, radius * 3],
+        }}
+      >
+        <ambientLight intensity={0.55} />
+        <hemisphereLight args={["#ffffff", "#7d828c", 0.7]} />
+        <directionalLight position={[180, 320, 220]} intensity={1.7} />
+        <directionalLight position={[-240, 160, -180]} intensity={0.55} />
+        <primitive object={shown.holder} />
+        {/* (framed afresh for another board, and not for the same one built again) */}
+        <Rig box={shown.box} homeKey={`board:${id}`} bridged={false} />
+        {/* the light from under it, as the model has: out while it is looked down on,
           and coming up as the camera goes under it (after the camera has moved) */}
-      <Underlight />
-      <Sweeping
-        sweep={shown.sweep}
-        seen={shown.seen}
-        swept={swept}
-        dark={dark}
-      />
-      {/* (after the camera is set up, which it goes by) */}
-      <Focusing holder={shown.holder} circuit={circuit} />
-      <Lighting shown={shown} found={found} />
-      <KeepOuts shown={shown} circuit={circuit} />
-      <Picking shown={shown} names={names} />
-      <BoardPartMark circuit={circuit} />
-    </Canvas>
+        <Underlight />
+        <Sweeping
+          sweep={shown.sweep}
+          seen={shown.seen}
+          swept={swept}
+          dark={dark}
+        />
+        {/* (after the camera is set up, which it goes by) */}
+        <Focusing holder={shown.holder} circuit={circuit} />
+        <Lighting shown={shown} found={found} />
+        <KeepOuts shown={shown} circuit={circuit} />
+        <Picking
+          shown={shown}
+          names={names}
+          inspecting={inspecting}
+          titles={titles}
+          label={label}
+        />
+        <BoardPartMark circuit={circuit} />
+      </Canvas>
+      <div ref={label} className={LABEL} hidden />
+    </>
   )
 }
 
@@ -1687,6 +1869,7 @@ export function BoardMode({
             swept={making}
             dark={dark}
             circuit={circuit}
+            inspecting={inspecting}
             found={foundParts}
           />
         ) : (
