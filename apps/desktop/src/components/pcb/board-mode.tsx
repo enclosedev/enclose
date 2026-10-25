@@ -75,6 +75,7 @@ import {
 import { Finding } from "./found"
 import { inspected, underAt, type Inspected, type Under } from "./inspect"
 import { Inspecting, onBoardAt, pixelsPerMm, type Seen } from "./inspecting"
+import { drawnAt, PartPopover, PartRing } from "./schematic-picking"
 import { placeOf } from "./place"
 import { BoardPartsPanel } from "./parts-panel"
 import { TurningBoard } from "./turning-board"
@@ -295,7 +296,8 @@ function lay(traces: SVGGeometryElement[], gone = 0) {
  * While the board is being made (`swept`) a light goes across it, the same at every
  * step, and each trace a build brings draws itself in.
  * Where it has the board as tscircuit has it (`circuit`), what the pointer is over is
- * said over it, and what was looked for is lit on it (`found`).
+ * said over it, and what was looked for is lit on it (`found`). On the schematic
+ * (`schematic`), the part the pointer is over is ringed, and one clicked says what it is.
  */
 function Drawing({
   id,
@@ -309,6 +311,7 @@ function Drawing({
   ground,
   found = null,
   goneTo = 0,
+  schematic = null,
 }: {
   /** the board, of which project, and the way it is drawn */
   id: string
@@ -330,6 +333,8 @@ function Drawing({
   found?: Found[] | null
   /** how many times what was found has been gone to: once more, and it is again */
   goneTo?: number
+  /** the board as tscircuit has it, where this is its schematic */
+  schematic?: Circuit | null
 }) {
   const holder = React.useRef<HTMLDivElement>(null)
   // (the board being made, as it is when a new drawing comes, without waiting on it:
@@ -350,6 +355,23 @@ function Drawing({
   >(null)
   /** how it is seen now, for what is said over it to lie where it should */
   const [seen, setSeen] = React.useState<Seen | null>(null)
+  /** on the schematic, the part the pointer is over, and the one picked out */
+  const [hovered, setHovered] = React.useState<string | null>(null)
+  const [picked, setPicked] = React.useState<string | null>(null)
+  /** where a press began, and on what part of the schematic, for a click to be told */
+  const pressed = React.useRef<{
+    x: number
+    y: number
+    on: string | null
+  } | null>(null)
+  /** the drawing's holder, for what is ringed on the schematic to be put over it */
+  const [within, setWithin] = React.useState<HTMLDivElement | null>(null)
+  const held = React.useCallback((element: HTMLDivElement | null) => {
+    holder.current = element
+    setWithin(element)
+  }, [])
+  /** how many times the view has moved: what is ringed on it goes with it */
+  const [viewed, setViewed] = React.useState(0)
   /** what the pointer is over, of which board, and where the pointer is, px */
   const [pointed, setPointed] = React.useState<{
     under: Under
@@ -398,6 +420,7 @@ function Drawing({
       svg.setAttribute("viewBox", `${at.x - w / 2} ${at.y - h / 2} ${w} ${h}`)
       const laid = place.current
       setSeen(laid ? { at, width, height, place: laid } : null)
+      setViewed((times) => times + 1)
     }
     const fit = () => {
       const { width, height } = within.getBoundingClientRect()
@@ -605,6 +628,8 @@ function Drawing({
 
   /** What is under the pointer, while nothing is held down. */
   const point = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (schematic)
+      return setHovered(event.buttons === 0 ? drawnAt(event.target) : null)
     if (!board || !seen || event.buttons !== 0) return setPointed(null)
     const box = event.currentTarget.getBoundingClientRect()
     const at: [number, number] = [
@@ -624,11 +649,58 @@ function Drawing({
   return (
     <>
       <div
-        ref={holder}
+        ref={held}
         className="absolute inset-0 cursor-grab touch-none select-none active:cursor-grabbing"
         onPointerMove={point}
-        onPointerLeave={() => setPointed(null)}
+        onPointerLeave={() => {
+          setPointed(null)
+          setHovered(null)
+        }}
+        onPointerDown={(event) => {
+          pressed.current = {
+            x: event.clientX,
+            y: event.clientY,
+            on: drawnAt(event.target),
+          }
+        }}
+        // (a press that moved the drawing is no click: one that did not picks out the
+        // part it was on, or nothing)
+        onClick={(event) => {
+          const press = pressed.current
+          pressed.current = null
+          if (!schematic || !press) return
+          if (
+            Math.hypot(event.clientX - press.x, event.clientY - press.y) >
+            CLICK_PX
+          )
+            return
+          setPicked(press.on)
+        }}
       />
+      {schematic && (
+        <>
+          <PartRing
+            within={within}
+            drawn={picked ?? hovered}
+            picked={picked !== null}
+            viewed={viewed}
+          />
+          {hovered !== picked && picked !== null && hovered !== null && (
+            <PartRing
+              within={within}
+              drawn={hovered}
+              picked={false}
+              viewed={viewed}
+            />
+          )}
+          <PartPopover
+            within={within}
+            drawn={picked}
+            circuit={schematic}
+            onClose={() => setPicked(null)}
+          />
+        </>
+      )}
       {board && seen && found && found.length > 0 && (
         <Finding found={found} board={board} seen={seen} ground={ground} />
       )}
@@ -643,6 +715,9 @@ function Drawing({
     </>
   )
 }
+
+/** How far a press can go, px, and still be a click on what it began on. */
+const CLICK_PX = 4
 
 /**
  * Two triangles that meet at more than this, in degrees, have an edge between them: as
@@ -1631,6 +1706,7 @@ export function BoardMode({
           routing={routing}
           circuit={as === "pcb" ? circuit : null}
           board={as === "pcb" ? inspecting : null}
+          schematic={as === "schematic" ? circuit : null}
           side={turned ? "bottom" : "top"}
           ground={ground}
           found={found}

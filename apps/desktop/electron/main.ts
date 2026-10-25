@@ -71,6 +71,7 @@ import { Analytics, modelSaid, POSTHOG } from "./analytics"
 import { LEFT_BEHIND, unpack, type Filed } from "./archive"
 import { fileGuide, guideOf, guidesIn, removeGuide } from "./assembly"
 import { boardsIn } from "./boards"
+import { jlcpcbParts } from "./jlcpcb"
 import { Drafts } from "./drafts"
 import { Previews } from "./previews"
 import { changeLog } from "./gist"
@@ -1514,6 +1515,10 @@ function wire() {
       analytics?.record("board saved", { as: what })
       return true
     }
+  )
+  const jlcpcbPart = jlcpcbParts()
+  ipcMain.handle(CHANNEL.boardsPart, (_, number: string) =>
+    jlcpcbPart(String(number))
   )
   ipcMain.handle(CHANNEL.assemblyRead, (_, id: string): GuideSummary[] => {
     const project = projects.get(String(id))

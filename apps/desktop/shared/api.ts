@@ -663,6 +663,22 @@ export type GuideSummary = {
  * One of a project's circuit boards, as the list of them has it (see
  * shared/board-format.ts).
  */
+/**
+ * A part as JLCPCB lists it, by its number ("C25804"): what it is, how many it has, and
+ * what one costs, in US dollars, bought singly.
+ */
+export type JlcpcbPart = {
+  number: string
+  /** its maker's number */
+  maker: string | null
+  package: string | null
+  description: string | null
+  stock: number | null
+  price: number | null
+  /** a basic part, which JLCPCB assembles at no extra cost, and not an extended one */
+  basic: boolean
+}
+
 export type BoardSummary = {
   /** what it is known by: what its file is called, without the ending */
   id: string
@@ -996,6 +1012,11 @@ export type CadApi = {
       /** what the copy is called, to begin with */
       name: string
     ): Promise<boolean>
+    /**
+     * A part as JLCPCB lists it now, by its number ("C25804"): null where it lists none
+     * such. Rejects where it cannot be looked up.
+     */
+    part(number: string): Promise<JlcpcbPart | null>
   }
   assembly: {
     /** A project's assembly guides, the one written last first: none if it has none. */
@@ -1300,6 +1321,7 @@ export const CHANNEL = {
   toolsRead: "tools:read",
   boardsRead: "boards:read",
   boardsSave: "boards:save",
+  boardsPart: "boards:part",
   assemblyRead: "assembly:read",
   assemblyMake: "assembly:make",
   assemblyOpen: "assembly:open",

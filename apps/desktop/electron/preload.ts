@@ -70,6 +70,7 @@ const api: CadApi = {
     read: (projectId) => ipcRenderer.invoke(CHANNEL.boardsRead, projectId),
     save: (projectId, boardId, what, name) =>
       ipcRenderer.invoke(CHANNEL.boardsSave, projectId, boardId, what, name),
+    part: (number) => ipcRenderer.invoke(CHANNEL.boardsPart, number),
   },
   assembly: {
     read: (projectId) => ipcRenderer.invoke(CHANNEL.assemblyRead, projectId),

@@ -65,6 +65,19 @@ function valueOf(part: Record<string, unknown>): string | null {
   return null
 }
 
+/**
+ * What a part is, as it is said of it: its value and what it is ("6.8pF capacitor"), or
+ * its maker's number, or what it is.
+ */
+export function titleOf(part: Record<string, unknown>): string {
+  const value = valueOf(part)
+  const kind = kindOf(part.ftype)
+  if (value) return `${value} ${kind}`
+  return typeof part.manufacturer_part_number === "string"
+    ? part.manufacturer_part_number
+    : kind
+}
+
 /** Names in the order a person counts them: C2 before C10. */
 const byName = (a: string, b: string) =>
   a.localeCompare(b, undefined, { numeric: true })
@@ -94,7 +107,6 @@ export function partsOf(circuit: Circuit): BoardPart[] {
     if (part.type !== "source_component" || typeof part.name !== "string")
       continue
     const id = String(part.source_component_id)
-    const kind = kindOf(part.ftype)
     const value = valueOf(part)
     const number =
       typeof part.manufacturer_part_number === "string"
@@ -113,7 +125,7 @@ export function partsOf(circuit: Circuit): BoardPart[] {
     }
     kinds.set(key, {
       key,
-      title: value ? `${value} ${kind}` : (number ?? kind),
+      title: titleOf(part),
       names: [part.name],
       size: sizes.get(id) ?? null,
     })
