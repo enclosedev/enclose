@@ -54,7 +54,11 @@ import {
 } from "../shared/api"
 import { BOARD_FOLDER, builtOf } from "../shared/board-format"
 import { archiveOf, EXAMPLES, EXAMPLES_URL } from "../shared/examples"
-import { INSPIRATION_FOLDER, pastedLink } from "../shared/inspiration-format"
+import {
+  INSPIRATION_FOLDER,
+  isPictureFile,
+  pastedLink,
+} from "../shared/inspiration-format"
 import { PICTURE_TYPES } from "../shared/pictures"
 import {
   COLOURS_FILE,
@@ -1899,6 +1903,12 @@ function wire() {
   ipcMain.handle(CHANNEL.inspirationStop, (_, id: string) =>
     inspiration.stop(String(id))
   )
+  ipcMain.handle(CHANNEL.inspirationReveal, (_, id: string, file: unknown) => {
+    const project = projects.get(String(id))
+    if (!project || typeof file !== "string" || !isPictureFile(file)) return
+    const at = path.join(project.path, INSPIRATION_FOLDER, file)
+    if (fs.existsSync(at)) shell.showItemInFolder(at)
+  })
   ipcMain.handle(
     CHANNEL.inspirationSaveArchive,
     async (_, id: string): Promise<boolean> => {

@@ -63,6 +63,7 @@ import {
   type Camera,
   type Edges,
 } from "./layout"
+import { AgentSees, ImageMenu, type ImageClicked } from "./image-menu"
 import { NameGroup, type Naming } from "./name-group"
 
 /**
@@ -211,6 +212,9 @@ function Board({
     [expanded, board]
   )
   const [writing, setWriting] = React.useState<Writing | null>(null)
+  /** the picture right-clicked, for its menu; and the one whose overview is being read */
+  const [menu, setMenu] = React.useState<ImageClicked | null>(null)
+  const [seen, setSeen] = React.useState<ImageClicked | null>(null)
   const [moving, setMoving] = React.useState<{
     keys: Key[]
     by: [number, number]
@@ -1220,7 +1224,23 @@ function Board({
     if (!pressed || pressed.pointer !== event.pointerId) return
     press.current = null
     cancelAnimationFrame(frame.current)
-    if (pressed.pan) return
+    if (pressed.pan) {
+      // a right click on a picture, and no pan, is for its menu
+      const still =
+        Math.hypot(
+          event.clientX - pressed.from[0],
+          event.clientY - pressed.from[1]
+        ) < DRAG_FROM
+      if (event.button === 2 && still && pressed.image) {
+        setSeen(null)
+        setMenu({
+          image: pressed.image,
+          x: event.clientX,
+          y: event.clientY,
+        })
+      }
+      return
+    }
     if (pressed.moved) {
       const at = camera.current
       const into =
@@ -1465,6 +1485,22 @@ function Board({
           onShow={showFound}
         />
       )}
+
+      <ImageMenu
+        clicked={menu}
+        onReveal={(clicked) => {
+          const image = board.images.find((one) => one.id === clicked.image)
+          if (image) void window.cad.inspiration.reveal(projectId, image.file)
+        }}
+        onSeen={setSeen}
+        onClose={() => setMenu(null)}
+      />
+      <AgentSees
+        clicked={seen}
+        image={board.images.find((one) => one.id === seen?.image) ?? null}
+        analysing={seen !== null && looking.has(seen.image)}
+        onClose={() => setSeen(null)}
+      />
 
       {naming && (
         <NameGroup

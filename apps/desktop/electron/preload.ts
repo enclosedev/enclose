@@ -109,6 +109,8 @@ const api: CadApi = {
     confirmRemove: (projectId, what) =>
       ipcRenderer.invoke(CHANNEL.inspirationConfirmRemove, projectId, what),
     stop: (projectId) => ipcRenderer.invoke(CHANNEL.inspirationStop, projectId),
+    reveal: (projectId, file) =>
+      ipcRenderer.invoke(CHANNEL.inspirationReveal, projectId, file),
     saveArchive: (projectId) =>
       ipcRenderer.invoke(CHANNEL.inspirationSaveArchive, projectId),
     onChange: (listener) => on(CHANNEL.inspirationChanged, listener),

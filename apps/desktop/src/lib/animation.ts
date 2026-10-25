@@ -81,7 +81,10 @@ export async function framesOf(file: Blob): Promise<Sheet | null> {
   if (typeof ImageDecoder === "undefined") return null
   let decoder: ImageDecoder | null = null
   try {
-    decoder = new ImageDecoder({ data: await file.arrayBuffer(), type: file.type })
+    decoder = new ImageDecoder({
+      data: await file.arrayBuffer(),
+      type: file.type,
+    })
     await decoder.tracks.ready
     await decoder.completed
     const of = decoder.tracks.selectedTrack?.frameCount ?? 0
@@ -94,7 +97,11 @@ export async function framesOf(file: Blob): Promise<Sheet | null> {
     }
     const picked = pickedFrames(lasting)
     const first = (await decoder.decode({ frameIndex: 0 })).image
-    const sheet = sheetOf(picked.length, first.displayWidth, first.displayHeight)
+    const sheet = sheetOf(
+      picked.length,
+      first.displayWidth,
+      first.displayHeight
+    )
     first.close()
     const canvas = new OffscreenCanvas(sheet.width, sheet.height)
     const context = canvas.getContext("2d")

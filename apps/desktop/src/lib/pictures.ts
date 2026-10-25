@@ -35,8 +35,10 @@ export async function fitted(
     .catch(() => null)
   if (!drawn) return null
   return (
-    (await fittedHere(new Blob([drawn.data], { type: drawn.mimeType }), kinds)) ??
-    null
+    (await fittedHere(
+      new Blob([drawn.data], { type: drawn.mimeType }),
+      kinds
+    )) ?? null
   )
 }
 

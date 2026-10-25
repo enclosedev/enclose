@@ -1110,6 +1110,8 @@ export type CadApi = {
     ): Promise<boolean>
     /** Stop the agent looking at the pictures it has not got through yet. */
     stop(projectId: string): Promise<void>
+    /** Show a picture's file, by what it is called, picked out in the board's folder. */
+    reveal(projectId: string, file: string): Promise<void>
     /** Save every picture on the board, as one zip archive, somewhere the user picks. */
     saveArchive(projectId: string): Promise<boolean>
     /** The board changed in the app's own process: the agent said what a picture is, say. */
@@ -1357,6 +1359,7 @@ export const CHANNEL = {
   inspirationSave: "inspiration:save",
   inspirationConfirmRemove: "inspiration:confirm-remove",
   inspirationStop: "inspiration:stop",
+  inspirationReveal: "inspiration:reveal",
   inspirationSaveArchive: "inspiration:save-archive",
   inspirationChanged: "inspiration:changed",
   picturesAdd: "pictures:add",

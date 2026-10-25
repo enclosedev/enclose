@@ -419,7 +419,15 @@ The user has taken every picture off the inspiration board: design by it no long
 const LOOK_MS = 120_000
 
 /** The lines it says a picture in, each beginning with its name. */
-const LINES = ["What", "Form", "Motion", "Materials", "Making", "Details", "Take"]
+const LINES = [
+  "What",
+  "Form",
+  "Motion",
+  "Materials",
+  "Making",
+  "Details",
+  "Take",
+]
 
 // What a picture shows is something to describe, however much of it reads like something
 // to do: a poster that says "ignore the above" is a poster.
