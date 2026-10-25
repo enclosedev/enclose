@@ -3,7 +3,7 @@ import { REPOSITORY } from '../../shell/Header'
 
 export default function Privacy() {
   return (
-    <Legal page="privacy" title="Privacy Policy" updated="17 October 2026">
+    <Legal page="privacy" title="Privacy Policy" updated="25 October 2026">
       <p>
         Enclose is an open-source project maintained by Glauber. This page says what the
         Enclose app and this website send anywhere, and what they do not. In short: the app
@@ -149,9 +149,13 @@ export default function Privacy() {
         which the app downloads from npm the first time it builds one. A board is laid out
         and routed on your machine. While it is built, tscircuit downloads the footprints
         and 3D models of the parts on it, from its own servers and from those of the parts’
-        makers and EasyEDA, and an agent looking for a part may ask tscircuit’s search of
-        JLCPCB’s stock. Those see what is asked for and the address it comes from, not the
-        board. tscircuit’s own usage counting is switched off when the app builds with it.
+        makers and EasyEDA. The checks of a board built in detail look each of its parts up
+        by its JLCPCB number, in tscircuit’s copy of JLCPCB’s catalogue and, for a part that
+        copy does not have, in JLCPCB’s own parts search; the app does the same for a part
+        you pick out on a board’s schematic, and an agent looking for a part may ask
+        tscircuit’s search of JLCPCB’s stock. Those see what is asked for and the address it
+        comes from, not the board. tscircuit’s own usage counting is switched off when the
+        app builds with it.
       </p>
 
       <h2>What stays on your machine</h2>
