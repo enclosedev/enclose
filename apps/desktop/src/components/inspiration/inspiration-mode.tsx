@@ -127,7 +127,7 @@ export function InspirationMode({ projectId }: { projectId: string }) {
     void useInspiration.getState().load(projectId)
   }, [projectId])
   return (
-    <div className="absolute inset-0 animate-in overflow-hidden bg-user-message duration-300 fade-in motion-reduce:animate-none">
+    <div className="absolute inset-0 animate-in overflow-hidden bg-white duration-300 fade-in motion-reduce:animate-none dark:bg-user-message">
       {board && <Board projectId={projectId} board={board} />}
     </div>
   )
@@ -1308,7 +1308,8 @@ function Board({
         onPointerCancel={cancel}
         onContextMenu={(event) => event.preventDefault()}
         onDoubleClick={(event) => {
-          if ((event.target as HTMLElement).closest("[data-key]")) return
+          if ((event.target as HTMLElement).closest("[data-key], [data-notes]"))
+            return
           back.current = []
           setFocused(null)
           setSpread(null)
@@ -1392,7 +1393,7 @@ function Board({
               }
             >
               <span className="max-w-72 truncate">{group.title}</span>
-              <Badge variant="secondary" className="tabular-nums">
+              <Badge className="bg-foreground text-background tabular-nums">
                 {count}
               </Badge>
             </button>

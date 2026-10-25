@@ -88,79 +88,105 @@ export const Card = React.memo(function Card({
 }) {
   const { image, box, turn, z, pile, key } = shown
   const [gone, setGone] = React.useState(false)
-  const notes = pile === null
+  const notes = pile === null && (image.notes.length > 0 || writing !== null)
+  // where it lies and how it moves there, for the picture and for its notes alike
+  const motion = cn(
+    !moving &&
+      "transition-[translate,rotate,width,height,opacity] duration-450 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none",
+    moving &&
+      "transition-[scale,opacity] duration-200 ease-out motion-reduce:transition-none",
+    going && "scale-75 opacity-80",
+    dim && "opacity-15",
+    intro !== undefined && "inspiration-intro"
+  )
+  const place: React.CSSProperties = {
+    width: box.w,
+    height: box.h,
+    translate: `${box.x - box.w / 2}px ${box.y - box.h / 2}px`,
+    rotate: `${turn}deg`,
+    animationDelay: intro !== undefined ? `${intro}ms` : undefined,
+  }
   return (
-    <div
-      data-key={key}
-      data-image={image.id}
-      className={cn(
-        // (and no will-change: a layer of its own is drawn at the zoom it was first seen
-        // at, and only stretched as the board is zoomed into, the picture and dots blurred)
-        "absolute top-0 left-0 bg-foreground/5 shadow-[0_10px_40px_-8px_rgba(0,0,0,0.45)]",
-        !moving &&
-          "transition-[translate,rotate,width,height,opacity] duration-450 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none",
-        moving &&
-          "transition-[scale,opacity] duration-200 ease-out motion-reduce:transition-none",
-        going && "scale-75 opacity-80",
-        focused ? "cursor-crosshair" : "cursor-pointer",
-        // (over its neighbours while the pointer is on it, its notes' words with it)
-        "hover:z-450!",
-        dim && "opacity-15",
-        intro !== undefined && "inspiration-intro"
-      )}
-      style={{
-        width: box.w,
-        height: box.h,
-        translate: `${box.x - box.w / 2}px ${box.y - box.h / 2}px`,
-        rotate: `${turn}deg`,
-        zIndex: Math.round(z * 100),
-        outline: picked
-          ? "calc(2px / var(--zoom)) solid var(--color-primary)"
-          : undefined,
-        outlineOffset: "calc(3px / var(--zoom))",
-        animationDelay: intro !== undefined ? `${intro}ms` : undefined,
-      }}
-    >
-      <div className="absolute inset-0 overflow-hidden">
-        {gone ? (
-          <div className="flex size-full items-center justify-center p-4 text-center text-xs text-muted-foreground">
-            {image.name}
-          </div>
-        ) : (
-          <img
-            src={inspirationUrl(projectId, image.file)}
-            alt={image.name}
-            draggable={false}
-            decoding="async"
-            onError={() => setGone(true)}
-            className="pointer-events-none size-full object-cover select-none"
-          />
+    <>
+      <div
+        data-key={key}
+        data-image={image.id}
+        className={cn(
+          // (and no will-change: a layer of its own is drawn at the zoom it was first
+          // seen at, and only stretched as the board is zoomed into, the picture blurred)
+          "absolute top-0 left-0 bg-foreground/5 shadow-[0_4px_14px_-4px_rgba(0,0,0,0.12)] dark:shadow-[0_10px_40px_-8px_rgba(0,0,0,0.45)]",
+          motion,
+          focused ? "cursor-crosshair" : "cursor-pointer",
+          // (over its neighbours while the pointer is on it)
+          "hover:z-450!"
+        )}
+        style={{
+          ...place,
+          zIndex: Math.round(z * 100),
+          outline: picked
+            ? "calc(2px / var(--zoom)) solid var(--color-primary)"
+            : undefined,
+          outlineOffset: "calc(3px / var(--zoom))",
+        }}
+      >
+        <div className="absolute inset-0 overflow-hidden">
+          {gone ? (
+            <div className="flex size-full items-center justify-center p-4 text-center text-xs text-muted-foreground">
+              {image.name}
+            </div>
+          ) : (
+            <img
+              src={inspirationUrl(projectId, image.file)}
+              alt={image.name}
+              draggable={false}
+              decoding="async"
+              onError={() => setGone(true)}
+              className="pointer-events-none size-full object-cover select-none"
+            />
+          )}
+        </div>
+        {analysing && (
+          <Spinner className="pointer-events-none absolute top-0 right-full mr-[calc(8px/var(--zoom))] size-[calc(20px/var(--zoom))] text-foreground/80" />
         )}
       </div>
-      {analysing && (
-        <Spinner className="pointer-events-none absolute top-0 right-full mr-[calc(8px/var(--zoom))] size-[calc(20px/var(--zoom))] text-foreground/80" />
-      )}
-      {notes &&
-        image.notes.map((note) =>
-          writing?.note === note.id ? null : (
-            <NoteMark
-              key={note.id}
-              note={note}
-              shown={notesShown}
-              onOpen={() => onNote(note)}
+      {/* its notes, lying over it but over every other picture too, for their words to
+          be read where they reach across the next one: those of a picture the pointer
+          is on, or being written, over the rest */}
+      {notes && (
+        <div
+          data-notes
+          className={cn(
+            "pointer-events-none absolute top-0 left-0",
+            motion,
+            "hover:z-1450!"
+          )}
+          style={{
+            ...place,
+            zIndex: writing ? 1500 : 1000 + Math.round(z * 100),
+          }}
+        >
+          {image.notes.map((note) =>
+            writing?.note === note.id ? null : (
+              <NoteMark
+                key={note.id}
+                note={note}
+                shown={notesShown}
+                onOpen={() => onNote(note)}
+              />
+            )
+          )}
+          {writing && (
+            <NoteWriting
+              writing={writing}
+              onText={onText}
+              onWritten={() => onWritten(writing)}
+              onDrop={writing.note ? () => onDropNote(writing.note!) : null}
+              onCancel={onStopWriting}
             />
-          )
-        )}
-      {notes && writing && (
-        <NoteWriting
-          writing={writing}
-          onText={onText}
-          onWritten={() => onWritten(writing)}
-          onDrop={writing.note ? () => onDropNote(writing.note!) : null}
-          onCancel={onStopWriting}
-        />
+          )}
+        </div>
       )}
-    </div>
+    </>
   )
 })
 
@@ -187,7 +213,7 @@ function NoteMark({
       <button
         type="button"
         aria-label={note.text}
-        className="absolute size-4 -translate-1/2 cursor-pointer rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.5)] ring-1 ring-black/25 transition-transform hover:scale-125"
+        className="pointer-events-auto absolute size-4 -translate-1/2 cursor-pointer rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.5)] ring-1 ring-black/25 transition-transform hover:scale-125"
         onPointerDown={(event) => event.stopPropagation()}
         onClick={onOpen}
       />
@@ -221,7 +247,7 @@ function NoteWriting({
 }) {
   return (
     <div
-      className="absolute"
+      className="pointer-events-auto absolute"
       style={{
         left: `${writing.at[0] * 100}%`,
         top: `${writing.at[1] * 100}%`,
