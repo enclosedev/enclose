@@ -9,14 +9,18 @@ type Made = Drawn & {
   parent: Made | null
 }
 
+const SVG = "http://www.w3.org/2000/svg"
+
 function element(
   localName: string,
   attributes: Record<string, string> = {},
   children: Made[] = [],
-  text: string | null = null
+  text: string | null = null,
+  namespaceURI: string | null = SVG
 ): Made {
   const made: Made = {
     localName,
+    namespaceURI,
     children,
     parent: null,
     attributes: Object.entries(attributes).map(([name, value]) => ({
@@ -59,6 +63,26 @@ describe("cleanDrawing", () => {
     ])
     cleanDrawing(svg, "svg")
     expect(names(svg)).toEqual(["svg", "rect", "g", "path"])
+  })
+
+  it("takes out what is not SVG's, whatever it is called", () => {
+    const xhtml = "http://www.w3.org/1999/xhtml"
+    // as a board's text can put one in, past the CDATA its drawing wraps text in
+    const frame = element(
+      "frame",
+      { src: "javascript:parent.cad" },
+      [],
+      null,
+      xhtml
+    )
+    const svg = element("svg", {}, [
+      element("text", {}, [frame]),
+      element("rect", {}, [], null, xhtml),
+      element("g", {}, [], null, null),
+      element("path", { d: "M0 0" }),
+    ])
+    cleanDrawing(svg, "svg")
+    expect(names(svg)).toEqual(["svg", "text", "path"])
   })
 
   it("takes out what is done on an event, links that lead out, and the root's own style", () => {

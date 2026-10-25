@@ -22,9 +22,13 @@ const TAKEN = new Set(
   ].map((name) => name.toLowerCase())
 )
 
+/** SVG's own namespace. An element in any other is no part of a drawing. */
+const SVG = "http://www.w3.org/2000/svg"
+
 /** What of a drawing is gone through: as much of an element as is needed of one. */
 export type Drawn = {
   readonly localName: string
+  readonly namespaceURI: string | null
   readonly children: ArrayLike<Drawn>
   readonly attributes: ArrayLike<{ name: string; value: string }>
   textContent: string | null
@@ -67,14 +71,16 @@ export function scopedStyle(css: string, scope: string): string {
 }
 
 /**
- * Take out of a drawing everything that does more than draw: elements that run or move
- * (TAKEN), what is done on an event, links that lead out of it, the style its own root
- * has (which could lay it over the window), and of its style elements whatever reaches
- * past it (see `scopedStyle`).
+ * Take out of a drawing everything that does more than draw: elements that are not SVG's
+ * (an HTML frame given a namespace of its own, which would load a page), elements that
+ * run or move (TAKEN), what is done on an event, links that lead out of it, the style its
+ * own root has (which could lay it over the window), and of its style elements whatever
+ * reaches past it (see `scopedStyle`).
  */
 export function cleanDrawing(svg: Drawn, scope: string): void {
   const each = (thing: Drawn, root: boolean) => {
-    if (TAKEN.has(thing.localName.toLowerCase())) return thing.remove()
+    if (thing.namespaceURI !== SVG || TAKEN.has(thing.localName.toLowerCase()))
+      return thing.remove()
     for (const { name, value } of [...Array.from(thing.attributes)])
       if (
         name.toLowerCase().startsWith("on") ||
