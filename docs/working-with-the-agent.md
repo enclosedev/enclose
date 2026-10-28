@@ -182,9 +182,9 @@ goes.
 its name and its size; with none yet, it says to ask for one. Pick one and the view is
 in PCB mode, with the board where the model was (its copper in KiCad's colours): the buttons down the
 right change over to the board's, and the cards of the other projects are put away. A board opens in
-3D; the buttons, or 1, 2 and 3, show it as it is made (**Technical view**), in **3D**, or as its
-**Schematic**. Under **Technical view**, a numbered button for each layer of copper (Q, W, E, A, S, D, Z and X, for up to
-eight) shows that layer: 1 is the top, the last is the bottom, turned over to be seen from under the board, and one between is
+3D; the buttons, or T, B and S, show it as it is made (**Technical view**), in **3D**, or as its
+**Schematic**. Under **Technical view**, a numbered button for each layer of copper (or the keys 1 to 8, in the
+technical view) shows that layer: 1 is the top, the last is the bottom, turned over to be seen from under the board, and one between is
 seen from the top, the others faded. A drawing is moved with a swipe or a drag and zoomed with a pinch or the
 wheel, and a double click shows all of it again. In the technical view, pointing at a
 pad shows what its pin is called (U1.VBAT, U1.pin28), as tscircuit's own viewer does,

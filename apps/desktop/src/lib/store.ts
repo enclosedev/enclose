@@ -167,18 +167,20 @@ export type View = {
   inspiration: boolean
 }
 
-/**
- * The ways a circuit board is looked at, in PCB mode, in the order their buttons stand
- * in: which is the order of the keys that bring each up, 1, 2 and 3.
- */
+/** The ways a circuit board is looked at, in PCB mode, in the order their buttons stand in. */
 export const BOARD_AS = ["pcb", "3d", "schematic"] as const
 export type BoardAs = (typeof BOARD_AS)[number]
 
 /**
- * The keys that bring up each of a board's layers of copper, in PCB mode, the top's
- * first: three to a row of the keyboard, down its left.
+ * The key that brings up each way a board is looked at: T for the technical view, B for
+ * the board in 3D, S for its schematic. (In the technical view the numbers bring up
+ * its layers of copper, the top's 1.)
  */
-export const LAYER_KEYS = ["q", "w", "e", "a", "s", "d", "z", "x"] as const
+export const BOARD_KEYS: Record<BoardAs, string> = {
+  pcb: "t",
+  "3d": "b",
+  schematic: "s",
+}
 
 /**
  * What is picked out of the model, to be shown on its own: one part, a group of them,

@@ -55,7 +55,7 @@ import { sceneFor, withFigure } from "@/lib/reference"
 import {
   allOf,
   BOARD_AS,
-  LAYER_KEYS,
+  BOARD_KEYS,
   calledAs,
   calledScene,
   exploding,
@@ -1484,14 +1484,20 @@ function Model({ project }: { project: Project }) {
       if (!loaded || !middle || event.repeat || spokenFor(event.target)) return
       const { view, setView } = useStore.getState()
       const letter = event.key.toLowerCase()
-      const layer =
-        LAYER_KEYS.indexOf(letter as (typeof LAYER_KEYS)[number]) + 1
-      if (view.board !== null && layer > 0) {
-        // in PCB mode, the board's layers of copper, the top's first, each drawn as it
-        // is made (which is brought up for it, where the board is being looked at
-        // another way); a key for a layer the board has not got does nothing
+      const as = BOARD_AS.find((one) => BOARD_KEYS[one] === letter)
+      if (view.board !== null && as) {
+        // in PCB mode, the ways the board is looked at: T, B and S
+        setView({ boardAs: as })
+      } else if (
+        view.board !== null &&
+        view.boardAs === "pcb" &&
+        /^[1-9]$/.test(letter)
+      ) {
+        // and in its technical view, its layers of copper, the top's first: a number
+        // for a layer the board has not got does nothing
+        const layer = Number(letter)
         if (layer > boardLayers.current) return
-        setView({ boardAs: "pcb", boardLayer: layer })
+        setView({ boardLayer: layer })
       } else if (letter === "b") {
         // there is no blueprint of the cube that stands in for a model
         if (loaded.standIn) return
@@ -1499,9 +1505,6 @@ function Model({ project }: { project: Project }) {
       } else if (letter === "a") {
         if (loaded.standIn) return
         setView({ assembly: !view.assembly })
-      } else if (view.board !== null && /^[1-3]$/.test(letter)) {
-        // in PCB mode, the ways the board is looked at, in the order of their buttons
-        setView({ boardAs: BOARD_AS[Number(letter) - 1] })
       } else if (view.board !== null && letter === "p") {
         const { boardPartsOpen, setBoardPartsOpen } = useStore.getState()
         setBoardPartsOpen(!boardPartsOpen)

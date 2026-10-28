@@ -48,7 +48,7 @@ import { usePreferences, type Format } from "@/lib/preferences"
 import { savedAs } from "@/lib/saved"
 import {
   BOARD_AS,
-  LAYER_KEYS,
+  BOARD_KEYS,
   SPREAD,
   useStore,
   type BoardAs,
@@ -606,9 +606,16 @@ function Geared({
  */
 function Gears({
   shown,
+  grown = {},
   ...given
 }: {
   shown: Gear
+  /**
+   * How far a set has grown down, in rem, over what it is with nothing opened out in
+   * it (see `LayerButtons`): it is stood that much lower, so that the buttons above
+   * what opened stay where they were, and only those under it move.
+   */
+  grown?: Partial<Record<Gear, number>>
 } & Record<Gear, React.ReactElement<{ children?: React.ReactNode }>>) {
   const names = Object.keys(given) as Gear[]
   const sets = Object.fromEntries(
@@ -623,13 +630,19 @@ function Gears({
   if (was.shown !== shown) setWas({ shown, before: was.shown })
   const leaving = sets[was.before]?.length ?? 0
   const coming = leaving * STAGGER_MS + SHIFT_MS * 0.5
-  const stack = (buttons: React.ReactNode[], away: boolean) => (
+  const now = still()
+  const stack = (buttons: React.ReactNode[], away: boolean, down: number) => (
     // (the set that is away is still where it stands, over the other: nothing in it is
     // to be found by the pointer, or the buttons under it could not be pressed)
     <Stack
       inert={away}
-      style={away ? { pointerEvents: "none" } : undefined}
-      className="absolute top-1/2 right-3 -translate-y-1/2"
+      style={{
+        ...(away ? { pointerEvents: "none" } : {}),
+        // half of what it grew by, as it grows: it is stood by its middle
+        translate: `0 calc(-50% + ${down / 2}rem)`,
+        transition: `translate ${now ? 0 : SHIFT_MS}ms ease-out ${now ? 0 : opened(down > 0)}ms`,
+      }}
+      className="absolute top-1/2 right-3"
     >
       {buttons.map((button, index) => (
         <Geared
@@ -646,10 +659,88 @@ function Gears({
     <>
       {names.map((name) => (
         <React.Fragment key={name}>
-          {stack(sets[name], name !== shown)}
+          {stack(sets[name], name !== shown, grown[name] ?? 0)}
         </React.Fragment>
       ))}
     </>
+  )
+}
+
+/** How far down a button and the room under it go, in rem: size-9, and gap-1.5. */
+const BUTTON_REM = 2.25
+const GAP_REM = 0.375
+
+/**
+ * How long what opens out in a stack (see `LayerButtons`) waits to grow, or to shrink,
+ * ms: it grows at once, as its buttons come in; and it shrinks once they are well on
+ * their way out (the last of several may still be going).
+ */
+const opened = (open: boolean) => (open ? 0 : SHIFT_MS + 2 * STAGGER_MS)
+
+/** How far the layers' buttons open out the stack they are in, in rem. */
+const layersRem = (layers: number) => layers * (BUTTON_REM + GAP_REM)
+
+/**
+ * A board's layers of copper, as buttons under the technical view's, while it is up:
+ * a number for each, the top's 1, the one drawn lit, and each a little in from the
+ * edge, under the button it belongs to. They open out the stack as they come, pushing
+ * the buttons under them down, and come in from the right one after another, as the
+ * buttons do going from one set to another (see `Gears`); and go out the same way,
+ * before it closes up again.
+ */
+function LayerButtons({
+  open,
+  layers,
+  layer,
+  onPick,
+}: {
+  open: boolean
+  layers: number
+  /** the one drawn */
+  layer: number
+  onPick: (layer: number) => void
+}) {
+  const now = still()
+  const ms = (wanted: number) => (now ? "0ms" : `${wanted}ms`)
+  return (
+    // (with no height while shut: the stack is as it was without it)
+    <div
+      inert={!open}
+      className="flex flex-col"
+      style={{
+        height: open ? `${layersRem(layers)}rem` : 0,
+        transition: `height ${ms(SHIFT_MS)} ease-out ${ms(opened(open))}`,
+      }}
+    >
+      {Array.from({ length: layers }, (_, at) => (
+        <div
+          key={at}
+          className={cn(
+            "mt-1.5 transition-[translate,opacity] ease-out",
+            !open && "translate-x-[calc(100%+0.75rem)] opacity-0"
+          )}
+          style={{
+            transitionDuration: ms(SHIFT_MS),
+            // in from the top as it grows, out from the bottom before it shrinks
+            transitionDelay: ms(
+              open
+                ? SHIFT_MS * 0.5 + at * STAGGER_MS
+                : (layers - 1 - at) * STAGGER_MS
+            ),
+          }}
+        >
+          <Switch
+            label={`Layer ${at + 1}`}
+            shortcut={String(at + 1)}
+            on={layer === at + 1}
+            onChange={() => onPick(at + 1)}
+            className="relative right-2 text-sm font-normal tabular-nums aria-pressed:bg-foreground/15 aria-pressed:text-foreground aria-pressed:hover:bg-foreground/20 aria-pressed:hover:text-foreground"
+          >
+            {at + 1}
+          </Switch>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -814,33 +905,34 @@ export function Tools({
   const layers = board?.layers ?? 2
   const boardButtons = (
     <>
-      {BOARD_AS.flatMap((as, index) => [
-        <Switch
-          key={as}
-          label={BOARD_WAYS[as].label}
-          shortcut={String(index + 1)}
-          on={view.boardAs === as}
-          onChange={() => setView({ boardAs: as })}
-        >
-          {BOARD_WAYS[as].icon}
-        </Switch>,
-        // under the technical view, while it is up, the board's layers of copper: the
-        // one drawn lit, the top's first (each a button of its own, to come and go as one)
-        ...(as === "pcb" && view.boardAs === "pcb"
-          ? LAYER_KEYS.slice(0, layers).map((key, at) => (
-              <Switch
-                key={`layer-${key}`}
-                label={`Layer ${at + 1}`}
-                shortcut={key.toUpperCase()}
-                on={Math.min(view.boardLayer, layers) === at + 1}
-                onChange={() => setView({ boardLayer: at + 1 })}
-                className="text-base tabular-nums"
-              >
-                {at + 1}
-              </Switch>
-            ))
-          : []),
-      ])}
+      {BOARD_AS.map((as) => {
+        const button = (
+          <Switch
+            key={as}
+            label={BOARD_WAYS[as].label}
+            shortcut={BOARD_KEYS[as].toUpperCase()}
+            on={view.boardAs === as}
+            onChange={() => setView({ boardAs: as })}
+          >
+            {BOARD_WAYS[as].icon}
+          </Switch>
+        )
+        // under the technical view, the board's layers of copper, while it is up: one
+        // with its button, to come and go with it as the sets change
+        return as === "pcb" ? (
+          <div key={as} className="flex flex-col">
+            {button}
+            <LayerButtons
+              open={view.boardAs === "pcb"}
+              layers={layers}
+              layer={Math.min(view.boardLayer, layers)}
+              onPick={(layer) => setView({ boardLayer: layer })}
+            />
+          </div>
+        ) : (
+          button
+        )
+      })}
       <Switch
         label="Parts"
         shortcut="P"
@@ -915,6 +1007,9 @@ export function Tools({
       {loaded && !locked && (
         <Gears
           shown={onBoard ? "board" : inspiring ? "inspiration" : "model"}
+          grown={{
+            board: view.boardAs === "pcb" ? layersRem(layers) : 0,
+          }}
           board={boardButtons}
           inspiration={inspirationButtons}
           model={

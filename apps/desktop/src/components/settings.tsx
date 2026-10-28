@@ -889,11 +889,10 @@ const KEYS: { title: string; rows: [string, string[], Drag?][] }[] = [
   {
     title: "PCB mode",
     rows: [
-      ["Technical view", ["1"]],
-      ["3D view", ["2"]],
-      ["Schematic", ["3"]],
-      ["Layers 1–4 of the board", ["Q", "W", "E", "A"]],
-      ["Layers 5–8, where it has them", ["S", "D", "Z", "X"]],
+      ["Technical view", ["T"]],
+      ["Its layers, top first", ["1–8"]],
+      ["3D view", ["B"]],
+      ["Schematic", ["S"]],
       ["Parts on the board", ["P"]],
       ["Search the board", [CMD, "F"]],
       ["Set views, in 3D", [CMD, "1–7"]],
