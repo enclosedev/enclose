@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest"
 
 import {
   changes,
+  copperColourOf,
   PCB_AREAS,
   PCB_SLOTS,
   readLooks,
   readTheme,
   themeFile,
   themeIdOf,
+  type PcbColours,
 } from "./theme-format"
 
 describe("PCB_SLOTS", () => {
@@ -17,6 +19,30 @@ describe("PCB_SLOTS", () => {
     expect(new Set(PCB_SLOTS.map(({ token }) => token)).size).toBe(
       PCB_SLOTS.length
     )
+  })
+})
+
+describe("copperColourOf", () => {
+  const colours = {
+    "technical-top": "#100000",
+    "technical-inner1": "#200000",
+    "technical-inner2": "#300000",
+    "technical-bottom": "#400000",
+  } as PcbColours
+
+  it("colours each layer of a board of four in its own", () => {
+    expect(
+      ["top", "inner1", "inner2", "bottom"].map((layer) =>
+        copperColourOf(colours, layer)
+      )
+    ).toEqual(["#100000", "#200000", "#300000", "#400000"])
+  })
+
+  it("colours the layers inside a bigger board by turns, and anything else as the top", () => {
+    expect(copperColourOf(colours, "inner3")).toBe("#200000")
+    expect(copperColourOf(colours, "inner6")).toBe("#300000")
+    expect(copperColourOf(colours, null)).toBe("#100000")
+    expect(copperColourOf(colours, "overlay")).toBe("#100000")
   })
 })
 

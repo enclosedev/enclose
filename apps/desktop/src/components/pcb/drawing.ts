@@ -10,7 +10,7 @@ import {
 import type { AnyCircuitElement } from "circuit-json"
 
 import type { copperLayerOf } from "@shared/board-format"
-import type { PcbColours } from "@shared/theme-format"
+import { copperColourOf, type PcbColours } from "@shared/theme-format"
 import type { Circuit } from "./boards"
 import { DRAWN } from "./ground"
 import { PLACE_MARK } from "./place"
@@ -78,6 +78,9 @@ export const holesEdged = (markup: string, colours: PcbColours) =>
     `stroke="${colours["technical-edge"]}" stroke-width="1" vector-effect="non-scaling-stroke" data-type="pcb_hole"`
   )
 
+/** The layers of copper inside a board that tscircuit draws, the first first. */
+const INNER = Array.from({ length: 8 }, (_, at) => `inner${at + 1}`)
+
 /**
  * How the board is drawn as it is made: as KiCad draws one, on the ground it is seen on,
  * in the theme's colours for it (shared/theme-format.ts). Its copper is KiCad's colours
@@ -105,10 +108,13 @@ function pcbLook(
     colorOverrides: {
       // a hole is a hole: the ground shows through it
       drill: ground,
-      copper: {
-        top: colours["technical-top"],
-        bottom: colours["technical-bottom"],
-      },
+      // (each in the theme's colour for it: those inside, by turns, past the second)
+      copper: Object.fromEntries(
+        ["top", "bottom", ...INNER].map((layer) => [
+          layer,
+          copperColourOf(colours, layer),
+        ])
+      ),
       boardOutline: colours["technical-edge"],
       silkscreen: {
         top: colours["technical-print"],

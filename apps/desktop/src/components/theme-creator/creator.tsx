@@ -71,6 +71,30 @@ const SHOWN_AS: Record<(typeof PCB_AREAS)[number], BoardAs> = {
   Schematic: "schematic",
 }
 
+/**
+ * The colours of a board's layers of copper, the top's first, as the sample board has
+ * them (sample-board.tsx): picked as the parts' are, from a row of them, each by its
+ * number, with one picker for the one picked.
+ */
+const LAYER_SLOTS = [
+  "technical-top",
+  "technical-inner1",
+  "technical-inner2",
+  "technical-bottom",
+] as const satisfies readonly SlotId[]
+
+/** Black or white, whichever is read better on a colour ("#rrggbb"): for a number on it. */
+function inkOn(colour: string): string {
+  const [r, g, b] = [1, 3, 5].map((at) => {
+    const channel = parseInt(colour.slice(at, at + 2), 16) / 255
+    return channel <= 0.04045
+      ? channel / 12.92
+      : ((channel + 0.055) / 1.055) ** 2.4
+  })
+  const light = 0.2126 * r + 0.7152 * g + 0.0722 * b
+  return light > 0.18 ? "#000000" : "#ffffff"
+}
+
 /** How long it says that it was saved, and how long that takes to fade, ms. */
 const NOTED = 3000
 const FADE = 300
@@ -252,6 +276,7 @@ export function ThemeCreator({
   const [tab, setTab] = React.useState<Tab>("general")
   // the way the board is looked at, on the PCB tab: as PCB mode first looks at one
   const [boardAs, setBoardAs] = React.useState<BoardAs>("3d")
+  const [boardLayer, setBoardLayer] = React.useState(1)
   const [said, setSaid] = React.useState<string | null>(null)
   // that it was saved, for a while: `at` tells one saving from the next
   const [note, setNote] = React.useState<{
@@ -455,7 +480,56 @@ export function ThemeCreator({
           >
             {TABS.find(({ value }) => value === tab)!.areas.map((area) => (
               <React.Fragment key={area}>
-                {SLOTS.filter((slot) => slot.area === area).map((slot) => (
+                {area === "Technical view" && (
+                  <Row
+                    area={area}
+                    label="Layers"
+                    changed={differs(LAYER_SLOTS[boardLayer - 1])}
+                    reset={reset}
+                    onReset={() => {
+                      const id = LAYER_SLOTS[boardLayer - 1]
+                      colour(id, backTo(id))
+                    }}
+                    onUse={() => setBoardAs("pcb")}
+                  >
+                    {/* the board's layers of copper, the top's 1: one picked, and
+                        drawn in the view opposite, whose own buttons pick it too */}
+                    <div className="grid grid-cols-7 gap-1.5">
+                      {LAYER_SLOTS.map((id, at) => (
+                        <button
+                          key={id}
+                          type="button"
+                          // ("Layer 1 · Top", as the theme has it)
+                          title={SLOTS.find((slot) => slot.id === id)?.label}
+                          aria-pressed={boardLayer === at + 1}
+                          onClick={() => setBoardLayer(at + 1)}
+                          className="relative flex aspect-square cursor-pointer items-center justify-center rounded-full text-sm tabular-nums ring-1 ring-foreground/15 outline-offset-2 outline-foreground ring-inset hover:ring-foreground/40 focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-pressed:outline-2"
+                          style={{
+                            background: shown[id],
+                            color: inkOn(shown[id]),
+                          }}
+                        >
+                          {at + 1}
+                          {differs(id) && (
+                            <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-foreground ring-2 ring-background" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    <ColourPicker
+                      label={`Layer ${boardLayer}`}
+                      value={shown[LAYER_SLOTS[boardLayer - 1]]}
+                      onChange={(value) =>
+                        colour(LAYER_SLOTS[boardLayer - 1], value)
+                      }
+                    />
+                  </Row>
+                )}
+                {SLOTS.filter(
+                  (slot) =>
+                    slot.area === area &&
+                    !(LAYER_SLOTS as readonly string[]).includes(slot.id)
+                ).map((slot) => (
                   <Row
                     key={slot.id}
                     area={area}
@@ -563,6 +637,8 @@ export function ThemeCreator({
                 ? {
                     as: boardAs,
                     onAs: setBoardAs,
+                    layer: boardLayer,
+                    onLayer: setBoardLayer,
                     colours: boardColours,
                     ground: shown.viewer,
                   }

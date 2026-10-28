@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
+import { copperColourOf } from "@shared/theme-format"
 import { useThemeColors } from "@/lib/css-color"
 import { useStore } from "@/lib/store"
 import type { Circuit } from "./boards"
@@ -130,8 +131,7 @@ export function XRay({
   const { pcb, backdrop } = useThemeColors()
   const rayed = React.useMemo(() => xRayOf(board, joined), [board, joined])
   const perMm = pixelsPerMm(seen)
-  const colourOf = (on: string | null) =>
-    on === "bottom" ? pcb["technical-bottom"] : pcb["technical-top"]
+  const colourOf = (on: string | null) => copperColourOf(pcb, on)
   // each stretch of each trace, those on the side turned away first
   const stretches = rayed.traces
     .flatMap((trace) =>

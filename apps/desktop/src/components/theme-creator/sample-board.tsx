@@ -13,6 +13,7 @@ import * as React from "react"
 import * as THREE from "three"
 import { Canvas, useThree } from "@react-three/fiber"
 
+import { copperLayerOf } from "@shared/board-format"
 import type { PcbColours } from "@shared/theme-format"
 import type { Circuit } from "@/components/pcb/boards"
 import {
@@ -30,12 +31,44 @@ import modelUrl from "./sample/plate.glb?url"
 /** What the board is called, as PCB mode says over it. */
 export const SAMPLE_NAME = "Main plate board"
 
+/** How many layers of copper the board is shown with: a colour for each, to be seen. */
+export const SAMPLE_LAYERS = 4
+
+/**
+ * The board, made 2 layers, as one of four, to show the colours of the layers inside:
+ * of the traces underneath, a third go on each of them by turns, and the rest stay. It
+ * is not a board that would work so, only one that looks as one of four does.
+ */
+function fourLayered(board: Circuit): Circuit {
+  let trace = 0
+  const moved = (layer: unknown, to: string) =>
+    layer === "bottom" ? to : layer
+  return board.map((element) => {
+    if (element.type === "pcb_board")
+      return { ...element, num_layers: SAMPLE_LAYERS }
+    if (element.type !== "pcb_trace" || !Array.isArray(element.route))
+      return element
+    const to = ["inner1", "inner2", "bottom"][trace++ % 3]
+    return {
+      ...element,
+      route: (element.route as Record<string, unknown>[]).map((point) => ({
+        ...point,
+        ...("layer" in point ? { layer: moved(point.layer, to) } : {}),
+        ...("from_layer" in point
+          ? { from_layer: moved(point.from_layer, to) }
+          : {}),
+        ...("to_layer" in point ? { to_layer: moved(point.to_layer, to) } : {}),
+      })),
+    }
+  })
+}
+
 /** The board as tscircuit has it: loaded once, the first time it is wanted. */
 let circuit: Promise<Circuit> | null = null
 const loadCircuit = () =>
-  (circuit ??= fetch(circuitUrl).then(
-    (response) => response.json() as Promise<Circuit>
-  ))
+  (circuit ??= fetch(circuitUrl)
+    .then((response) => response.json() as Promise<Circuit>)
+    .then(fourLayered))
 
 /** The board as tscircuit has it, once it is loaded. */
 export function useSampleCircuit(): Circuit | null {
@@ -249,14 +282,24 @@ function Drawn({
   colours,
   dark,
   ground,
+  layer,
 }: {
   board: Circuit
   as: "pcb" | "schematic"
   colours: PcbColours
   dark: boolean
   ground: string
+  /** which of its layers of copper is drawn, the top's 1, as PCB mode draws it */
+  layer: number
 }) {
-  const markup = useDrawn(board, as, colours, dark, ground, "top")
+  const markup = useDrawn(
+    board,
+    as,
+    colours,
+    dark,
+    ground,
+    as === "pcb" ? copperLayerOf(layer, SAMPLE_LAYERS) : "top"
+  )
   const holder = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => {
     const held = holder.current
@@ -288,11 +331,14 @@ function Drawn({
  */
 export function SampleBoard({
   as,
+  layer,
   colours,
   dark,
   ground,
 }: {
   as: BoardAs
+  /** which of its layers of copper is drawn, in the technical view: the top's 1 */
+  layer: number
   colours: PcbColours
   dark: boolean
   ground: string
@@ -307,6 +353,7 @@ export function SampleBoard({
       colours={colours}
       dark={dark}
       ground={ground}
+      layer={layer}
     />
   )
 }

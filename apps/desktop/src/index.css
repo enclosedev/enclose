@@ -175,6 +175,8 @@
   --settings-text: var(--foreground);
   --settings-muted: var(--muted-foreground);
   --technical-top: #c83434;
+  --technical-inner1: #d47a16;
+  --technical-inner2: #a48a00;
   --technical-bottom: #4d7fc4;
   --technical-print: #1c1c1c;
   --technical-edge: #707271;
@@ -247,6 +249,8 @@
   --settings-text: var(--foreground);
   --settings-muted: var(--muted-foreground);
   --technical-top: #c83434;
+  --technical-inner1: #ef8c2a;
+  --technical-inner2: #e2c63b;
   --technical-bottom: #4d7fc4;
   --technical-print: #ffffff;
   --technical-edge: #d0d2cd;

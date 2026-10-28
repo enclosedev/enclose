@@ -119,6 +119,50 @@ describe("poursLightened", () => {
 })
 
 describe("drawingOf", () => {
+  it("draws each layer of copper in the theme's colour for it", () => {
+    const colours = {
+      "technical-top": "#a10000",
+      "technical-inner1": "#a20000",
+      "technical-inner2": "#a30000",
+      "technical-bottom": "#a40000",
+      "technical-print": "#ffffff",
+      "technical-edge": "#888888",
+    } as PcbColours
+    const trace = (id: string, layer: string) => ({
+      type: "pcb_trace",
+      pcb_trace_id: id,
+      route: [
+        { route_type: "wire", x: 0, y: 0, width: 0.2, layer },
+        { route_type: "wire", x: 5, y: 0, width: 0.2, layer },
+      ],
+    })
+    const circuit = [
+      {
+        type: "pcb_board",
+        pcb_board_id: "b",
+        center: { x: 0, y: 0 },
+        width: 20,
+        height: 20,
+        num_layers: 4,
+        thickness: 1.6,
+        material: "fr4",
+      },
+      trace("t1", "top"),
+      trace("t2", "inner1"),
+      trace("t3", "inner2"),
+      trace("t4", "bottom"),
+    ]
+    const drawn = drawingOf(
+      circuit as unknown as Parameters<typeof drawingOf>[0],
+      "pcb",
+      colours,
+      true,
+      "#000000"
+    )
+    for (const colour of ["#a10000", "#a20000", "#a30000", "#a40000"])
+      expect(drawn).toContain(colour)
+  })
+
   it("draws the sections of a schematic's sheet, their titles and the lines between them, in the parts' ink", () => {
     const colours = {
       "schematic-lines": "#abcdef",

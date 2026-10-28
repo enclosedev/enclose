@@ -7,6 +7,9 @@
     "shimmer": "#43be00",
     "viewer": "#ffffff",
     "tools": "#0065ff",
+    "technical-inner1": "#a55700",
+    "technical-inner2": "#b372ff",
+    "technical-bottom": "#0046a8",
     "technical-print": "#000000",
     "technical-edge": "#c9c9c9",
     "parts": {
@@ -30,6 +33,9 @@
     "tools": "#0066ff",
     "settings-background": "#000000",
     "settings-card": "#0a0a0a",
+    "technical-inner1": "#edcc2d",
+    "technical-inner2": "#ca3eff",
+    "technical-bottom": "#0e70f6",
     "technical-edge": "#5b5b5b",
     "parts": {
       "red": "#ff3935",

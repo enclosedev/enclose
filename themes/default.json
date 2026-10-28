@@ -45,7 +45,9 @@
     "components-mid": "#444444",
     "components-dark": "#404040",
     "technical-top": "#da2020",
-    "technical-bottom": "#3a7ad2",
+    "technical-inner1": "#ff9429",
+    "technical-inner2": "#3be25b",
+    "technical-bottom": "#1170f3",
     "technical-edge": "#767676",
     "parts": {
       "red": "#ff726f",

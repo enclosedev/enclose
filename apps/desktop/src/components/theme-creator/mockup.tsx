@@ -45,6 +45,7 @@ import { propertiesOf } from "@/lib/themes"
 import { CORNER, LIGHTS, LOOKING_FROM, PLACES, shapeOf } from "./parts"
 import {
   SAMPLE_NAME,
+  SAMPLE_LAYERS,
   SampleBoard,
   sampleSize,
   useSampleCircuit,
@@ -320,10 +321,16 @@ const BOARD_WAYS: Record<BoardAs, { label: string; Icon: typeof LayersIcon }> =
 
 /**
  * Down the view's right-hand edge in PCB mode: the conversation at the top, and in the
- * middle the ways the board is looked at, which change it here as they do there, what is
- * on it, and what leaves PCB mode, in red.
+ * middle the ways the board is looked at, which change it here as they do there, with
+ * the board's layers under the technical view's while it is up, what is on it, and what
+ * leaves PCB mode, in red.
  */
-function BoardRail({ as, onAs }: { as: BoardAs; onAs: (as: BoardAs) => void }) {
+function BoardRail({
+  as,
+  onAs,
+  layer,
+  onLayer,
+}: Pick<BoardShown, "as" | "onAs" | "layer" | "onLayer">) {
   return (
     <>
       <div className="absolute top-3 right-3 flex flex-col gap-2">
@@ -332,9 +339,9 @@ function BoardRail({ as, onAs }: { as: BoardAs; onAs: (as: BoardAs) => void }) {
         </span>
       </div>
       <div className="absolute top-1/2 right-3 flex -translate-y-1/2 flex-col gap-2">
-        {BOARD_AS.map((way) => {
+        {BOARD_AS.flatMap((way) => {
           const { label, Icon } = BOARD_WAYS[way]
-          return (
+          return [
             <button
               key={way}
               type="button"
@@ -349,8 +356,29 @@ function BoardRail({ as, onAs }: { as: BoardAs; onAs: (as: BoardAs) => void }) {
             >
               <Icon className="size-4" strokeWidth={1.5} />
               <span className="sr-only">{label}</span>
-            </button>
-          )
+            </button>,
+            // (as tools.tsx has them: a little in, the one drawn in grey)
+            ...(way === "pcb" && as === "pcb"
+              ? Array.from({ length: SAMPLE_LAYERS }, (_, at) => (
+                  <button
+                    key={`layer-${at + 1}`}
+                    type="button"
+                    title={`Layer ${at + 1}`}
+                    aria-pressed={layer === at + 1}
+                    onClick={() => onLayer(at + 1)}
+                    className={cn(
+                      ROUND,
+                      "relative right-2 cursor-pointer text-sm tabular-nums",
+                      layer === at + 1
+                        ? "bg-foreground/15"
+                        : "hover:bg-background"
+                    )}
+                  >
+                    {at + 1}
+                  </button>
+                ))
+              : []),
+          ]
         })}
         <span className={ROUND}>
           <BoxesIcon className="size-4" strokeWidth={1.5} />
@@ -385,6 +413,9 @@ export type BoardShown = {
   /** the way it is looked at, and what changes that */
   as: BoardAs
   onAs: (as: BoardAs) => void
+  /** which of its layers of copper is drawn in the technical view, the top's 1, and what changes that */
+  layer: number
+  onLayer: (layer: number) => void
   /** its colours, as they are picked, over what they are over */
   colours: PcbColours
   /** the view's ground, likewise */
@@ -647,6 +678,7 @@ export function Mockup({
           <div className="absolute inset-0">
             <SampleBoard
               as={board.as}
+              layer={board.layer}
               colours={board.colours}
               dark={mode === "dark"}
               ground={board.ground}
@@ -673,7 +705,7 @@ export function Mockup({
         <span className="absolute bottom-4 left-4.5 flex size-9 items-center justify-center rounded-full bg-background/60 ring-1 ring-foreground/10">
           <SettingsIcon className="size-4" strokeWidth={1.5} />
         </span>
-        {board ? <BoardRail as={board.as} onAs={board.onAs} /> : <Rail />}
+        {board ? <BoardRail {...board} /> : <Rail />}
       </div>
       <Conversation />
       {settings && <SettingsOver />}

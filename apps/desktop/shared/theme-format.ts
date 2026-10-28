@@ -184,15 +184,32 @@ export const SLOTS = [
   {
     id: "technical-top",
     area: "Technical view",
-    label: "Top copper",
+    label: "Layer 1 · Top",
     detail: "The traces and pads on the top",
     token: "--technical-top",
   },
   {
+    id: "technical-inner1",
+    area: "Technical view",
+    label: "Layer 2",
+    detail:
+      "The first layer of copper inside a board of four layers or more (and the third, fifth)",
+    token: "--technical-inner1",
+  },
+  {
+    id: "technical-inner2",
+    area: "Technical view",
+    label: "Layer 3",
+    detail:
+      "The second layer of copper inside a board of four layers or more (and the fourth, sixth)",
+    token: "--technical-inner2",
+  },
+  {
     id: "technical-bottom",
     area: "Technical view",
-    label: "Bottom copper",
-    detail: "The traces and pads underneath",
+    label: "Layer 4 · Bottom",
+    detail:
+      "The traces and pads underneath: the last layer, layer 2 of a board of two",
     token: "--technical-bottom",
   },
   {
@@ -264,6 +281,22 @@ export const PCB_SLOTS = SLOTS.filter((slot) =>
 
 /** A circuit board's colours, as PCB mode draws it: each "#rrggbb". */
 export type PcbColours = Record<PcbSlotId, string>
+
+/**
+ * The colour of a board's layer of copper, as tscircuit calls it ("top", "inner3",
+ * "bottom"), in the technical view: a theme colours the two layers inside a board of
+ * four, and those inside one of more take theirs by turns. Anything else is the top's.
+ */
+export function copperColourOf(
+  colours: PcbColours,
+  layer: string | null
+): string {
+  if (layer === "bottom") return colours["technical-bottom"]
+  const inner = Number(/^inner(\d+)$/.exec(layer ?? "")?.[1])
+  if (inner > 0)
+    return colours[inner % 2 === 1 ? "technical-inner1" : "technical-inner2"]
+  return colours["technical-top"]
+}
 
 /**
  * A theme's colours for one look, each "#rrggbb": those it changes, of the window and of
