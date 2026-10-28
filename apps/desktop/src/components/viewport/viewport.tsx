@@ -55,6 +55,7 @@ import { sceneFor, withFigure } from "@/lib/reference"
 import {
   allOf,
   BOARD_AS,
+  LAYER_KEYS,
   calledAs,
   calledScene,
   exploding,
@@ -953,6 +954,12 @@ function Model({ project }: { project: Project }) {
     () => boards?.find((board) => board.id === view.board) ?? null,
     [boards, view.board]
   )
+  // (how many layers of copper it has, for the keys that bring up each, which are
+  // listened for once)
+  const boardLayers = React.useRef(2)
+  React.useEffect(() => {
+    boardLayers.current = onBoard?.layers ?? 2
+  }, [onBoard])
   React.useEffect(() => {
     const { view, setView } = useStore.getState()
     if (!boards || view.board === null) return
@@ -1477,7 +1484,15 @@ function Model({ project }: { project: Project }) {
       if (!loaded || !middle || event.repeat || spokenFor(event.target)) return
       const { view, setView } = useStore.getState()
       const letter = event.key.toLowerCase()
-      if (letter === "b") {
+      const layer =
+        LAYER_KEYS.indexOf(letter as (typeof LAYER_KEYS)[number]) + 1
+      if (view.board !== null && layer > 0) {
+        // in PCB mode, the board's layers of copper, the top's first, each drawn as it
+        // is made (which is brought up for it, where the board is being looked at
+        // another way); a key for a layer the board has not got does nothing
+        if (layer > boardLayers.current) return
+        setView({ boardAs: "pcb", boardLayer: layer })
+      } else if (letter === "b") {
         // there is no blueprint of the cube that stands in for a model
         if (loaded.standIn) return
         setView({ blueprint: !view.blueprint })
@@ -1490,16 +1505,6 @@ function Model({ project }: { project: Project }) {
       } else if (view.board !== null && letter === "p") {
         const { boardPartsOpen, setBoardPartsOpen } = useStore.getState()
         setBoardPartsOpen(!boardPartsOpen)
-      } else if (view.board !== null && letter === "s") {
-        // and the other side of the board, drawn as it is made (which is brought up for
-        // it, where the board is being looked at another way)
-        setView({
-          boardAs: "pcb",
-          boardSide:
-            view.boardAs === "pcb" && view.boardSide === "bottom"
-              ? "top"
-              : "bottom",
-        })
       } else if (view.assembly || view.board !== null || view.inspiration) {
         // every other key here is the view's, or the blueprint's: they wait until the
         // guides are put away, PCB mode is left, or the inspiration board

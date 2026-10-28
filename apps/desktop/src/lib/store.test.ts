@@ -180,11 +180,11 @@ describe("a circuit board, in PCB mode", () => {
     expect(view()).toMatchObject({
       board: "main",
       boardAs: "3d",
-      boardSide: "top",
+      boardLayer: 1,
     })
-    state().setView({ boardAs: "pcb", boardSide: "bottom" })
+    state().setView({ boardAs: "pcb", boardLayer: 4 })
     state().setView({ board: "power" })
-    expect(view()).toMatchObject({ boardAs: "3d", boardSide: "top" })
+    expect(view()).toMatchObject({ boardAs: "3d", boardLayer: 1 })
     state().setView({ boardAs: "schematic" })
     state().setView({ board: null })
     state().setView({ board: "power" })

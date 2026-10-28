@@ -46,7 +46,13 @@ import { oneFile, sizeOf } from "@/lib/model"
 import { MAC } from "@/lib/platform"
 import { usePreferences, type Format } from "@/lib/preferences"
 import { savedAs } from "@/lib/saved"
-import { BOARD_AS, SPREAD, useStore, type BoardAs } from "@/lib/store"
+import {
+  BOARD_AS,
+  LAYER_KEYS,
+  SPREAD,
+  useStore,
+  type BoardAs,
+} from "@/lib/store"
 import type { BoardSummary } from "@shared/api"
 import type { Box3 } from "three"
 import type { LoadedModel } from "./viewport/load"
@@ -805,35 +811,36 @@ export function Tools({
       </Press>
     </>
   )
+  const layers = board?.layers ?? 2
   const boardButtons = (
     <>
-      {BOARD_AS.map((as, index) => (
-        <div key={as} className="relative">
-          {as === "pcb" && view.boardAs === "pcb" && (
-            <div className="absolute top-0 right-full mr-1.5 flex">
+      {BOARD_AS.flatMap((as, index) => [
+        <Switch
+          key={as}
+          label={BOARD_WAYS[as].label}
+          shortcut={String(index + 1)}
+          on={view.boardAs === as}
+          onChange={() => setView({ boardAs: as })}
+        >
+          {BOARD_WAYS[as].icon}
+        </Switch>,
+        // under the technical view, while it is up, the board's layers of copper: the
+        // one drawn lit, the top's first (each a button of its own, to come and go as one)
+        ...(as === "pcb" && view.boardAs === "pcb"
+          ? LAYER_KEYS.slice(0, layers).map((key, at) => (
               <Switch
-                label="Bottom side"
-                shortcut="S"
-                side="top"
-                on={view.boardSide === "bottom"}
-                onChange={(bottom) =>
-                  setView({ boardSide: bottom ? "bottom" : "top" })
-                }
+                key={`layer-${key}`}
+                label={`Layer ${at + 1}`}
+                shortcut={key.toUpperCase()}
+                on={Math.min(view.boardLayer, layers) === at + 1}
+                onChange={() => setView({ boardLayer: at + 1 })}
+                className="text-base tabular-nums"
               >
-                <FlipHorizontal2Icon />
+                {at + 1}
               </Switch>
-            </div>
-          )}
-          <Switch
-            label={BOARD_WAYS[as].label}
-            shortcut={String(index + 1)}
-            on={view.boardAs === as}
-            onChange={() => setView({ boardAs: as })}
-          >
-            {BOARD_WAYS[as].icon}
-          </Switch>
-        </div>
-      ))}
+            ))
+          : []),
+      ])}
       <Switch
         label="Parts"
         shortcut="P"

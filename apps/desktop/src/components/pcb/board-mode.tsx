@@ -24,6 +24,7 @@ import type { BoardSummary } from "@shared/api"
 import { BOARD_HOST, MODEL_SCHEME } from "@shared/api"
 import {
   builtOf,
+  copperLayerOf,
   readRouting,
   type Building,
   type Routing,
@@ -46,6 +47,7 @@ import {
   type Circuit,
   type Routed,
 } from "./boards"
+import type { CopperLayer } from "./drawing"
 import { DRAWN } from "./ground"
 import { contoursOf } from "@/components/viewport/contours"
 import { EDGE } from "@/components/viewport/paint"
@@ -1632,7 +1634,7 @@ export function useDrawn(
   colours: PcbColours,
   dark: boolean,
   ground: string,
-  side: "top" | "bottom"
+  layer: CopperLayer
 ): string | false | null {
   const [drawn, setDrawn] = React.useState<{
     of: [Circuit, BoardAs, string, string, string]
@@ -1652,26 +1654,26 @@ export function useDrawn(
           JSON.parse(inColours) as PcbColours,
           dark,
           ground,
-          side
+          layer
         )
       } catch {
         // nothing tscircuit could draw: it is said so
         markup = false
       }
       if (!over)
-        setDrawn({ of: [circuit, as, inColours, ground, side], markup })
+        setDrawn({ of: [circuit, as, inColours, ground, layer], markup })
     })
     return () => {
       over = true
     }
-  }, [circuit, as, inColours, dark, ground, side])
+  }, [circuit, as, inColours, dark, ground, layer])
   if (!drawn || as === "3d") return null
-  const [was, wasAs, wasColours, wasGround, wasSide] = drawn.of
+  const [was, wasAs, wasColours, wasGround, wasLayer] = drawn.of
   return was === circuit &&
     wasAs === as &&
     wasColours === inColours &&
     wasGround === ground &&
-    wasSide === side
+    wasLayer === layer
     ? drawn.markup
     : null
 }
@@ -1828,16 +1830,15 @@ export function BoardMode({
     () => (circuit ? inspected(circuit) : null),
     [circuit]
   )
-  const side = useStore((state) => state.view.boardSide)
-  const turned = as === "pcb" && side === "bottom"
-  const markup = useDrawn(
-    circuit,
-    as,
-    pcb,
-    dark,
-    ground,
-    as === "pcb" ? side : "top"
+  // which of its layers of copper is drawn, as it is made: the bottom turned over, to be
+  // seen from under the board (one the board has not got is its last)
+  const layer = Math.min(
+    useStore((state) => state.view.boardLayer),
+    board.layers
   )
+  const copper = as === "pcb" ? copperLayerOf(layer, board.layers) : "top"
+  const turned = copper === "bottom"
+  const markup = useDrawn(circuit, as, pcb, dark, ground, copper)
   const size = sizeSaid(board)
   const making = useBeingMade(projectId, board)
   // (drawn over the board as it is made, from the top: the router's work is seen so)
@@ -1998,9 +1999,9 @@ export function BoardMode({
             ) : (
               !board.finished && <UnfinishedBadge className="shrink-0" />
             )}
-            {turned && (
+            {copper !== "top" && (
               <Badge variant="outline" className="shrink-0">
-                Bottom side
+                {turned ? "Bottom side" : `Layer ${layer}`}
               </Badge>
             )}
           </div>

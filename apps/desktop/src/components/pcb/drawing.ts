@@ -9,6 +9,7 @@ import {
 } from "circuit-to-svg"
 import type { AnyCircuitElement } from "circuit-json"
 
+import type { copperLayerOf } from "@shared/board-format"
 import type { PcbColours } from "@shared/theme-format"
 import type { Circuit } from "./boards"
 import { DRAWN } from "./ground"
@@ -117,7 +118,10 @@ function pcbLook(
   }
 }
 
-/** How much of the side of the board turned away is seen, through the one looked at. */
+/** A board's layer of copper, as tscircuit calls it: its top, its bottom, or one inside. */
+export type CopperLayer = ReturnType<typeof copperLayerOf>
+
+/** How much of the layers of the board not looked at is seen, through the one that is. */
 const AWAY = 0.12
 /**
  * How much of its side's copper colour a pour of copper is drawn in: tscircuit draws
@@ -133,16 +137,22 @@ export const poursLightened = (markup: string) =>
   )
 
 /**
- * A drawing of a board with its other side, the one turned away from the eye, drawn
- * faint: its copper, pads and print, which over the side looked at would be read as
- * part of it. (A board with a pour has its sides told apart by it; one without has
- * only their colours.) What goes through the board, its holes and vias, stays as it is.
+ * A drawing of a board with every layer of copper but the one looked at drawn faint:
+ * the other side's copper, pads and print, and the layers inside it, which over the
+ * one looked at would be read as part of it. (A board with a pour has its layers told
+ * apart by it; one without has only their colours.) What goes through the board, its
+ * holes and vias, stays as it is.
  */
-export function awayFaded(markup: string, side: "top" | "bottom"): string {
-  const away = side === "top" ? "bottom" : "top"
+export function awayFaded(markup: string, layer: CopperLayer): string {
+  const away = [
+    ...(["top", "bottom"] as const)
+      .filter((side) => side !== layer)
+      .map((side) => `[data-pcb-layer="${side}"]`),
+    `[data-pcb-layer^="inner"]:not([data-pcb-layer="${layer}"])`,
+  ]
   return markup.replace(
     /(<svg[^>]*>)/,
-    `$1<style>[data-pcb-layer="${away}"] { opacity: ${AWAY}; }</style>`
+    `$1<style>${away.join(", ")} { opacity: ${AWAY}; }</style>`
   )
 }
 
@@ -168,11 +178,42 @@ export function fromUnder(layer: string | null): number {
 
 /**
  * A drawing of the whole of a board, its top over its bottom, made into one of its
- * bottom over its top: everything in it put in order again by `fromUnder`, keeping the
- * order of what is on one layer. A group of things is on the layer of what is in it.
- * What draws nothing (its styles, and what is used by name) stays first.
+ * bottom over its top (see `fromUnder`).
  */
-function bottomUp(markup: string): string {
+const bottomUp = (markup: string) => reordered(markup, fromUnder)
+
+/**
+ * A drawing of a board seen from over it, with one of the layers inside it over its top:
+ * that layer's copper is looked at, through the top's, faded (see `awayFaded`).
+ */
+const innerUp = (markup: string, layer: string) =>
+  reordered(markup, (one) =>
+    one === layer ? fromUnder("bottom") + 0.5 : fromOver(one)
+  )
+
+/**
+ * How far up each layer of a board is drawn, seen from over it, as circuit-to-svg puts
+ * them: `fromUnder` the other way round, its top over its bottom, and the first of the
+ * layers inside it over the second.
+ */
+function fromOver(layer: string | null): number {
+  if (layer === "top") return fromUnder("bottom")
+  if (layer === "bottom") return fromUnder("top")
+  if (layer?.startsWith("inner"))
+    return fromUnder("bottom") - (Number(/\d+/.exec(layer)?.[0]) || 0)
+  return fromUnder(layer)
+}
+
+/**
+ * A drawing of a board, everything in it put in order again by how far up its layer is
+ * (`up`), keeping the order of what is on one layer. A group of things is on the
+ * layer of what is in it. What draws nothing (its styles, and what is used by name)
+ * stays first.
+ */
+function reordered(
+  markup: string,
+  up: (layer: string | null) => number
+): string {
   const svg = new DOMParser().parseFromString(
     markup,
     "image/svg+xml"
@@ -187,7 +228,7 @@ function bottomUp(markup: string): string {
       index,
       up: ["style", "defs"].includes(element.localName)
         ? -1000
-        : fromUnder(layerOf(element)),
+        : up(layerOf(element)),
     }))
     .sort((a, b) => a.up - b.up || a.index - b.index)
   for (const { element } of ordered) svg.append(element)
@@ -242,11 +283,11 @@ export function drawingOf(
   dark: boolean,
   /** the colour it is drawn on */
   ground: string,
-  /** which side of the board is drawn, where it is drawn as it is made */
-  side: "top" | "bottom" = "top"
+  /** which of its layers of copper is drawn, where it is drawn as it is made */
+  layer: CopperLayer = "top"
 ): string {
   const elements = circuit as unknown as AnyCircuitElement[]
-  if (as === "pcb" && side === "bottom")
+  if (as === "pcb" && layer === "bottom")
     return turnedOver(
       awayFaded(
         holesEdged(
@@ -260,22 +301,21 @@ export function drawingOf(
           ),
           colours
         ),
-        side
+        layer
       )
     )
-  if (as === "pcb")
-    return awayFaded(
-      holesEdged(
-        poursLightened(
-          convertCircuitJsonToPcbSvg(
-            [...elements, ...placeMark(elements)],
-            pcbLook(elements, colours, ground)
-          )
-        ),
-        colours
+  if (as === "pcb") {
+    const drawn = holesEdged(
+      poursLightened(
+        convertCircuitJsonToPcbSvg(
+          [...elements, ...placeMark(elements)],
+          pcbLook(elements, colours, ground)
+        )
       ),
-      side
+      colours
     )
+    return awayFaded(layer === "top" ? drawn : innerUp(drawn, layer), layer)
+  }
   const drawn = convertCircuitJsonToSchematicSvg(elements, {
     ...DRAWN,
     colorOverrides: {

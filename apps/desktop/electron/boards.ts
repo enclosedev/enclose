@@ -13,6 +13,7 @@ import {
   BUILT_FOLDER,
   builtOf,
   calledFrom,
+  layersOf,
   madeOf,
   MAKING_STEPS,
   MOST_BOARD_BYTES,
@@ -83,17 +84,28 @@ export function boardsWritten(root: string): string {
  * for (`unsourcedOf`), and what it has on it (`madeOf`): read once for each time it is
  * built, since the boards are read again as often as a build says how far it has got.
  */
-type Read = { size: [number, number] | null; unsourced: string[]; made: MadeOf }
+type Read = {
+  size: [number, number] | null
+  layers: number
+  unsourced: string[]
+  made: MadeOf
+}
 const reads = new Map<string, { at: number; read: Read }>()
 function readAt(file: string, stat: fs.Stats): Read {
   const had = reads.get(file)
   if (had?.at === stat.mtimeMs) return had.read
-  let read: Read = { size: null, unsourced: [], made: madeOf(null) }
+  let read: Read = {
+    size: null,
+    layers: 2,
+    unsourced: [],
+    made: madeOf(null),
+  }
   if (stat.size <= MOST_CIRCUIT_BYTES)
     try {
       const circuit: unknown = JSON.parse(fs.readFileSync(file, "utf8"))
       read = {
         size: sizeOf(circuit),
+        layers: layersOf(circuit),
         unsourced: unsourcedOf(circuit),
         made: madeOf(circuit),
       }
@@ -139,23 +151,25 @@ export function boardsIn(root: string): BoardSummary[] {
     const written = statOf(path.join(folder, `${id}.circuit.tsx`))
     const read = built
       ? readAt(path.join(folder, files.circuit), built)
-      : { size: null, unsourced: [] }
+      : { size: null, layers: 2, unsourced: [] }
+    const looked = preview && (!built || preview.mtimeMs > built.mtimeMs)
     return {
       id,
       name,
       finished,
       built: built ? Math.round(built.mtimeMs) : null,
       size: read.size,
+      // (as the board is drawn: from a quick look at it, where that is newer)
+      layers: looked
+        ? readAt(path.join(folder, files.preview), preview).layers
+        : read.layers,
       model: there(files.model),
       step: there(files.step),
       gerbers: there(files.gerbers),
       outdated: !!built && !!written && written.mtimeMs > built.mtimeMs,
       unsourced: read.unsourced,
       building: buildingAt(path.join(folder, files.building)),
-      preview:
-        preview && (!built || preview.mtimeMs > built.mtimeMs)
-          ? Math.round(preview.mtimeMs)
-          : null,
+      preview: looked ? Math.round(preview.mtimeMs) : null,
       trouble,
     }
   })

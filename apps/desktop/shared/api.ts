@@ -702,6 +702,11 @@ export type BoardSummary = {
   built: number | null
   /** how big it is, mm across and from top to bottom: null while that is not known */
   size: [number, number] | null
+  /**
+   * how many layers of copper it has, as it was last built or looked at quickly (2,
+   * 4, up to 8): 2 while that is not known
+   */
+  layers: number
   /** whether it has been built in 3D as well, to be shown so */
   model: boolean
   /** whether there is a STEP file of it, and the files a board house makes it from */

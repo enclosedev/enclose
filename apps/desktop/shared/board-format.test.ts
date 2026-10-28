@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  copperLayerOf,
+  layersOf,
   calledFrom,
   madeOf,
   readBoard,
@@ -224,5 +226,31 @@ describe("wentBack", () => {
       ])
     ).toBe(2)
     expect(wentBack([{ step: "placing", at: 0 }])).toBe(0)
+  })
+})
+
+describe("layersOf", () => {
+  it("says how many layers of copper a board has, as tscircuit built it", () => {
+    expect(layersOf([{ type: "pcb_board", num_layers: 4 }])).toBe(4)
+    expect(layersOf([{ type: "pcb_board", num_layers: 12 }])).toBe(8)
+  })
+
+  it("takes a board that does not say to have two", () => {
+    expect(layersOf([{ type: "pcb_board" }])).toBe(2)
+    expect(layersOf([{ type: "pcb_board", num_layers: "4" }])).toBe(2)
+    expect(layersOf(null)).toBe(2)
+  })
+})
+
+describe("copperLayerOf", () => {
+  it("calls the first layer the top, the last the bottom, and those between inner1 on", () => {
+    expect([1, 2, 3, 4].map((layer) => copperLayerOf(layer, 4))).toEqual([
+      "top",
+      "inner1",
+      "inner2",
+      "bottom",
+    ])
+    expect(copperLayerOf(2, 2)).toBe("bottom")
+    expect(copperLayerOf(1, 1)).toBe("top")
   })
 })

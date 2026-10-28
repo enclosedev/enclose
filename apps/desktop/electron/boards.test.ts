@@ -71,6 +71,7 @@ describe("boardsIn", () => {
         finished: true,
         built: null,
         size: null,
+        layers: 2,
         model: false,
         step: false,
         gerbers: false,
@@ -117,6 +118,26 @@ describe("boardsIn", () => {
       latest
     )
     expect(boardsIn(root)[0].preview).toBeNull()
+  })
+
+  it("says how many layers of copper it has, as it is drawn: from a newer quick look", () => {
+    const layered = (layers: number) =>
+      JSON.stringify([
+        {
+          type: "pcb_board",
+          center: { x: 0, y: 0 },
+          width: 40,
+          height: 25,
+          num_layers: layers,
+        },
+      ])
+    write("pcb/main.circuit.tsx", "")
+    write("pcb/build/main.circuit.json", layered(4))
+    expect(boardsIn(root)[0].layers).toBe(4)
+    write("pcb/build/main.preview.json", layered(6))
+    const later = new Date(Date.now() + 5000)
+    fs.utimesSync(path.join(root, "pcb/build/main.preview.json"), later, later)
+    expect(boardsIn(root)[0].layers).toBe(6)
   })
 
   it("says when the board was changed after it was last built", () => {

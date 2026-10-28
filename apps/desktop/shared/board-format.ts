@@ -199,6 +199,37 @@ export function sizeOf(circuit: unknown): [number, number] | null {
   return [x1 - x0, y1 - y0]
 }
 
+/** The most layers of copper a board is drawn with, one by one: a button for each. */
+export const MOST_LAYERS = 8
+
+/**
+ * How many layers of copper a board has, as tscircuit built it: two where it does not
+ * say, as a board has unless it is told otherwise.
+ */
+export function layersOf(circuit: unknown): number {
+  if (!Array.isArray(circuit)) return 2
+  const board = circuit.find(
+    (element) => isObject(element) && element.type === "pcb_board"
+  ) as Record<string, unknown> | undefined
+  const said = board?.num_layers
+  return typeof said === "number" && Number.isInteger(said)
+    ? Math.min(Math.max(said, 1), MOST_LAYERS)
+    : 2
+}
+
+/**
+ * What tscircuit calls a board's layer of copper, by which it is, counted from its top:
+ * the first is its top, the last its bottom, and those between are inner1, inner2.
+ */
+export function copperLayerOf(
+  layer: number,
+  layers: number
+): "top" | "bottom" | `inner${number}` {
+  if (layer <= 1) return "top"
+  if (layer >= layers) return "bottom"
+  return `inner${layer - 1}`
+}
+
 /** The 3D models a part can have, any of which makes it more than a bare hole. */
 const MODELS = [
   "model_obj_url",

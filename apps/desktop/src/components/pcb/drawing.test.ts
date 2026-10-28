@@ -78,19 +78,30 @@ describe("holesEdged", () => {
 describe("awayFaded", () => {
   const drawing =
     '<svg width="10" height="10"><path data-pcb-layer="top"/><path data-pcb-layer="bottom"/></svg>'
+  const fadedOf = (layer: Parameters<typeof awayFaded>[1]) =>
+    /<style>(.*) \{ opacity: [\d.]+; \}<\/style>/.exec(
+      awayFaded(drawing, layer)
+    )?.[1]
 
-  it("draws the bottom faint under the top, seen from over the board", () => {
-    const faded = awayFaded(drawing, "top")
-    expect(faded).toMatch(
-      /^<svg width="10" height="10"><style>\[data-pcb-layer="bottom"\] \{ opacity: [\d.]+; \}<\/style>/
+  it("draws the bottom and the layers inside faint under the top, seen from over the board", () => {
+    expect(awayFaded(drawing, "top")).toMatch(
+      /^<svg width="10" height="10"><style>/
     )
-    expect(faded).not.toContain('[data-pcb-layer="top"]')
+    expect(fadedOf("top")).toBe(
+      '[data-pcb-layer="bottom"], [data-pcb-layer^="inner"]:not([data-pcb-layer="top"])'
+    )
   })
 
   it("draws the top faint under the bottom, seen from under it", () => {
-    const faded = awayFaded(drawing, "bottom")
-    expect(faded).toContain('[data-pcb-layer="top"] {')
-    expect(faded).not.toContain('[data-pcb-layer="bottom"] {')
+    expect(fadedOf("bottom")).toBe(
+      '[data-pcb-layer="top"], [data-pcb-layer^="inner"]:not([data-pcb-layer="bottom"])'
+    )
+  })
+
+  it("draws both sides and the other layers inside faint, for one inside", () => {
+    expect(fadedOf("inner2")).toBe(
+      '[data-pcb-layer="top"], [data-pcb-layer="bottom"], [data-pcb-layer^="inner"]:not([data-pcb-layer="inner2"])'
+    )
   })
 })
 

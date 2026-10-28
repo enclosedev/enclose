@@ -152,10 +152,12 @@ export type View = {
   /** and how a board is looked at there: drawn as it is made, as its schematic, or in 3D */
   boardAs: BoardAs
   /**
-   * which side of it the drawing of it as it is made is of: the top, with everything on
-   * it, or the bottom, turned over to be seen as it is from under the board
+   * which of its layers of copper the drawing of it as it is made is of, counted from
+   * its top: 1 is the top, with everything on it; its last is the bottom, turned over
+   * to be seen as it is from under the board; one between is seen from the top, with
+   * the others faded
    */
-  boardSide: "top" | "bottom"
+  boardLayer: number
   /**
    * Whether it is the project's inspiration board that is looked at, and not the model:
    * the pictures of what the thing should be like (see components/inspiration), which
@@ -171,6 +173,12 @@ export type View = {
  */
 export const BOARD_AS = ["pcb", "3d", "schematic"] as const
 export type BoardAs = (typeof BOARD_AS)[number]
+
+/**
+ * The keys that bring up each of a board's layers of copper, in PCB mode, the top's
+ * first: three to a row of the keyboard, down its left.
+ */
+export const LAYER_KEYS = ["q", "w", "e", "a", "s", "d", "z", "x"] as const
 
 /**
  * What is picked out of the model, to be shown on its own: one part, a group of them,
@@ -526,7 +534,7 @@ const homeView = (): View => ({
   board: null,
   // a board is first seen in 3D, whichever way it was looked at before
   boardAs: "3d",
-  boardSide: "top",
+  boardLayer: 1,
   inspiration: false,
 })
 
@@ -1371,7 +1379,7 @@ export const useStore = create<State>()((set, get) => ({
         view.inspiration = false
         if (patch.board !== state.view.board) {
           view.boardAs = patch.boardAs ?? "3d"
-          view.boardSide = patch.boardSide ?? "top"
+          view.boardLayer = patch.boardLayer ?? 1
         }
       }
       if (!view.blueprint) view.sheet = null
