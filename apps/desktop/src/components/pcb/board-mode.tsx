@@ -55,6 +55,7 @@ import { onlyWhereItTurns, Underlight } from "@/components/viewport/scene"
 import { bridge } from "@/components/viewport/bridge"
 import { flatZoom, FOV, PINCH, REACH, Rig } from "@/components/viewport/rig"
 import { disposeBoard, loadBoard } from "./pictures"
+import { Hand, useHand, withHand } from "./hand"
 import { BoardPartMark, onBoard } from "./part-mark"
 import { UnfinishedBadge, WorkingBadge } from "./board-steps"
 import {
@@ -1515,6 +1516,7 @@ function InThreeD({
   circuit,
   inspecting,
   found,
+  hand,
 }: {
   url: string
   id: string
@@ -1527,9 +1529,18 @@ function InThreeD({
   inspecting: Inspected | null
   /** the parts that were looked for, by their names on the board: lit */
   found: string[] | null
+  /** it is shown on the palm of a hand, for how big it is beside one */
+  hand: boolean
 }) {
   const [shown, setShown] = React.useState<ReturnType<typeof standing> | null>(
     null
+  )
+  const palm = useHand(hand)
+  // all there is to see, the hand too while it is there: the camera takes it in as it
+  // comes, and comes back in as it goes, as it does a model's reference scene
+  const seen = React.useMemo(
+    () => (shown && palm ? withHand(shown.box, palm) : (shown?.box ?? null)),
+    [shown, palm]
   )
   // (in the theme's colours as they were at first: Lighting has it in theirs now)
   const { pcb } = useThemeColors()
@@ -1570,7 +1581,7 @@ function InThreeD({
   )
   /** what the pointer is over, said beside it (put there by Picking, as it moves) */
   const label = React.useRef<HTMLDivElement>(null)
-  if (!shown) return null
+  if (!shown || !seen) return null
   const radius = shown.box.getSize(new THREE.Vector3()).length() / 2 || 1
 
   return (
@@ -1594,7 +1605,16 @@ function InThreeD({
         <directionalLight position={[-240, 160, -180]} intensity={0.55} />
         <primitive object={shown.holder} />
         {/* (framed afresh for another board, and not for the same one built again) */}
-        <Rig box={shown.box} homeKey={`board:${id}`} bridged={false} />
+        <Rig
+          box={seen}
+          homeKey={`board:${id}`}
+          around={palm ? "hand" : null}
+          // (on the hand, the camera keeps above its palm, as it keeps above what a
+          // model stands on in a reference scene: there is nothing to see from under)
+          ground={palm ? shown.box.min.z : null}
+          bridged={false}
+        />
+        {palm && <Hand geometry={palm} board={shown.box} />}
         {/* the light from under it, as the model has: out while it is looked down on,
           and coming up as the camera goes under it (after the camera has moved) */}
         <Underlight />
@@ -1826,6 +1846,7 @@ export function BoardMode({
   const { dark, backdrop, pcb } = useThemeColors()
   const ground = `#${backdrop.getHexString()}`
   const { circuit, trouble, routed } = useCircuit(projectId, board)
+  const hand = useStore((state) => state.view.boardHand)
   const inspecting = React.useMemo(
     () => (circuit ? inspected(circuit) : null),
     [circuit]
@@ -1933,6 +1954,7 @@ export function BoardMode({
             circuit={circuit}
             inspecting={inspecting}
             found={foundParts}
+            hand={hand}
           />
         ) : (
           <Nothing

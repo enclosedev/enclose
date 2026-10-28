@@ -1498,6 +1498,13 @@ function Model({ project }: { project: Project }) {
         const layer = Number(letter)
         if (layer > boardLayers.current) return
         setView({ boardLayer: layer })
+      } else if (
+        view.board !== null &&
+        view.boardAs === "3d" &&
+        letter === "h"
+      ) {
+        // and in 3D, the hand it is shown on, or not
+        setView({ boardHand: !view.boardHand })
       } else if (letter === "b") {
         // there is no blueprint of the cube that stands in for a model
         if (loaded.standIn) return

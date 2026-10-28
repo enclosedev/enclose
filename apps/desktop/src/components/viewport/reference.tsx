@@ -469,16 +469,6 @@ export function Reference({
     () => placing(loaded.scene, model),
     [loaded.scene, model]
   )
-  const material = React.useMemo(() => filled(colors, TONE), [colors])
-  React.useEffect(() => () => material.dispose(), [material])
-  const apart = React.useMemo(() => told(), [])
-  React.useEffect(() => () => apart.dispose(), [apart])
-  const outline = React.useMemo(
-    () => outlined(colors, TONE, occasion),
-    [colors, occasion]
-  )
-  React.useEffect(() => outline.dispose, [outline])
-
   const sunk = React.useMemo(() => sinking(parts, model), [parts, model])
   const current = React.useRef(explode)
   // How fast each part is going down. A model that comes apart another way, piece by
@@ -519,18 +509,12 @@ export function Reference({
 
   return (
     <group ref={group} position={at}>
-      <mesh
+      <InReference
         geometry={loaded.geometry}
-        material={material}
-        raycast={NOT_PICKED}
+        colors={colors}
+        occasion={occasion}
+        order={order}
       />
-      <mesh
-        geometry={loaded.geometry}
-        material={apart}
-        layers={occasion}
-        raycast={NOT_PICKED}
-      />
-      <primitive object={outline.lines} renderOrder={order} />
       {cover && (
         <mesh geometry={loaded.geometry} layers={cover} raycast={NOT_PICKED}>
           <meshBasicMaterial
@@ -542,6 +526,47 @@ export function Reference({
       )}
       <group position={[-at.x, -at.y, loaded.scene.floor]}>{children}</group>
     </group>
+  )
+}
+
+/**
+ * Something drawn as a reference scene is (see the top of this): in one tone, with its
+ * lines laid over the view, and never picked. `geometry` is as `loadSurfaces` makes it.
+ * A circuit board's hand is drawn so too, in PCB mode.
+ */
+export function InReference({
+  geometry,
+  colors,
+  occasion,
+  order,
+}: {
+  geometry: THREE.BufferGeometry
+  colors: ThemeColors
+  /** the occasion it is drawn on to be told apart, for its lines to be found */
+  occasion: THREE.Layers
+  /** where among all that is drawn its lines are laid over the view */
+  order: number
+}) {
+  const material = React.useMemo(() => filled(colors, TONE), [colors])
+  React.useEffect(() => () => material.dispose(), [material])
+  const apart = React.useMemo(() => told(), [])
+  React.useEffect(() => () => apart.dispose(), [apart])
+  const outline = React.useMemo(
+    () => outlined(colors, TONE, occasion),
+    [colors, occasion]
+  )
+  React.useEffect(() => outline.dispose, [outline])
+  return (
+    <>
+      <mesh geometry={geometry} material={material} raycast={NOT_PICKED} />
+      <mesh
+        geometry={geometry}
+        material={apart}
+        layers={occasion}
+        raycast={NOT_PICKED}
+      />
+      <primitive object={outline.lines} renderOrder={order} />
+    </>
   )
 }
 

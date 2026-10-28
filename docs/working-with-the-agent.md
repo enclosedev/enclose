@@ -185,7 +185,8 @@ right change over to the board's, and the cards of the other projects are put aw
 3D; the buttons, or T, B and S, show it as it is made (**Technical view**), in **3D**, or as its
 **Schematic**. Under **Technical view**, a numbered button for each layer of copper (or the keys 1 to 8, in the
 technical view) shows that layer: 1 is the top, the last is the bottom, turned over to be seen from under the board, and one between is
-seen from the top, the others faded. A drawing is moved with a swipe or a drag and zoomed with a pinch or the
+seen from the top, the others faded. Under **3D**, **Hand** (H) shows the board on the palm of an open hand,
+drawn as the model's reference scenes are, to see how big it is beside one. A drawing is moved with a swipe or a drag and zoomed with a pinch or the
 wheel, and a double click shows all of it again. In the technical view, pointing at a
 pad shows what its pin is called (U1.VBAT, U1.pin28), as tscircuit's own viewer does,
 pointing at a hole shows how big it is drilled, and pointing at a trace shows the net it

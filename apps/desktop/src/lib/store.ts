@@ -159,6 +159,12 @@ export type View = {
    */
   boardLayer: number
   /**
+   * whether the board in 3D is shown on the palm of a hand, for how big it is beside one:
+   * drawn as a reference scene is, under it (kept from one board to the next, until
+   * PCB mode is left)
+   */
+  boardHand: boolean
+  /**
    * Whether it is the project's inspiration board that is looked at, and not the model:
    * the pictures of what the thing should be like (see components/inspiration), which
    * have the view's place as a board does in PCB mode. Never with the blueprint, the
@@ -537,6 +543,7 @@ const homeView = (): View => ({
   // a board is first seen in 3D, whichever way it was looked at before
   boardAs: "3d",
   boardLayer: 1,
+  boardHand: false,
   inspiration: false,
 })
 
@@ -1385,6 +1392,12 @@ export const useStore = create<State>()((set, get) => ({
         }
       }
       if (!view.blueprint) view.sheet = null
+      // PCB mode left, however it was: how a board was looked at goes with it, the
+      // hand it was on too, and the next is looked at afresh
+      if (view.board === null) {
+        view.boardLayer = 1
+        view.boardHand = false
+      }
       return {
         view,
         cuts: kept,

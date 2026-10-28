@@ -892,6 +892,7 @@ const KEYS: { title: string; rows: [string, string[], Drag?][] }[] = [
       ["Technical view", ["T"]],
       ["Its layers, top first", ["1–8"]],
       ["3D view", ["B"]],
+      ["The board on a hand, in 3D", ["H"]],
       ["Schematic", ["S"]],
       ["Parts on the board", ["P"]],
       ["Search the board", [CMD, "F"]],

@@ -175,6 +175,20 @@ describe("what the view is put into", () => {
 })
 
 describe("a circuit board, in PCB mode", () => {
+  it("keeps the hand from one board to the next, and puts it away when PCB mode is left", () => {
+    state().setView({ board: "main" })
+    state().setView({ boardHand: true })
+    state().setView({ board: "power" })
+    expect(view().boardHand).toBe(true)
+    state().setView({ board: null })
+    expect(view().boardHand).toBe(false)
+    // and as the blueprint is gone into, which leaves it too
+    state().setView({ board: "main", boardHand: true })
+    state().setView({ blueprint: true })
+    expect(view().boardHand).toBe(false)
+    state().setView({ blueprint: false })
+  })
+
   it("is first seen in 3D, from above, whichever way the last one was looked at", () => {
     state().setView({ board: "main" })
     expect(view()).toMatchObject({

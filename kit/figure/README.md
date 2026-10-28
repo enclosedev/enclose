@@ -29,3 +29,15 @@ thousand triangles:
     npm run scenes
 
 That is only for making the figure again. What it writes is kept with the app.
+
+## The hand
+
+`hand.glb`, which PCB mode can show a circuit board on in 3D (beside the app's own
+code, in `apps/desktop/src/components/pcb/`), is an open hand, palm up, as big as a
+man's. It is the realistic hand in the same Human Base Meshes bundle, in the public
+domain as the figure is. `hand.py`, run by Blender, makes its sculpted detail its mesh,
+lays it down palm up with its fingers pointing away, cuts off most of its forearm, and
+writes it with the middle of the palm over the origin:
+
+    blender -b -Y --factory-startup --python kit/figure/hand.py -- \
+        human_base_meshes_bundle.blend apps/desktop/src/components/pcb/hand.glb
