@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 
 import type { BoardSummary, ConversationSummary } from "@shared/api"
-import { AT_BOARD_MS, boardAtWork, sizeSaid } from "./boards"
+import { AT_BOARD_MS, boardAtWork, sizeSaid, withRouting } from "./boards"
 
 // the window's store, which the hooks beside it read: sizeSaid needs none of it
 vi.mock("@/lib/store", () => ({ useStore: () => null }))
@@ -73,5 +73,70 @@ describe("boardAtWork", () => {
     expect(
       boardAtWork([made], [turn(4_000), turn(2_000, "main")], 6_000)
     ).toBeNull()
+  })
+})
+
+describe("withRouting", () => {
+  const part = (x: number) => [
+    { type: "source_component", source_component_id: "s1", name: "U1" },
+    {
+      type: "pcb_component",
+      source_component_id: "s1",
+      center: { x, y: 0 },
+      rotation: 0,
+    },
+  ]
+  const board = {
+    type: "pcb_board",
+    center: { x: 0, y: 0 },
+    width: 40,
+    height: 30,
+  }
+  const trace = (id: string) => ({
+    type: "pcb_trace",
+    pcb_trace_id: id,
+    route: [],
+  })
+  // the quick look: the trace written in the board's file, and artwork since
+  const look = [
+    board,
+    ...part(5),
+    trace("written"),
+    { type: "pcb_silkscreen_graphic" },
+  ]
+  const built = [
+    board,
+    ...part(5),
+    trace("written"),
+    trace("routed"),
+    { type: "pcb_via" },
+    { type: "pcb_copper_pour" },
+  ]
+
+  it("draws the quick look with the routing of its build, where nothing has moved", () => {
+    const { circuit, routed } = withRouting(look, built)
+    expect(routed).toBe("as built")
+    expect(circuit.map((element) => element.type).sort()).toEqual([
+      "pcb_board",
+      "pcb_component",
+      "pcb_copper_pour",
+      "pcb_silkscreen_graphic",
+      "pcb_trace",
+      "pcb_trace",
+      "pcb_via",
+      "source_component",
+    ])
+  })
+
+  it("carries none where a part has moved, or the board", () => {
+    const moved = [board, ...part(6), trace("written")]
+    expect(withRouting(moved, built)).toEqual({ circuit: moved, routed: "not" })
+    const grown = [{ ...board, width: 50 }, ...part(5)]
+    expect(withRouting(grown, built).routed).toBe("not")
+  })
+
+  it("says nothing where the build was not routed either", () => {
+    const unrouted = [board, ...part(5), trace("written")]
+    expect(withRouting(look, unrouted)).toEqual({ circuit: look, routed: null })
   })
 })

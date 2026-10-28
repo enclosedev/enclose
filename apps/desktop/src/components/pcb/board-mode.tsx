@@ -44,6 +44,7 @@ import {
   useCircuit,
   useJobOn,
   type Circuit,
+  type Routed,
 } from "./boards"
 import { DRAWN } from "./ground"
 import { contoursOf } from "@/components/viewport/contours"
@@ -1822,7 +1823,7 @@ export function BoardMode({
   const as: BoardAs = useStore((state) => state.view.boardAs)
   const { dark, backdrop, pcb } = useThemeColors()
   const ground = `#${backdrop.getHexString()}`
-  const { circuit, trouble } = useCircuit(projectId, board)
+  const { circuit, trouble, routed } = useCircuit(projectId, board)
   const inspecting = React.useMemo(
     () => (circuit ? inspected(circuit) : null),
     [circuit]
@@ -2005,13 +2006,16 @@ export function BoardMode({
           </div>
           {!job && board.building ? (
             <BuildingLine building={board.building} />
-          ) : (
-            as === "3d" &&
+          ) : as === "3d" ? (
             board.model &&
             board.built !== null &&
             (board.preview !== null || board.outdated) && (
               <LastBuilt at={board.built} />
             )
+          ) : (
+            as === "pcb" &&
+            board.built !== null &&
+            routed !== null && <LastBuilt at={board.built} routed={routed} />
           )}
         </div>
       )}
@@ -2022,14 +2026,21 @@ export function BoardMode({
 /**
  * That the board in 3D is as it was last built, and when that was: the 3D is made only
  * by a full build, and the board has been written since (its quick look, which the
- * technical view and the schematic draw, is newer).
+ * technical view and the schematic draw, is newer). In the technical view, the same of
+ * its routing, which only a full build makes too: drawn as it was routed then, or not
+ * drawn, as parts have moved since.
  */
-function LastBuilt({ at }: { at: number }) {
+function LastBuilt({ at, routed = null }: { at: number; routed?: Routed }) {
   const now = useNow(30_000)
   const when = ago(at, now)
+  const since = when === "now" ? "just now" : `${when} ago`
   return (
     <span className="animate-in text-xs text-foreground/60 duration-200 select-none fade-in">
-      As last built, {when === "now" ? "just now" : `${when} ago`}
+      {routed === "not"
+        ? "Not routed: parts have moved since it was last built"
+        : routed === "as built"
+          ? `Routing as last built, ${since}`
+          : `As last built, ${since}`}
     </span>
   )
 }
