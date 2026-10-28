@@ -51,6 +51,7 @@ import path from "node:path"
 import { pathToFileURL } from "node:url"
 
 import { checkBoard, mendOrder, passedAll, said } from "./board-check.mjs"
+import { letteringOf } from "./board-lettering.mjs"
 
 /** The tscircuit it builds with: the one the app is known to work with. */
 const TSCIRCUIT = "tscircuit@0.0.2892"
@@ -304,6 +305,15 @@ for (const bin of (process.env.PATH ?? "").split(p.delimiter)) {
   }
 }
 
+/** The folder of packages the tscircuit that npx keeps for TSCIRCUIT is in, or null. */
+function modulesOfTscircuit() {
+  const entry = realTscircuit()
+  if (!entry) return null
+  const parts = entry.split(path.sep)
+  const at = parts.lastIndexOf("node_modules")
+  return at < 0 ? null : parts.slice(0, at + 1).join(path.sep)
+}
+
 /**
  * The tscircuit the work folder has: the real one at `real` (a file URL), but for a
  * RootCircuit that writes what the router draws of its work to `file`, as it routes.
@@ -448,6 +458,7 @@ async function keep() {
   if (!fs.existsSync(circuit))
     stop(`tscircuit built the board but wrote no circuit.json in ${out}.`)
   tell({ stage: "finishing" }, true)
+  unstroked(circuit)
 
   // the files to have it made from, which the build does not write by itself
   const gerbers = await tsci([
@@ -476,9 +487,46 @@ async function keep() {
   }
   console.log(`\nBuilt ${name}:\n${wrote.map((one) => `  ${one}`).join("\n")}`)
   if (gerbers.status !== 0) return
-  // a finished board is checked as it would be ordered; a rough one only for its parts
+  // a finished board is checked as it would be ordered; a rough one only for its parts,
+  // and its lettering
   if (finished()) await checked()
-  else sourcing(board)
+  else {
+    sourcing(board)
+    lettering(board)
+  }
+}
+
+/** What is wrong with the lettering printed on the board: see board-lettering.mjs. */
+function lettering(circuit) {
+  const wrong = letteringOf(circuit)
+  if (wrong.length === 0) return
+  console.log(
+    `\nThe lettering on the board, to mend as the reference says under Lettering (and Artwork):\n${wrong.map((one) => `  - ${one}`).join("\n")}`
+  )
+}
+
+/**
+ * The board without the lines tscircuit draws round each piece of artwork it prints
+ * (<silkscreengraphic>), for whatever cannot draw the artwork itself: its Gerbers have
+ * the artwork, and with those lines as well it would be printed bolder than it is, by a
+ * pen as wide as a sixtieth of it. They are known by lying on the artwork's outlines.
+ */
+function unstroked(file) {
+  const circuit = JSON.parse(fs.readFileSync(file, "utf8"))
+  const key = (p) => `${p.x.toFixed(6)} ${p.y.toFixed(6)}`
+  const outlines = new Set()
+  for (const art of circuit) {
+    if (art.type !== "pcb_silkscreen_graphic" || !art.brep_shape) continue
+    for (const ring of [art.brep_shape.outer_ring, ...(art.brep_shape.inner_rings ?? [])])
+      for (const point of ring?.vertices ?? []) outlines.add(key(point))
+  }
+  if (outlines.size === 0) return
+  const kept = circuit.filter(
+    (one) =>
+      one.type !== "pcb_silkscreen_path" ||
+      !(one.route?.length >= 2 && one.route.every((point) => outlines.has(key(point))))
+  )
+  if (kept.length < circuit.length) fs.writeFileSync(file, JSON.stringify(kept))
 }
 
 /** Whether the board says it is finished: one that says nothing of itself is, as the app has it. */
@@ -628,26 +676,10 @@ function sourcing(circuit) {
  */
 async function sharper(board, glb) {
   try {
-    // where npx keeps the tscircuit it builds with, and so what that makes 3D with
-    const cli = execFileSync(
-      "npx",
-      [
-        "--yes",
-        "-p",
-        TSCIRCUIT,
-        "node",
-        "-e",
-        "process.stdout.write(require('fs').realpathSync(require('child_process').execSync('command -v tsci').toString().trim()))",
-      ],
-      {
-        cwd: work,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"],
-        env: TSCI_ENV,
-        shell: process.platform === "win32",
-      }
-    )
-    const modules = path.dirname(path.dirname(cli))
+    // where npx keeps the tscircuit it builds with, and so what that makes 3D with (not
+    // the tsci first on the PATH, which can be one installed for the whole Mac)
+    const modules = modulesOfTscircuit()
+    if (!modules) throw new Error("the tscircuit it builds with could not be found")
     const { convertCircuitJsonToGltf } = await import(
       pathToFileURL(path.join(modules, "circuit-json-to-gltf", "dist", "index.js")).href
     )

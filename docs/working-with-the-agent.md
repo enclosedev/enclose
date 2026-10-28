@@ -270,9 +270,12 @@ The BOM and the placement file in the zip are written as JLCPCB reads them: each
 named by its maker's number and its package, and turned the way JLCPCB's own footprint of
 it needs. A finished board is checked as it would be ordered each time it is built, and
 the agent says how the checks came out: every part has a JLCPCB number of a part in stock,
-sits on its pads as JLCPCB turns it, and has a 3D model; the zip is of the board as it is
+sits on its pads as JLCPCB turns it, and has a 3D model; its lettering is in capitals,
+reads upright and runs into nothing; the zip is of the board as it is
 now; tscircuit finds no shorts and no parts in each other's way; and which parts cost
-more to assemble, through the board or on its underside. Before you order, ask the agent
+more to assemble, through the board or on its underside. The agent can print artwork on
+a board too: your logo, from an SVG, PNG or JPEG file you give it, or something it draws
+([`kit/board-art.mjs`](../kit/board-art.mjs)). Before you order, ask the agent
 whether the board is ready: it checks it again, with
 [`kit/board-check.mjs`](../kit/board-check.mjs), and says what to look at yourself on
 JLCPCB's site.

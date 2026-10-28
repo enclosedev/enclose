@@ -12,11 +12,12 @@
 //   2. each part's rotation in the placement file (pick_and_place.csv) turns JLCPCB's
 //      own footprint of that part onto the board's pads, pin on pin;
 //   3. each part has a 3D model, for the board in 3D;
-//   4. the Gerbers' zip is of the board as its file is now;
-//   5. and, for the user to know, which parts cost more to have assembled: those
+//   4. the lettering and artwork printed on it read as they should (board-lettering.mjs);
+//   5. the Gerbers' zip is of the board as its file is now;
+//   6. and, for the user to know, which parts cost more to have assembled: those
 //      through the board, and those on its underside.
 //
-// It ends with 0 when the first four pass, and 1 when any does not, or could not be
+// It ends with 0 when the first five pass, and 1 when any does not, or could not be
 // checked (offline, say). The build uses it too: what it can mend in the zip, the BOM's
 // columns and the placement file's, it mends as it builds (`mendOrder`).
 //
@@ -28,6 +29,8 @@ import os from "node:os"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import zlib from "node:zlib"
+
+import { letteringOf } from "./board-lettering.mjs"
 
 /** How far a pad of JLCPCB's footprint can be from the board's own and be on it, mm. */
 const ON_PAD = 0.2
@@ -791,7 +794,19 @@ export async function checkBoard(folder, name, keep = FOOTPRINTS) {
     })
   }
 
-  // 4. the order files of the board as it is
+  // 4. the lettering
+  {
+    const wrong = letteringOf(circuit)
+    checks.push({
+      title: "Lettering",
+      passed: wrong.length === 0,
+      lines: wrong.length
+        ? [...wrong, "Mend each as the reference says, under Lettering (and Artwork)."]
+        : ["Every word printed on the board is in capitals, reads upright, and is clear of the rest and of the edge, and so is its artwork."],
+    })
+  }
+
+  // 5. the order files of the board as it is
   {
     const lines = []
     let passed = true
@@ -826,7 +841,7 @@ export async function checkBoard(folder, name, keep = FOOTPRINTS) {
     checks.push({ title: "Up to date", passed, lines })
   }
 
-  // 5. what the assembly costs
+  // 6. what the assembly costs
   {
     const lines = []
     const through = parts.filter((part) => part.throughHole)

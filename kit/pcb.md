@@ -72,7 +72,8 @@ built by itself: there is nothing to tell it. Do not copy the script into the pr
   each part named by its maker's number and its package, and turned the way JLCPCB's own
   footprint of it needs (see Before it is ordered). It says which parts it turned.
 - A finished board's build ends with the checks it is ordered by (see Before it is
-  ordered): read them.
+  ordered): read them. A rough board's says what is wrong with its lettering (see
+  Lettering).
 - Anything after the board's file goes to `tsci build` as it is. `--routing-disabled`
   builds it unrouted, whatever the board says: for the first steps of a detailed board
   (see A rough board, and a detailed one).
@@ -133,16 +134,7 @@ export default () => (
   Give it its layers: without them the router runs traces through it as if it were not
   there. (`<pcbkeepout>`, which tscircuit's documentation names, is not known to the
   tscircuit the app builds with: it is `<keepout>`.)
-- Lettering on the board is 1.1 mm tall. Set it once on the `<board>`, with
-  `pcbStyle={{ silkscreenFontSize: "1.1mm" }}`: every part's name and every
-  `<silkscreentext>` takes it. Give a `fontSize` only to lettering that has to be
-  bigger or smaller.
-- Put a dot by pin 1 of every connector, so that it is seen which way round its cable
-  goes: `<silkscreencircle radius="0.2mm" strokeWidth="0.4mm" />`, which comes out a
-  solid dot 0.8 mm across. (`isFilled` is not heeded: a circle of radius 0.4 mm comes
-  out a ring.) Put it just outside the connector's outline, beside pin 1, and 0.2 mm or
-  more clear of every pad, since what is printed over a pad is cut away when the board
-  is made.
+- What is printed on the board, its names and dots, is in Lettering, below.
 - A footprint is named as tscircuit names them (`0402`, `0603`, `soic8`, `sot23`,
   `qfn32`, `pinrow4`, `pushbutton`), or comes with a real part. To find one with its
   stock: `npm_config_allow_git=all npx --yes -p tscircuit tsci search --jlcpcb "ESP32-C3"`.
@@ -152,6 +144,91 @@ export default () => (
   npx keeps: `~/.npm/_npx/*/node_modules/@tscircuit/props/lib/components/`. Look there,
   and never search the whole disk or the home folder for them (`find /`, `find ~`): the
   Mac stops the user to ask whether the app may look in each of their private folders.
+
+## Lettering
+
+What is printed on the board is read by whoever plugs a cable into it, solders it or
+mends it: what each connector is for, which way round its cable goes, and which part
+is which. Print that and nothing else, each word where it is read at once.
+
+- Lettering is 1.1 mm tall. Set it once on the `<board>`, with
+  `pcbStyle={{ silkscreenFontSize: "1.1mm" }}`: every part's name and every
+  `<silkscreentext>` takes it. Give a `fontSize` only to lettering that has to be
+  bigger or smaller, and none under 0.8 mm.
+- In capitals, always: tscircuit's font prints lower case poorly. A net whose name has a
+  lower-case letter is written as what it does (`BOOT`, not `nRPIBOOT`).
+- Name each connector by what plugs into it (`BATT`, `SPK`, `USB`), beside it. Put a dot
+  by its pin 1, so that it is seen which way round its cable goes:
+  `<silkscreencircle radius="0.2mm" strokeWidth="0.4mm" />`, which comes out a solid
+  dot 0.8 mm across. (`isFilled` is not heeded: a circle of radius 0.4 mm comes out a
+  ring.) Put it just outside the connector's outline, beside pin 1, and 0.2 mm or more
+  clear of every pad. The dot says which
+  pin is pin 1: write nothing that says it again (`pin 1 = VCC`).
+- Name a connector's pins only where a cable is wired to them by hand, one short word
+  each (`GND`, `TX`), beside its pin.
+- Print no notes. What whoever wires it needs to know (a cable that must be
+  straight-through, say) goes in your reply.
+- Each word reads from the bottom of the board, or turned a quarter to read from its
+  right (`pcbRotation={90}`): never upside down, or from top to bottom.
+- Keep each word clear: of every other word, of every pad and hole by 0.2 mm (what is
+  printed on copper is cut away when the board is made), of the parts' outlines and the
+  dots, and 0.5 mm inside the board's edge.
+
+tscircuit prints every part's name (`R1`, `J2`) by itself, beside it and turned with
+it: where that is, it is often in another's way, upside down, or over the edge. A
+connector named by what plugs into it needs no `J2` as well. To have a part's name
+elsewhere, hide tscircuit's and print it yourself:
+
+```tsx
+<resistor name="R5" ... pcbSx={{ "& silkscreentext": { visibility: "hidden" } }} />
+<silkscreentext text="R5" pcbX={21} pcbY={-28.8} />
+```
+
+(A part's own footprint can carry other lettering, which that hides too.) On a crowded
+board, leave off the names of small parts with no room beside them, rather than crowd
+them in, and say in your reply which.
+
+The build measures the lettering as it is printed, and says what is wrong with it: in
+lower case, running into something, over the edge or upside down. Mend everything it
+says. The board's picture (`pcb/build/<name>.pcb.png`) is too small to judge lettering
+by: go by what the build says, and look at the picture for where each word is.
+
+## Artwork
+
+A board can carry artwork in its print as well: the user's logo, a drawing, a pattern,
+the name of the thing in its own lettering. Put it on when the user asks, from a picture
+they give you (an SVG, a PNG or a JPEG: a file, or a path to one) or drawn by you. A
+picture attached to a message is not a file you can use: ask for the file.
+
+1. Put the picture in `pcb/art/`, named for what it is (`pcb/art/logo.svg`). To draw one
+   yourself, write it there as an SVG: shapes, strokes, text and transforms all do, in
+   black on nothing. Draw it at the size it is printed at, and keep every line and
+   every gap 0.15 mm or more there: finer is printed broken, or filled in.
+2. Make it into artwork, with the app's script beside `board.mjs`, saying how wide (or
+   how tall) it is on the board in mm:
+
+   ```
+   node "<the app's kit>/board-art.mjs" pcb/art/logo.svg --width 20
+   ```
+
+   It writes `pcb/art/logo.ts`, the picture traced into outlines tscircuit prints as
+   they are. `--light` prints what is light in the picture rather than what is dark (a
+   logo drawn white); `--bottom` is for the underside, mirrored to read from there. It
+   says where the picture is too fine to print at that size: make it bigger, or its
+   lines bolder. Make it again whenever the picture or its size changes: never write
+   the `.ts`, or a `<silkscreengraphic>`, by hand.
+3. Print it, from the board's file:
+
+   ```tsx
+   import logo from "./art/logo"
+   ...
+   <silkscreengraphic {...logo} pcbX={12} pcbY={-6} />
+   ```
+
+   `pcbRotation` turns it. Put it where there is room for it: clear of every pad and
+   hole by 0.2 mm, of the lettering, and 0.5 mm inside the edge, which the build checks
+   with the lettering; and not under a part, which hides it. The underside, with no
+   parts on it, often has the most room.
 
 ## The schematic
 
@@ -375,11 +452,14 @@ your reply how each came out:
    Tell the user that the magenta dot of each part there must sit on its pin 1, and
    where that is: the check says, part by part.
 3. 3D models: every part has one (see 3D models of parts).
-4. Up to date: the Gerbers' zip is of the board as its file is now. Only a build makes
+4. Lettering: every word printed on the board is in capitals, reads upright, and is
+   clear of the rest and of the edge, and so is its artwork (see Lettering, and
+   Artwork).
+5. Up to date: the Gerbers' zip is of the board as its file is now. Only a build makes
    it, so build again after any change; never edit the zip by hand, which the next
    build writes over.
-5. tscircuit's checks: no shorts, a whole netlist, and parts placed clear of each other.
-6. What the assembly costs, for the user to know: the parts through the board and those
+6. tscircuit's checks: no shorts, a whole netlist, and parts placed clear of each other.
+7. What the assembly costs, for the user to know: the parts through the board and those
    on the underside (see Choosing parts).
 
 A check that could not be run, offline or turned away, is not a pass: say which, and
