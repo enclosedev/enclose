@@ -198,11 +198,14 @@ by: go by what the build says, and look at the picture for where each word is.
 A board can carry artwork in its print as well: the user's logo, a drawing, a pattern,
 the name of the thing in its own lettering. Put it on when the user asks, from a picture
 they give you (an SVG, a PNG or a JPEG: a file, or a path to one) or drawn by you. A
-picture attached to a message is not a file you can use: ask for the file.
+picture dropped on a message from a file comes with where that file is: an SVG given so
+is the artwork itself, to print as it is drawn, unless the user says otherwise. One with
+no file is only a picture of it: to print it as it is, ask for the file; to draw
+something after it, draw your own (step 1).
 
-1. Put the picture in `pcb/art/`, named for what it is (`pcb/art/logo.svg`). To draw one
-   yourself, write it there as an SVG: shapes, strokes, text and transforms all do, in
-   black on nothing. Draw it at the size it is printed at, and keep every line and
+1. Copy the picture into `pcb/art/`, named for what it is (`pcb/art/logo.svg`). To draw
+   one yourself, write it there as an SVG: shapes, strokes, text and transforms all do,
+   in black on nothing. Draw it at the size it is printed at, and keep every line and
    every gap 0.15 mm or more there: finer is printed broken, or filled in.
 2. Make it into artwork, with the app's script beside `board.mjs`, saying how wide (or
    how tall) it is on the board in mm:

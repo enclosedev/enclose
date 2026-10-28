@@ -65,6 +65,23 @@ describe("Pictures", () => {
     expect(shown[1].mimeType).toBe("image/jpeg")
   })
 
+  it("says where a picture's file is, while it is there, and only as a whole path", () => {
+    const file = path.join(dir, "logo.svg")
+    fs.writeFileSync(file, "<svg/>")
+    const one = pictures.add("p1", { ...png(), path: file })!
+    expect(one.path).toBe(file)
+    expect(pictures.add("p1", { ...png(), path: "logo.svg" })!.path).toBe(
+      undefined
+    )
+    expect(pictures.read("p1", [{ ...one, number: 1 }])[0].path).toBe(file)
+    // what the window says of it is taken only where it is a whole path
+    expect(
+      pictures.read("p1", [{ ...one, path: "../logo.svg", number: 1 }])[0].path
+    ).toBe(undefined)
+    fs.rmSync(file)
+    expect(pictures.read("p1", [{ ...one, number: 1 }])[0].path).toBe(undefined)
+  })
+
   it("passes over what is not one of the project's pictures", () => {
     const one = pictures.add("p1", png())!
     fs.writeFileSync(path.join(dir, "secret.png"), "x")

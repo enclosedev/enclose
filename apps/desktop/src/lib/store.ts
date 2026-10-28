@@ -1653,6 +1653,9 @@ export const useStore = create<State>()((set, get) => ({
         fit &&
         (await window.cad.pictures.add(projectId, {
           name: file instanceof File && file.name ? file.name : "image",
+          path:
+            (file instanceof File && window.cad.projects.pathOf(file)) ||
+            undefined,
           ...fit,
         }))
       if (!kept) {

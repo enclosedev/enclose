@@ -48,9 +48,14 @@ export class Pictures {
    */
   add(
     projectId: string,
-    given: { name?: unknown; mimeType?: unknown; data?: unknown } | null
+    given: {
+      name?: unknown
+      path?: unknown
+      mimeType?: unknown
+      data?: unknown
+    } | null
   ): Omit<Attached, "number"> | null {
-    const { name, mimeType, data } = given ?? {}
+    const { name, path: from, mimeType, data } = given ?? {}
     const ending = typeof mimeType === "string" && PICTURE_TYPES[mimeType]
     if (!ending || !(types.isArrayBuffer(data) || ArrayBuffer.isView(data)))
       return null
@@ -64,6 +69,7 @@ export class Pictures {
     return {
       id,
       name: called(name),
+      ...(fileAt(from) ? { path: from as string } : {}),
       mimeType: mimeType as string,
       bytes: bytes.length,
     }
@@ -83,7 +89,7 @@ export class Pictures {
   read(projectId: string, given: unknown): Shown[] {
     const found: Shown[] = []
     for (const one of Array.isArray(given) ? given : []) {
-      const { id, name, number } = (one ?? {}) as Partial<Attached>
+      const { id, name, path: from, number } = (one ?? {}) as Partial<Attached>
       const file = this.file(projectId, id)
       const mimeType = file && typeOf(id as string)
       if (
@@ -100,6 +106,10 @@ export class Pictures {
         found.push({
           id: id as string,
           name: called(name),
+          // (said only while its file is still there)
+          ...(fileAt(from) && fs.existsSync(from as string)
+            ? { path: from as string }
+            : {}),
           mimeType,
           bytes: data.length,
           number: number as number,
@@ -130,6 +140,16 @@ export class Pictures {
   forget(projectId: string) {
     fs.rmSync(this.folder(projectId), { recursive: true, force: true })
   }
+}
+
+/** Whether what was said of where a picture's file is could be where one is: a whole path. */
+function fileAt(said: unknown): boolean {
+  return (
+    typeof said === "string" &&
+    said.length < 4096 &&
+    !/[\n\r]/.test(said) &&
+    path.isAbsolute(said)
+  )
 }
 
 /** What a picture was called where it came from, in one line and no longer than is kept. */

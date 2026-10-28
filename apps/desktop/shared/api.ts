@@ -296,6 +296,12 @@ export type Attached = {
   id: string
   /** what it was called where it came from: "image.png" */
   name: string
+  /**
+   * Where its file is on this computer, where it was dropped or pasted from one, or
+   * picked: the agent is told, so that it can use the file itself (a drawing in vectors,
+   * which it is shown only a picture of).
+   */
+  path?: string
   mimeType: string
   /** how big its file is, in bytes */
   bytes: number
@@ -1126,7 +1132,12 @@ export type CadApi = {
      */
     add(
       projectId: string,
-      picture: { name: string; mimeType: string; data: ArrayBuffer }
+      picture: {
+        name: string
+        path?: string
+        mimeType: string
+        data: ArrayBuffer
+      }
     ): Promise<Omit<Attached, "number"> | null>
     /** Forget one that was taken back off the message before it was sent. */
     drop(projectId: string, id: string): Promise<void>

@@ -727,6 +727,7 @@ export function picturing(
 ): string[] {
   return [
     `- A message may come with pictures the user attached to it: a photo of a thing, a sketch, a drawing with sizes on it, a screenshot. Each is given under what it goes by (${pictureName(1)}), and ${pictureMark(1)} in what they wrote is where they put that picture in it. They are what the message is about. Asked to make what a picture shows, make that thing: the parts it is made of, each a part of its own, in the proportions the picture has them. Then set a screenshot of what you built (${tool(VIEWPORT, "screenshot")}) beside the picture and mend what differs, before you report it.`,
+    `- A picture dropped or pasted from a file on this computer comes with where that file is (${pictureName(1)}, from the file /Users/…/logo.svg). An SVG is a drawing in vectors, and what you are shown is only a picture made of it: take it that the user means the drawing itself to be used, as it is (artwork printed on a circuit board, a shape cut or embossed, an outline followed), and work from the file, never from the picture, unless they ask for it to be drawn again or only to be gone by. Copy it into the project to work on it: it is the user's, so never change it where it is.`,
     "- A picture gives shape and proportion, seldom size. A size written on it, or said with it, is real: go by it. Failing that, take the sizes from the standard for the thing or from what such a thing commonly measures, keep the picture's proportions, and say in the short reply which size you went by.",
     "- A message that holds a <pictures> block came with pictures that you cannot be shown here: the block only names them. Never describe one, or make anything from one, as if you had seen it. Go by the words; and where what was asked cannot be done without the picture, say that you cannot see pictures here and ask the user to say in words what it shows: what the thing is, its parts, its sizes.",
   ]
@@ -1270,7 +1271,7 @@ export function pictured(
       `<pictures count="${pictures.length}" shown-to-you="no">`,
       ...pictures.map(
         (picture) =>
-          `<picture name="${pictureName(picture.number)}" file="${picture.name.replace(/"/g, "'")}" />`
+          `<picture name="${pictureName(picture.number)}" file="${picture.name.replace(/"/g, "'")}"${picture.path ? ` path="${picture.path.replace(/"/g, "&quot;")}"` : ""} />`
       ),
       "</pictures>",
     ]
@@ -1279,7 +1280,12 @@ export function pictured(
       .trim()
   }
   const shown = pictures.flatMap((picture) => [
-    { type: "text" as const, text: `${pictureName(picture.number)}:` },
+    {
+      type: "text" as const,
+      text: picture.path
+        ? `${pictureName(picture.number)}, from the file ${picture.path}:`
+        : `${pictureName(picture.number)}:`,
+    },
     {
       type: "image" as const,
       source: {
@@ -1488,9 +1494,10 @@ function saidOf(
       ? {
           // what is in each is kept in its file, and not with what was said
           pictures: pictures.map(
-            ({ id, name, mimeType, bytes, number }): Attached => ({
+            ({ id, name, path: from, mimeType, bytes, number }): Attached => ({
               id,
               name,
+              ...(from ? { path: from } : {}),
               mimeType,
               bytes,
               number,

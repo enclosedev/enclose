@@ -275,7 +275,8 @@ reads upright and runs into nothing; the zip is of the board as it is
 now; tscircuit finds no shorts and no parts in each other's way; and which parts cost
 more to assemble, through the board or on its underside. The agent can print artwork on
 a board too: your logo, from an SVG, PNG or JPEG file you give it, or something it draws
-([`kit/board-art.mjs`](../kit/board-art.mjs)). Before you order, ask the agent
+([`kit/board-art.mjs`](../kit/board-art.mjs)). An SVG dropped on your message is printed
+as it is drawn, from the file itself, unless you ask for something drawn after it. Before you order, ask the agent
 whether the board is ready: it checks it again, with
 [`kit/board-check.mjs`](../kit/board-check.mjs), and says what to look at yourself on
 JLCPCB's site.

@@ -407,6 +407,25 @@ describe("pictured", () => {
     })
   })
 
+  it("says where a picture's file is, where it came from one", () => {
+    const content = pictured("Print this", [
+      { ...shown(1, "logo.svg"), path: "/Users/me/logo.svg" },
+    ])
+    expect(typeof content === "string" ? null : content[0]).toEqual({
+      type: "text",
+      text: "Image 1, from the file /Users/me/logo.svg:",
+    })
+    expect(
+      pictured(
+        "Print this",
+        [{ ...shown(1, "logo.svg"), path: '/Users/me/"a".svg' }],
+        false
+      )
+    ).toContain(
+      '<picture name="Image 1" file="logo.svg" path="/Users/me/&quot;a&quot;.svg" />'
+    )
+  })
+
   it("is the pictures alone, where nothing was written", () => {
     expect(laidOut("", [1])).toEqual(["Image 1:", "image"])
   })
