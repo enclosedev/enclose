@@ -2,7 +2,7 @@ import { cn } from "cn"
 import { CheckIcon, EllipsisIcon } from "lucide-react"
 
 import type { BoardSummary } from "@shared/api"
-import type { Building } from "@shared/board-format"
+import type { Building, BuildTask } from "@shared/board-format"
 import { Badge } from "@/components/ui/badge"
 import { elapsed, useNow } from "@/lib/time"
 import { useJobOn } from "./boards"
@@ -43,7 +43,8 @@ export function UnfinishedBadge({ className }: { className?: string }) {
  * At the foot of PCB mode while an agent makes the board on screen in detail: the steps
  * it is made in, in a row, each with how long it took, or has taken so far, or that it
  * has not been begun on. It is where the whole of the making stands, which what the
- * agent says as it goes does not show. Nothing while no agent is making it.
+ * agent says as it goes does not show. While it is only being built, the stages of the
+ * build in the same way (see `BuildSteps`). Nothing while neither is so.
  */
 export function BoardSteps({
   projectId,
@@ -53,7 +54,82 @@ export function BoardSteps({
   board: BoardSummary
 }) {
   const job = useJobOn(projectId, board)
-  return job && <Steps job={job} building={board.building} />
+  if (job) return <Steps job={job} building={board.building} />
+  return board.building && <BuildSteps building={board.building} />
+}
+
+/** What a build is at once the board is routed, as it is said under "Finishing". */
+const TASK_SAID: Record<BuildTask, string> = {
+  files: "Writing the STEP and 3D files",
+  gerbers: "Making the Gerbers",
+  model: "Making the 3D board",
+  parts: "Fetching the parts' 3D models",
+  checks: "Checking it for ordering",
+}
+
+/** The stages of a build, in the order they come, by what each is called. */
+const BUILD_STAGES: { stage: Building["stage"]; name: string }[] = [
+  { stage: "building", name: "Laying out" },
+  { stage: "routing", name: "Routing" },
+  { stage: "finishing", name: "Finishing" },
+]
+
+/**
+ * A board's build, as the steps an agent makes one in are shown: laid out, routed, and
+ * finished, the one it is at going round (or filling, as far as the routing is) with
+ * what it is at under it: how long it has been at it, how far the routing is, or which
+ * of its files it is making.
+ */
+function BuildSteps({ building }: { building: Building }) {
+  const now = useNow(1000)
+  const at = BUILD_STAGES.findIndex(({ stage }) => stage === building.stage)
+  const routed =
+    building.stage === "routing"
+      ? [
+          building.phases && building.phases > 1
+            ? `Phase ${building.phase} of ${building.phases}`
+            : null,
+          building.progress !== null
+            ? `${Math.round(building.progress * 100)}%`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · ") || "Under way"
+      : null
+  return (
+    <ol className="flex animate-in items-center gap-8 duration-200 select-none fade-in slide-in-from-bottom-2">
+      {BUILD_STAGES.map(({ stage, name }, index) => {
+        const state =
+          index < at ? "done" : index === at ? "now" : ("later" as const)
+        return (
+          <li key={stage} className="flex items-center gap-3">
+            <Mark
+              state={state}
+              share={
+                state === "now" && stage === "routing"
+                  ? building.progress
+                  : null
+              }
+            />
+            <span className="flex flex-col text-[13px] leading-[18px]">
+              <span className="font-medium text-foreground">{name}</span>
+              <span className="text-muted-foreground tabular-nums">
+                {state === "done"
+                  ? "Done"
+                  : state === "later"
+                    ? "Not started yet"
+                    : stage === "routing"
+                      ? routed
+                      : stage === "finishing" && building.task
+                        ? TASK_SAID[building.task]
+                        : elapsed(now - building.since)}
+              </span>
+            </span>
+          </li>
+        )
+      })}
+    </ol>
+  )
 }
 
 function Steps({
@@ -69,7 +145,7 @@ function Steps({
       {stepsOf(job).map((step) => (
         <li key={step.name} className="flex items-center gap-3">
           <Mark
-            step={step}
+            state={step.state}
             share={
               step.state === "now" &&
               step.name === "Routing" &&
@@ -160,14 +236,20 @@ export function StepsInLine({
  * The round mark a step has: ticked once it is done, going round while it is the one
  * under way (or filling, as far as that is told), and three dots before it is begun.
  */
-function Mark({ step, share }: { step: BoardStepShown; share: number | null }) {
-  if (step.state === "done")
+function Mark({
+  state,
+  share,
+}: {
+  state: BoardStepShown["state"]
+  share: number | null
+}) {
+  if (state === "done")
     return (
       <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground/10">
         <CheckIcon className="size-4 text-foreground/80" aria-hidden />
       </span>
     )
-  if (step.state === "later")
+  if (state === "later")
     return (
       <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground/10">
         <EllipsisIcon className="size-4 text-foreground/60" aria-hidden />

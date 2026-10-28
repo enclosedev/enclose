@@ -104,8 +104,26 @@ export function readBuilding(written: unknown, now: number): Building | null {
     phase: number(written.phase),
     phases: number(written.phases),
     step: typeof written.step === "string" ? written.step : null,
+    task: (BUILD_TASKS as readonly unknown[]).includes(written.task)
+      ? (written.task as BuildTask)
+      : null,
   }
 }
+
+/**
+ * What a build is at once the board is routed (its stage "finishing"), in the order it
+ * does them, as kit/board.mjs says: tscircuit writing the board's files, its STEP, its
+ * 3D and its pictures; the Gerbers; the board in 3D made sharper; its parts' own 3D
+ * models fetched; and, for a finished board, the checks it is ordered by.
+ */
+export const BUILD_TASKS = [
+  "files",
+  "gerbers",
+  "model",
+  "parts",
+  "checks",
+] as const
+export type BuildTask = (typeof BUILD_TASKS)[number]
 
 /** How far a board's build has got (see `readBuilding`). */
 export type Building = {
@@ -120,6 +138,8 @@ export type Building = {
   phases: number | null
   /** what the router is at, as it names it ("topologyPlanningSolver") */
   step: string | null
+  /** what it is at once routed, while it says (see BUILD_TASKS) */
+  task: BuildTask | null
 }
 
 /** The most boards a project has shown, and the most that is read of what says what one is. */

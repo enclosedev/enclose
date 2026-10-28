@@ -414,6 +414,8 @@ function heard(line) {
     tell({
       stage: Number(done[1]) < Number(done[2]) ? "routing" : "finishing",
       progress: 1,
+      // routed, tscircuit writes the board's files: its STEP, its 3D, its pictures
+      task: "files",
     })
   const failed = /Failed to merge STEP model from (https?:\/\/\S+)/.exec(line)
   if (failed) unmerged.add(failed[1].replace(/[.,;:)]+$/, ""))
@@ -457,7 +459,7 @@ async function keep() {
   const circuit = path.join(out, "circuit.json")
   if (!fs.existsSync(circuit))
     stop(`tscircuit built the board but wrote no circuit.json in ${out}.`)
-  tell({ stage: "finishing" }, true)
+  tell({ stage: "finishing", task: "gerbers" }, true)
   unstroked(circuit)
 
   // the files to have it made from, which the build does not write by itself
@@ -473,8 +475,11 @@ async function keep() {
     console.error("\nThe Gerbers could not be written; the rest of the board was.")
 
   const board = JSON.parse(fs.readFileSync(circuit, "utf8"))
+  tell({ task: "model" }, true)
   await sharper(board, path.join(out, "3d.glb"))
+  tell({ task: "parts" }, true)
   await parts(board)
+  tell({ task: "gerbers" }, true)
   if (gerbers.status === 0) await mend(board, path.join(out, "gerbers.zip"))
 
   const wrote = []
@@ -486,14 +491,33 @@ async function keep() {
     wrote.push(path.relative(process.cwd(), target))
   }
   console.log(`\nBuilt ${name}:\n${wrote.map((one) => `  ${one}`).join("\n")}`)
+  sheeted(board)
   if (gerbers.status !== 0) return
   // a finished board is checked as it would be ordered; a rough one only for its parts,
   // and its lettering
-  if (finished()) await checked()
+  if (finished()) {
+    tell({ task: "checks" }, true)
+    await checked()
+  }
   else {
     sourcing(board)
     lettering(board)
   }
+}
+
+/**
+ * Whether the schematic is all on its sheet: tscircuit lays out each section's parts by
+ * itself, and says of each part, label and line it has put outside the sheet's frame.
+ * A board of many sections outgrows A4.
+ */
+function sheeted(circuit) {
+  const outside = circuit.filter(
+    (element) => element.type === "schematic_element_outside_sheet_warning"
+  ).length
+  if (outside === 0) return
+  console.log(
+    `\nThe schematic does not fit its sheet: ${outside} of what is in it is drawn outside the sheet's frame. Make the sheet bigger, as the reference says under The schematic.`
+  )
 }
 
 /** What is wrong with the lettering printed on the board: see board-lettering.mjs. */

@@ -26,11 +26,9 @@ import {
   builtOf,
   copperLayerOf,
   readRouting,
-  type Building,
   type Routing,
 } from "@shared/board-format"
 import type { PcbColours } from "@shared/theme-format"
-import { LIVE } from "@/components/steps"
 import { Badge } from "@/components/ui/badge"
 import { useThemeColors } from "@/lib/css-color"
 import { usePreferences } from "@/lib/preferences"
@@ -43,7 +41,6 @@ import {
   sizeSaid,
   useBeingMade,
   useCircuit,
-  useJobOn,
   type Circuit,
   type Routed,
 } from "./boards"
@@ -1868,8 +1865,6 @@ export function BoardMode({
     board,
     as === "pcb" && !turned && board.building?.stage === "routing"
   )
-  // (an agent making it in detail has the steps it is at shown at the foot of the view)
-  const job = useJobOn(projectId, board)
   const partsOpen = useStore((state) => state.boardPartsOpen)
 
   // What is looked for on the board (Cmd+F): lit as it is drawn, and in 3D. Enter goes
@@ -2027,19 +2022,20 @@ export function BoardMode({
               </Badge>
             )}
           </div>
-          {!job && board.building ? (
-            <BuildingLine building={board.building} />
-          ) : as === "3d" ? (
-            board.model &&
-            board.built !== null &&
-            (board.preview !== null || board.outdated) && (
-              <LastBuilt at={board.built} />
-            )
-          ) : (
-            as === "pcb" &&
-            board.built !== null &&
-            routed !== null && <LastBuilt at={board.built} routed={routed} />
-          )}
+          {/* (how far a build has got is at the foot of the view: see BoardSteps) */}
+          {board.building
+            ? null
+            : as === "3d"
+              ? board.model &&
+                board.built !== null &&
+                (board.preview !== null || board.outdated) && (
+                  <LastBuilt at={board.built} />
+                )
+              : as === "pcb" &&
+                board.built !== null &&
+                routed !== null && (
+                  <LastBuilt at={board.built} routed={routed} />
+                )}
         </div>
       )}
     </div>
@@ -2065,35 +2061,5 @@ function LastBuilt({ at, routed = null }: { at: number; routed?: Routed }) {
           ? `Routing as last built, ${since}`
           : `As last built, ${since}`}
     </span>
-  )
-}
-
-/**
- * How far a board's build has got, in a line: what it is at, and while it is routing
- * how far along that is, with a bar that fills as it goes. Each build of a board is
- * shown as it comes in, so this is what is waited for meanwhile.
- */
-function BuildingLine({ building }: { building: Building }) {
-  const { stage, progress, phase, phases } = building
-  const routing = stage === "routing"
-  const share = routing && progress !== null ? progress : null
-  return (
-    <div className="flex animate-in flex-col items-center gap-1.5 text-xs text-foreground/60 duration-200 fade-in">
-      <span className={cn("tabular-nums", LIVE)}>
-        {stage === "building"
-          ? "Building the board"
-          : stage === "finishing"
-            ? "Writing what was built"
-            : `Routing${phases && phases > 1 ? ` (${phase} of ${phases})` : ""}${share !== null ? ` · ${Math.round(share * 100)}%` : ""}`}
-      </span>
-      {routing && (
-        <div className="h-0.5 w-32 overflow-hidden rounded-full bg-foreground/10">
-          <div
-            className="h-full rounded-full bg-foreground/60 transition-[width] duration-300 ease-out"
-            style={{ width: `${Math.max(3, (share ?? 0) * 100)}%` }}
-          />
-        </div>
-      )}
-    </div>
   )
 }

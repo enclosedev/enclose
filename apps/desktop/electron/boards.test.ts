@@ -94,7 +94,18 @@ describe("boardsIn", () => {
     expect(boardsIn(root)[0].building).toMatchObject({
       stage: "routing",
       progress: 0.4,
+      task: null,
     })
+    // and once routed, which of the board's files it is making: one it does not know, none
+    const finishing = (task: string) => {
+      write(
+        "pcb/build/main.building.json",
+        JSON.stringify({ since: now, at: now, stage: "finishing", task })
+      )
+      return boardsIn(root)[0].building?.task
+    }
+    expect(finishing("gerbers")).toBe("gerbers")
+    expect(finishing("lunch")).toBeNull()
     // one that has said nothing for a long while is over, whatever it left behind
     write(
       "pcb/build/main.building.json",

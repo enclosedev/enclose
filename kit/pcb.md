@@ -256,8 +256,11 @@ each connector and what it drives), each with a title and dashed lines between t
   name is drawn off it.
 - Leave out `schX` and `schY`: tscircuit lays out each section's parts by itself, close
   together. Placed by hand, they come out far apart.
-- Keep the sheet's own size (A4). Given a smaller `sheetWidth` and `sheetHeight`, its
-  frame shrinks from one corner and the parts spill out of it.
+- Keep the sheet's own size (A4) while all of it fits. A board of many sections
+  outgrows it, and the build then says the schematic does not fit its sheet: make it
+  the bigger ANSI B, `<schematicsheet name="main" ... sheetSize="ANSI_B">`, and build
+  again. Never give it a `sheetWidth` and `sheetHeight` of your own: its frame shrinks
+  from one corner and the parts spill out of it.
 
 ## Choosing parts
 
