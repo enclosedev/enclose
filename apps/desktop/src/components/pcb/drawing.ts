@@ -90,7 +90,7 @@ const COPPER = ["top", "bottom", ...INNER]
  * for each side, and its edge KiCad's grey, which on the light ground is too pale: there
  * it is near black, as what is printed on it is. That is white, as it is printed, and
  * not KiCad's colour for each side. (Its pours are drawn in colours of their own: see
- * `poursColoured`.)
+ * `layersColoured`.)
  */
 function pcbLook(
   elements: AnyCircuitElement[],
@@ -130,29 +130,47 @@ export type CopperLayer = ReturnType<typeof copperLayerOf>
 
 /** How much of what is printed on the side of the board not looked at shows. */
 const PRINT_AWAY = 0.4
+/**
+ * How much shows of a layer not looked at that has nothing poured over it: with nothing
+ * behind its traces for them to be told apart by, they are told apart by being faint.
+ */
+const UNPOURED_AWAY = 0.3
+
+/** The layers of copper a board has something poured over, as tscircuit calls them. */
+const pouredOf = (elements: AnyCircuitElement[]) =>
+  new Set(
+    elements.flatMap((element) =>
+      element.type === "pcb_copper_pour" ? [element.layer as string] : []
+    )
+  )
 
 /**
  * A drawing of a board with each layer's pours of copper, what is behind its traces, in
  * the theme's colour for that and as much of it as the theme has show (see `behindOf`):
- * a layer's traces and pads are all there is of them, whichever layer is looked at, and
- * the one looked at (`layer`) is over the rest. And with what is printed on the side not
- * looked from faint, which would be read backwards (an inside layer is looked at from
- * over the board).
+ * the one looked at (`layer`) is over the rest, and a layer with a pour (`poured`) has
+ * all of its traces and pads drawn, whichever is looked at. One without, not looked at,
+ * is faint, for the one looked at to be told from it. And what is printed on the side
+ * not looked from is faint, which would be read backwards (an inside layer is looked at
+ * from over the board).
  */
-export function poursColoured(
+export function layersColoured(
   markup: string,
   layer: CopperLayer,
-  colours: PcbColours
+  colours: PcbColours,
+  poured: ReadonlySet<string>
 ): string {
   const pours = COPPER.map((one) => {
     const { colour, opacity } = behindOf(colours, one)
     return `[data-type="pcb_copper_pour"][data-pcb-layer="${one}"] { fill: ${colour}; fill-opacity: ${opacity.toFixed(3)}; }`
   })
+  const faint = COPPER.filter((one) => one !== layer && !poured.has(one)).map(
+    (one) => `[data-pcb-layer="${one}"] { opacity: ${UNPOURED_AWAY}; }`
+  )
   const away = layer === "bottom" ? "top" : "bottom"
   const print = `[data-type^="pcb_silkscreen"][data-pcb-layer="${away}"] { opacity: ${PRINT_AWAY}; }`
   return markup.replace(
     /(<svg[^>]*>)/,
-    `$1<style>${[...pours, print].join(" ")}</style>`
+    `$1<style>${[...pours, ...faint, print].join(" ")}</style>`
   )
 }
 
@@ -289,7 +307,7 @@ export function drawingOf(
   const elements = circuit as unknown as AnyCircuitElement[]
   if (as === "pcb" && layer === "bottom")
     return turnedOver(
-      poursColoured(
+      layersColoured(
         holesEdged(
           bottomUp(
             convertCircuitJsonToPcbSvg(
@@ -300,7 +318,8 @@ export function drawingOf(
           colours
         ),
         layer,
-        colours
+        colours,
+        pouredOf(elements)
       )
     )
   if (as === "pcb") {
@@ -311,10 +330,11 @@ export function drawingOf(
       ),
       colours
     )
-    return poursColoured(
+    return layersColoured(
       layer === "top" ? drawn : innerUp(drawn, layer),
       layer,
-      colours
+      colours,
+      pouredOf(elements)
     )
   }
   const drawn = convertCircuitJsonToSchematicSvg(elements, {

@@ -5,7 +5,7 @@ import {
   drawingOf,
   fromUnder,
   holesEdged,
-  poursColoured,
+  layersColoured,
   turnedOver,
 } from "./drawing"
 import { DRAWN } from "./ground"
@@ -74,7 +74,7 @@ describe("holesEdged", () => {
   })
 })
 
-describe("poursColoured", () => {
+describe("layersColoured", () => {
   const drawing =
     '<svg width="10" height="10"><path data-type="pcb_copper_pour" data-pcb-layer="top"/></svg>'
   const colours = {
@@ -83,11 +83,17 @@ describe("poursColoured", () => {
     "technical-inner2-behind": "#333333",
     "technical-bottom-behind": "#44444400",
   } as PcbColours
+  /** Every layer has something poured over it. */
+  const poured = new Set([
+    "top",
+    "bottom",
+    ...Array.from({ length: 8 }, (_, at) => `inner${at + 1}`),
+  ])
   /** What each layer's pours are drawn in, as the drawing has it. */
-  const poursOf = (layer: Parameters<typeof poursColoured>[1]) =>
+  const poursOf = (layer: Parameters<typeof layersColoured>[1]) =>
     Object.fromEntries(
       [
-        ...poursColoured(drawing, layer, colours).matchAll(
+        ...layersColoured(drawing, layer, colours, poured).matchAll(
           /\[data-type="pcb_copper_pour"\]\[data-pcb-layer="(\w+)"\] \{ fill: (#\w+); fill-opacity: ([\d.]+); \}/g
         ),
       ].map(([, one, fill, opacity]) => [
@@ -111,7 +117,7 @@ describe("poursColoured", () => {
 
   it("leaves the traces and pads of every layer as they are: only print is made faint", () => {
     const faint = [
-      ...poursColoured(drawing, "inner1", colours).matchAll(
+      ...layersColoured(drawing, "inner1", colours, poured).matchAll(
         /([^{}>]+) \{ opacity:/g
       ),
     ].map(([, rule]) => rule.trim())
@@ -120,14 +126,38 @@ describe("poursColoured", () => {
     ])
   })
 
+  it("draws faint a layer not looked at that has nothing poured over it", () => {
+    const faint = (layer: Parameters<typeof layersColoured>[1]) =>
+      [
+        ...layersColoured(
+          drawing,
+          layer,
+          colours,
+          new Set(["inner1"])
+        ).matchAll(
+          /(?<=\} )\[data-pcb-layer="(\w+)"\] \{ opacity: ([\d.]+); \}/g
+        ),
+      ].map(([, one, opacity]) => [one, Number(opacity)])
+    expect(faint("top")).toEqual(
+      expect.arrayContaining([
+        ["bottom", 0.3],
+        ["inner2", 0.3],
+      ])
+    )
+    // not the one looked at, nor one with a pour
+    expect(faint("top").map(([one]) => one)).not.toContain("top")
+    expect(faint("top").map(([one]) => one)).not.toContain("inner1")
+    expect(faint("bottom").map(([one]) => one)).toContain("top")
+  })
+
   it("draws faint what is printed on the side not looked from", () => {
-    expect(poursColoured(drawing, "top", colours)).toMatch(
+    expect(layersColoured(drawing, "top", colours, poured)).toMatch(
       /\[data-type\^="pcb_silkscreen"\]\[data-pcb-layer="bottom"\] \{ opacity: [\d.]+; \}/
     )
-    expect(poursColoured(drawing, "inner1", colours)).toContain(
+    expect(layersColoured(drawing, "inner1", colours, poured)).toContain(
       '[data-type^="pcb_silkscreen"][data-pcb-layer="bottom"]'
     )
-    expect(poursColoured(drawing, "bottom", colours)).toContain(
+    expect(layersColoured(drawing, "bottom", colours, poured)).toContain(
       '[data-type^="pcb_silkscreen"][data-pcb-layer="top"]'
     )
   })
