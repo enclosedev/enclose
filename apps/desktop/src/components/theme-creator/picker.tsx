@@ -1,5 +1,6 @@
 // A colour picked by hand: how much colour it has and how light it is, across a square
-// of its hue, and the hue along a bar under that; or its "#rrggbb", typed.
+// of its hue, and the hue along a bar under that; or its "#rrggbb", typed. One that says
+// how much of it shows as well has a bar for that under the hue's, and is "#rrggbbaa".
 import * as React from "react"
 import { cn } from "cn"
 
@@ -9,9 +10,23 @@ import { Input } from "@/components/ui/input"
 type Hsv = { h: number; s: number; v: number }
 
 const HEX = /^#?([0-9a-f]{6})$/i
+/** And one with how much of it shows: all of it, where that is not said. */
+const HEXA = /^#?([0-9a-f]{6})([0-9a-f]{2})?$/i
+
+/** How much of a colour shows, 0 to 1, as "#rrggbbaa" says it: all of it, if it does not. */
+function alphaOf(hex: string): number {
+  const found = HEXA.exec(hex.trim())?.[2]
+  return found === undefined ? 1 : parseInt(found, 16) / 255
+}
+
+/** A colour with how much of it shows, 0 to 1, after it. */
+const withAlpha = (hex: string, alpha: number) =>
+  `${hex}${Math.round(alpha * 255)
+    .toString(16)
+    .padStart(2, "0")}`
 
 function hsvOf(hex: string): Hsv {
-  const found = HEX.exec(hex.trim())
+  const found = HEXA.exec(hex.trim())
   const value = found ? parseInt(found[1], 16) : 0
   const [r, g, b] = [value >> 16, (value >> 8) & 255, value & 255].map(
     (part) => part / 255
@@ -74,31 +89,47 @@ export function ColourPicker({
   value,
   onChange,
   label,
+  alpha: showing = false,
   className,
 }: {
-  /** "#rrggbb" */
+  /** "#rrggbb"; or, with `alpha`, "#rrggbbaa" */
   value: string
   onChange: (value: string) => void
   /** what the colour is of, for those who hear the page read */
   label: string
+  /** how much of the colour shows is picked too */
+  alpha?: boolean
   className?: string
 }) {
+  const pattern = showing ? HEXA : HEX
   // Kept as hue, colour and lightness, so that what has no colour, or no light, keeps the
   // hue it had: from the colour it is given only when that is not the one it gave.
   const [hsv, setHsv] = React.useState(() => hsvOf(value))
+  const [alpha, setAlpha] = React.useState(() => alphaOf(value))
   const [typed, setTyped] = React.useState<string | null>(null)
-  if (hexOf(hsv) !== value.toLowerCase() && HEX.test(value)) {
+  const given = (hsv: Hsv, alpha: number) =>
+    showing ? withAlpha(hexOf(hsv), alpha) : hexOf(hsv)
+  const said = (hex: string) =>
+    showing ? withAlpha(hex.slice(0, 7), alphaOf(hex)) : hex
+  if (given(hsv, alpha) !== said(value.toLowerCase()) && pattern.test(value)) {
     setHsv(hsvOf(value))
+    setAlpha(alphaOf(value))
   }
   // a colour typed whole that is not the colour any more was changed from elsewhere
-  const typedWhole = typed === null ? null : HEX.exec(typed.trim())
-  if (typedWhole && `#${typedWhole[1].toLowerCase()}` !== value.toLowerCase())
+  const typedWhole = typed === null ? null : pattern.exec(typed.trim())
+  if (
+    typedWhole &&
+    said(`#${typedWhole[0].replace("#", "").toLowerCase()}`) !==
+      said(value.toLowerCase())
+  )
     setTyped(null)
-  const change = (next: Hsv) => {
+  const change = (next: Hsv, nextAlpha = alpha) => {
     setHsv(next)
-    onChange(hexOf(next))
+    setAlpha(nextAlpha)
+    onChange(given(next, nextAlpha))
   }
   const pure = hexOf({ h: hsv.h, s: 1, v: 1 })
+  const solid = hexOf(hsv)
   const arrows =
     (move: (by: number, key: string) => Hsv | null) =>
     (event: React.KeyboardEvent) => {
@@ -140,7 +171,7 @@ export function ColourPicker({
           style={{
             left: `${hsv.s * 100}%`,
             top: `${(1 - hsv.v) * 100}%`,
-            background: value,
+            background: solid,
           }}
         />
       </div>
@@ -170,15 +201,50 @@ export function ColourPicker({
           style={{ left: `${(hsv.h / 360) * 100}%`, background: pure }}
         />
       </div>
+      {showing && (
+        <div
+          role="slider"
+          tabIndex={0}
+          aria-label={`${label}: how much of it shows`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(alpha * 100)}
+          aria-valuetext={`${Math.round(alpha * 100)}%`}
+          className="relative h-4 w-full cursor-pointer touch-none rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          style={{
+            // the colour from none of it to all, over squares that show through it
+            background: `linear-gradient(to right, transparent, ${solid}), repeating-conic-gradient(#c8c8c8 0 25%, #ffffff 0 50%) 0 0 / 8px 8px`,
+          }}
+          {...dragging((event) => change(hsv, placeOf(event).x))}
+          onKeyDown={(event) => {
+            const by = event.shiftKey ? STEP * 10 : STEP
+            const next =
+              event.key === "ArrowLeft" || event.key === "ArrowDown"
+                ? within(alpha - by)
+                : event.key === "ArrowRight" || event.key === "ArrowUp"
+                  ? within(alpha + by)
+                  : null
+            if (next === null) return
+            event.preventDefault()
+            change(hsv, next)
+          }}
+        >
+          <span
+            className="pointer-events-none absolute top-1/2 size-4 -translate-1/2 rounded-full shadow-sm ring-3 ring-white"
+            style={{ left: `${alpha * 100}%`, background: solid }}
+          />
+        </div>
+      )}
       <Input
-        aria-label={`${label}, as #rrggbb`}
+        aria-label={`${label}, as ${showing ? "#rrggbbaa" : "#rrggbb"}`}
         spellCheck={false}
         value={typed ?? value}
         onChange={(event) => {
           const text = event.target.value
           setTyped(text)
-          const found = HEX.exec(text.trim())
-          if (found) onChange(`#${found[1].toLowerCase()}`)
+          const found = pattern.exec(text.trim())
+          if (found)
+            onChange(said(`#${found[0].replace("#", "").toLowerCase()}`))
         }}
         onBlur={() => setTyped(null)}
         className="h-7 font-mono text-xs uppercase select-text"

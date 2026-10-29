@@ -175,9 +175,31 @@
   --settings-text: var(--foreground);
   --settings-muted: var(--muted-foreground);
   --technical-top: #c83434;
-  --technical-inner1: #d47a16;
-  --technical-inner2: #a48a00;
+  --technical-inner1: #3f9a3f;
+  --technical-inner2: #c06a14;
   --technical-bottom: #4d7fc4;
+  /* what is poured of each layer of a board's copper, behind its traces: its own
+       colour, faint, unless a theme gives it another (see drawing.ts) */
+  --technical-top-behind: color-mix(
+    in srgb,
+    var(--technical-top) 20%,
+    transparent
+  );
+  --technical-inner1-behind: color-mix(
+    in srgb,
+    var(--technical-inner1) 20%,
+    transparent
+  );
+  --technical-inner2-behind: color-mix(
+    in srgb,
+    var(--technical-inner2) 20%,
+    transparent
+  );
+  --technical-bottom-behind: color-mix(
+    in srgb,
+    var(--technical-bottom) 20%,
+    transparent
+  );
   --technical-print: #1c1c1c;
   --technical-edge: #707271;
   --schematic-lines: #161e18;
@@ -249,9 +271,29 @@
   --settings-text: var(--foreground);
   --settings-muted: var(--muted-foreground);
   --technical-top: #c83434;
-  --technical-inner1: #ef8c2a;
-  --technical-inner2: #e2c63b;
+  --technical-inner1: #7fc87f;
+  --technical-inner2: #ce7d2c;
   --technical-bottom: #4d7fc4;
+  --technical-top-behind: color-mix(
+    in srgb,
+    var(--technical-top) 20%,
+    transparent
+  );
+  --technical-inner1-behind: color-mix(
+    in srgb,
+    var(--technical-inner1) 20%,
+    transparent
+  );
+  --technical-inner2-behind: color-mix(
+    in srgb,
+    var(--technical-inner2) 20%,
+    transparent
+  );
+  --technical-bottom-behind: color-mix(
+    in srgb,
+    var(--technical-bottom) 20%,
+    transparent
+  );
   --technical-print: #ffffff;
   --technical-edge: #d0d2cd;
   --schematic-lines: #e8eeea;

@@ -10,7 +10,7 @@ import {
 import type { AnyCircuitElement } from "circuit-json"
 
 import type { copperLayerOf } from "@shared/board-format"
-import { copperColourOf, type PcbColours } from "@shared/theme-format"
+import { behindOf, copperColourOf, type PcbColours } from "@shared/theme-format"
 import type { Circuit } from "./boards"
 import { DRAWN } from "./ground"
 import { PLACE_MARK } from "./place"
@@ -81,12 +81,16 @@ export const holesEdged = (markup: string, colours: PcbColours) =>
 /** The layers of copper inside a board that tscircuit draws, the first first. */
 const INNER = Array.from({ length: 8 }, (_, at) => `inner${at + 1}`)
 
+/** Every layer of copper tscircuit draws, its sides first. */
+const COPPER = ["top", "bottom", ...INNER]
+
 /**
  * How the board is drawn as it is made: as KiCad draws one, on the ground it is seen on,
  * in the theme's colours for it (shared/theme-format.ts). Its copper is KiCad's colours
  * for each side, and its edge KiCad's grey, which on the light ground is too pale: there
  * it is near black, as what is printed on it is. That is white, as it is printed, and
- * not KiCad's colour for each side.
+ * not KiCad's colour for each side. (Its pours are drawn in colours of their own: see
+ * `poursColoured`.)
  */
 function pcbLook(
   elements: AnyCircuitElement[],
@@ -110,10 +114,7 @@ function pcbLook(
       drill: ground,
       // (each in the theme's colour for it: those inside, by turns, past the second)
       copper: Object.fromEntries(
-        ["top", "bottom", ...INNER].map((layer) => [
-          layer,
-          copperColourOf(colours, layer),
-        ])
+        COPPER.map((one) => [one, copperColourOf(colours, one)])
       ),
       boardOutline: colours["technical-edge"],
       silkscreen: {
@@ -127,38 +128,31 @@ function pcbLook(
 /** A board's layer of copper, as tscircuit calls it: its top, its bottom, or one inside. */
 export type CopperLayer = ReturnType<typeof copperLayerOf>
 
-/** How much of the layers of the board not looked at is seen, through the one that is. */
-const AWAY = 0.12
-/**
- * How much of its side's copper colour a pour of copper is drawn in: tscircuit draws
- * one in half of it, which over a whole side is near as strong as the traces in it.
- */
-const POUR = 0.25
-
-/** A drawing of a board with its pours of copper drawn lighter (see POUR). */
-export const poursLightened = (markup: string) =>
-  markup.replace(
-    /(<svg[^>]*>)/,
-    `$1<style>[data-type="pcb_copper_pour"] { fill-opacity: ${POUR}; }</style>`
-  )
+/** How much of what is printed on the side of the board not looked at shows. */
+const PRINT_AWAY = 0.4
 
 /**
- * A drawing of a board with every layer of copper but the one looked at drawn faint:
- * the other side's copper, pads and print, and the layers inside it, which over the
- * one looked at would be read as part of it. (A board with a pour has its layers told
- * apart by it; one without has only their colours.) What goes through the board, its
- * holes and vias, stays as it is.
+ * A drawing of a board with each layer's pours of copper, what is behind its traces, in
+ * the theme's colour for that and as much of it as the theme has show (see `behindOf`):
+ * a layer's traces and pads are all there is of them, whichever layer is looked at, and
+ * the one looked at (`layer`) is over the rest. And with what is printed on the side not
+ * looked from faint, which would be read backwards (an inside layer is looked at from
+ * over the board).
  */
-export function awayFaded(markup: string, layer: CopperLayer): string {
-  const away = [
-    ...(["top", "bottom"] as const)
-      .filter((side) => side !== layer)
-      .map((side) => `[data-pcb-layer="${side}"]`),
-    `[data-pcb-layer^="inner"]:not([data-pcb-layer="${layer}"])`,
-  ]
+export function poursColoured(
+  markup: string,
+  layer: CopperLayer,
+  colours: PcbColours
+): string {
+  const pours = COPPER.map((one) => {
+    const { colour, opacity } = behindOf(colours, one)
+    return `[data-type="pcb_copper_pour"][data-pcb-layer="${one}"] { fill: ${colour}; fill-opacity: ${opacity.toFixed(3)}; }`
+  })
+  const away = layer === "bottom" ? "top" : "bottom"
+  const print = `[data-type^="pcb_silkscreen"][data-pcb-layer="${away}"] { opacity: ${PRINT_AWAY}; }`
   return markup.replace(
     /(<svg[^>]*>)/,
-    `$1<style>${away.join(", ")} { opacity: ${AWAY}; }</style>`
+    `$1<style>${[...pours, print].join(" ")}</style>`
   )
 }
 
@@ -190,7 +184,7 @@ const bottomUp = (markup: string) => reordered(markup, fromUnder)
 
 /**
  * A drawing of a board seen from over it, with one of the layers inside it over its top:
- * that layer's copper is looked at, through the top's, faded (see `awayFaded`).
+ * that layer's copper is looked at, over the top's.
  */
 const innerUp = (markup: string, layer: string) =>
   reordered(markup, (one) =>
@@ -295,32 +289,33 @@ export function drawingOf(
   const elements = circuit as unknown as AnyCircuitElement[]
   if (as === "pcb" && layer === "bottom")
     return turnedOver(
-      awayFaded(
+      poursColoured(
         holesEdged(
           bottomUp(
-            poursLightened(
-              convertCircuitJsonToPcbSvg(
-                [...elements, ...placeMark(elements)],
-                pcbLook(elements, colours, ground)
-              )
+            convertCircuitJsonToPcbSvg(
+              [...elements, ...placeMark(elements)],
+              pcbLook(elements, colours, ground)
             )
           ),
           colours
         ),
-        layer
+        layer,
+        colours
       )
     )
   if (as === "pcb") {
     const drawn = holesEdged(
-      poursLightened(
-        convertCircuitJsonToPcbSvg(
-          [...elements, ...placeMark(elements)],
-          pcbLook(elements, colours, ground)
-        )
+      convertCircuitJsonToPcbSvg(
+        [...elements, ...placeMark(elements)],
+        pcbLook(elements, colours, ground)
       ),
       colours
     )
-    return awayFaded(layer === "top" ? drawn : innerUp(drawn, layer), layer)
+    return poursColoured(
+      layer === "top" ? drawn : innerUp(drawn, layer),
+      layer,
+      colours
+    )
   }
   const drawn = convertCircuitJsonToSchematicSvg(elements, {
     ...DRAWN,

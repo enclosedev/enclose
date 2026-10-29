@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  behindOf,
   changes,
   copperColourOf,
   PCB_AREAS,
@@ -46,6 +47,35 @@ describe("copperColourOf", () => {
   })
 })
 
+describe("behindOf", () => {
+  const colours = {
+    "technical-top-behind": "#10000066",
+    "technical-inner1-behind": "#200000",
+    "technical-inner2-behind": "#300000ff",
+    "technical-bottom-behind": "#40000000",
+  } as PcbColours
+
+  it("is a layer's colour behind another, and how much of it shows", () => {
+    expect(behindOf(colours, "top")).toEqual({
+      colour: "#100000",
+      opacity: 0x66 / 255,
+    })
+    expect(behindOf(colours, "inner2")).toEqual({
+      colour: "#300000",
+      opacity: 1,
+    })
+    expect(behindOf(colours, "bottom")).toEqual({
+      colour: "#400000",
+      opacity: 0,
+    })
+  })
+
+  it("shows all of a colour that says nothing of it, and takes the layers inside by turns", () => {
+    expect(behindOf(colours, "inner1").opacity).toBe(1)
+    expect(behindOf(colours, "inner5").colour).toBe("#200000")
+  })
+})
+
 describe("readTheme", () => {
   it("reads a theme's name and the colours of each look", () => {
     expect(
@@ -76,6 +106,22 @@ describe("readTheme", () => {
       "board-mask": "#1a1a1a",
       "technical-top": "#ff8800",
       "schematic-wires": "#00ccff",
+    })
+  })
+
+  it("reads how much of a layer shows behind another, and of nothing else", () => {
+    expect(
+      readTheme("faint", {
+        name: "Faint",
+        dark: {
+          "technical-top-behind": "#C8343466",
+          "technical-bottom-behind": "#4d7fc4",
+          "technical-top": "#c8343466",
+        },
+      })?.dark
+    ).toEqual({
+      "technical-top-behind": "#c8343466",
+      "technical-bottom-behind": "#4d7fc4",
     })
   })
 

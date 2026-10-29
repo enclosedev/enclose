@@ -213,6 +213,42 @@ export const SLOTS = [
     token: "--technical-bottom",
   },
   {
+    id: "technical-top-behind",
+    area: "Technical view",
+    label: "Layer 1 behind",
+    detail:
+      "The copper poured over the top, behind its traces, and how much of it shows",
+    token: "--technical-top-behind",
+    alpha: true,
+  },
+  {
+    id: "technical-inner1-behind",
+    area: "Technical view",
+    label: "Layer 2 behind",
+    detail:
+      "The copper poured over the first layer inside, behind its traces, and how much of it shows",
+    token: "--technical-inner1-behind",
+    alpha: true,
+  },
+  {
+    id: "technical-inner2-behind",
+    area: "Technical view",
+    label: "Layer 3 behind",
+    detail:
+      "The copper poured over the second layer inside, behind its traces, and how much of it shows",
+    token: "--technical-inner2-behind",
+    alpha: true,
+  },
+  {
+    id: "technical-bottom-behind",
+    area: "Technical view",
+    label: "Layer 4 behind",
+    detail:
+      "The copper poured underneath, behind its traces, and how much of it shows",
+    token: "--technical-bottom-behind",
+    alpha: true,
+  },
+  {
     id: "technical-print",
     area: "Technical view",
     label: "Print",
@@ -279,27 +315,50 @@ export const PCB_SLOTS = SLOTS.filter((slot) =>
   (PCB_AREAS as readonly string[]).includes(slot.area)
 ) as Extract<(typeof SLOTS)[number], { id: PcbSlotId }>[]
 
-/** A circuit board's colours, as PCB mode draws it: each "#rrggbb". */
+/**
+ * A circuit board's colours, as PCB mode draws it: each "#rrggbb", but for those that
+ * take how much of them shows as well (see `takesAlpha`), which are "#rrggbbaa".
+ */
 export type PcbColours = Record<PcbSlotId, string>
 
+/** Whether what a theme colours takes how much of it shows, as well as its colour. */
+export const takesAlpha = (id: SlotId) =>
+  SLOTS.some((slot) => slot.id === id && "alpha" in slot)
+
 /**
- * The colour of a board's layer of copper, as tscircuit calls it ("top", "inner3",
- * "bottom"), in the technical view: a theme colours the two layers inside a board of
- * four, and those inside one of more take theirs by turns. Anything else is the top's.
+ * What a theme colours a board's layer of copper by, as tscircuit calls the layer ("top",
+ * "inner3", "bottom"), in the technical view: a theme colours the two layers inside a
+ * board of four, and those inside one of more take theirs by turns. Anything else is
+ * the top's.
  */
-export function copperColourOf(
-  colours: PcbColours,
-  layer: string | null
-): string {
-  if (layer === "bottom") return colours["technical-bottom"]
+function layerSlotOf(layer: string | null) {
+  if (layer === "bottom") return "technical-bottom"
   const inner = Number(/^inner(\d+)$/.exec(layer ?? "")?.[1])
   if (inner > 0)
-    return colours[inner % 2 === 1 ? "technical-inner1" : "technical-inner2"]
-  return colours["technical-top"]
+    return inner % 2 === 1 ? "technical-inner1" : "technical-inner2"
+  return "technical-top"
+}
+
+/** The colour of a board's layer of copper in the technical view (see `layerSlotOf`). */
+export const copperColourOf = (colours: PcbColours, layer: string | null) =>
+  colours[layerSlotOf(layer)]
+
+/**
+ * How what is poured of a board's layer of copper, behind its traces, is drawn in the
+ * technical view: in its colour, "#rrggbb", and as much of it as shows, 0 to 1 (see
+ * `layerSlotOf`).
+ */
+export function behindOf(colours: PcbColours, layer: string | null) {
+  const behind = colours[`${layerSlotOf(layer)}-behind`]
+  const alpha = /^#[0-9a-f]{6}([0-9a-f]{2})$/i.exec(behind)?.[1]
+  return {
+    colour: behind.slice(0, 7),
+    opacity: alpha === undefined ? 1 : parseInt(alpha, 16) / 255,
+  }
 }
 
 /**
- * A theme's colours for one look, each "#rrggbb": those it changes, of the window and of
+ * A theme's colours for one look, each "#rrggbb" (or "#rrggbbaa", see `takesAlpha`): those it changes, of the window and of
  * the parts of a model (by the palette's names). What it leaves out is the app's own.
  */
 export type ThemeColours = Partial<Record<SlotId, string>> & {
@@ -320,8 +379,9 @@ export type ThemeLooks = Pick<Theme, "light" | "dark">
 /** What is changed of the app's own look, and what it is called. */
 export type Defaults = Omit<Theme, "id">
 
-/** A colour as a theme gives one. */
+/** A colour as a theme gives one; and one that says how much of it shows, as well. */
 const HEX = /^#[0-9a-f]{6}$/i
+const HEXA = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i
 
 /** What a theme's file may be called: lower case, and nothing an address cannot hold. */
 export const THEME_ID = /^[a-z0-9][a-z0-9-]*$/
@@ -335,7 +395,7 @@ function readColours(written: unknown): ThemeColours {
   const colours: ThemeColours = {}
   for (const { id } of SLOTS) {
     const value = written[id]
-    if (typeof value === "string" && HEX.test(value))
+    if (typeof value === "string" && (takesAlpha(id) ? HEXA : HEX).test(value))
       colours[id] = value.toLowerCase()
   }
   if (isObject(written.parts)) {

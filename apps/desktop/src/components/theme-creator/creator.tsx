@@ -37,7 +37,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { hexOf } from "@/lib/css-color"
+import { slotColourOf } from "@/lib/css-color"
 import type { BoardAs } from "@/lib/store"
 import {
   paletteOf,
@@ -82,6 +82,11 @@ const LAYER_SLOTS = [
   "technical-inner2",
   "technical-bottom",
 ] as const satisfies readonly SlotId[]
+
+/** And how each is drawn while another is looked at, through that one: picked under them. */
+const BEHIND_SLOTS = LAYER_SLOTS.map(
+  (id) => `${id}-behind` as const
+) satisfies readonly SlotId[]
 
 /** Black or white, whichever is read better on a colour ("#rrggbb"): for a number on it. */
 function inkOn(colour: string): string {
@@ -128,10 +133,7 @@ function shownOf(
   document.body.append(probe)
   const style = getComputedStyle(probe)
   const read = Object.fromEntries(
-    SLOTS.map(({ id, token }) => [
-      id,
-      hexOf(style.getPropertyValue(token).trim()),
-    ])
+    SLOTS.map((slot) => [slot.id, slotColourOf(style, slot)])
   ) as Record<SlotId, string>
   probe.remove()
   return read
@@ -525,10 +527,39 @@ export function ThemeCreator({
                     />
                   </Row>
                 )}
+                {area === "Technical view" && (
+                  <Row
+                    area={area}
+                    label={`Layer ${boardLayer} behind`}
+                    changed={differs(BEHIND_SLOTS[boardLayer - 1])}
+                    reset={reset}
+                    onReset={() => {
+                      const id = BEHIND_SLOTS[boardLayer - 1]
+                      colour(id, backTo(id))
+                    }}
+                    onUse={() => setBoardAs("pcb")}
+                  >
+                    <ColourPicker
+                      alpha
+                      label={`Layer ${boardLayer}, behind`}
+                      // what was picked, as it was picked: read back, how much of it
+                      // shows can be a little off
+                      value={
+                        colours[BEHIND_SLOTS[boardLayer - 1]] ??
+                        shown[BEHIND_SLOTS[boardLayer - 1]]
+                      }
+                      onChange={(value) =>
+                        colour(BEHIND_SLOTS[boardLayer - 1], value)
+                      }
+                    />
+                  </Row>
+                )}
                 {SLOTS.filter(
                   (slot) =>
                     slot.area === area &&
-                    !(LAYER_SLOTS as readonly string[]).includes(slot.id)
+                    !([...LAYER_SLOTS, ...BEHIND_SLOTS] as SlotId[]).includes(
+                      slot.id
+                    )
                 ).map((slot) => (
                   <Row
                     key={slot.id}

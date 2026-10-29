@@ -36,14 +36,25 @@ export const SAMPLE_LAYERS = 4
 
 /**
  * The board, made 2 layers, as one of four, to show the colours of the layers inside:
- * of the traces underneath, a third go on each of them by turns, and the rest stay. It
- * is not a board that would work so, only one that looks as one of four does.
+ * of the traces underneath, a third go on each of them by turns, and the rest stay; and
+ * what is poured over its top is poured over each of the others as well, for the colour
+ * of each layer's pour to be seen. It is not a board that would work so, only one that
+ * looks as one of four does.
  */
 function fourLayered(board: Circuit): Circuit {
   let trace = 0
   const moved = (layer: unknown, to: string) =>
     layer === "bottom" ? to : layer
-  return board.map((element) => {
+  const poured: Circuit = board.flatMap((element) =>
+    element.type === "pcb_copper_pour" && element.layer === "top"
+      ? ["inner1", "inner2", "bottom"].map((layer) => ({
+          ...element,
+          pcb_copper_pour_id: `${String(element.pcb_copper_pour_id)}-${layer}`,
+          layer,
+        }))
+      : []
+  )
+  return [...board, ...poured].map((element) => {
     if (element.type === "pcb_board")
       return { ...element, num_layers: SAMPLE_LAYERS }
     if (element.type !== "pcb_trace" || !Array.isArray(element.route))

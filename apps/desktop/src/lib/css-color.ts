@@ -2,24 +2,34 @@ import * as React from "react"
 import * as THREE from "three"
 
 import type { PaletteName } from "@shared/palette"
-import { PCB_SLOTS, type PcbColours } from "@shared/theme-format"
+import {
+  PCB_SLOTS,
+  takesAlpha,
+  type PcbColours,
+  type SlotId,
+} from "@shared/theme-format"
 import { currentPalette } from "./palette"
 
 // The theme's tokens are oklch(), which THREE.Color can't parse. A 2D canvas can:
 // paint the colour and read the pixel back.
 let ctx: CanvasRenderingContext2D | null = null
 
-function resolve(css: string): THREE.Color {
+/** A colour as CSS gives one, as its red, green, blue and how much of it shows, 0 to 255. */
+function pixelOf(css: string): number[] {
   if (!ctx) {
     const canvas = document.createElement("canvas")
     canvas.width = canvas.height = 1
     ctx = canvas.getContext("2d", { willReadFrequently: true })
   }
-  if (!ctx) return new THREE.Color("#888")
+  if (!ctx) return [136, 136, 136, 255]
   ctx.clearRect(0, 0, 1, 1)
   ctx.fillStyle = css
   ctx.fillRect(0, 0, 1, 1)
-  const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
+  return [...ctx.getImageData(0, 0, 1, 1).data]
+}
+
+function resolve(css: string): THREE.Color {
+  const [r, g, b] = pixelOf(css)
   return new THREE.Color().setRGB(
     r / 255,
     g / 255,
@@ -31,13 +41,23 @@ function resolve(css: string): THREE.Color {
 /** A colour as CSS gives one (oklch(), a name, a var() that has been read), as "#rrggbb". */
 export const hexOf = (css: string) => `#${resolve(css).getHexString()}`
 
+/** Likewise, with how much of it shows as well, as "#rrggbbaa": "#rrggbb" if all of it. */
+export function hexaOf(css: string): string {
+  const [r, g, b, a] = pixelOf(css)
+  const hex = (part: number) => part.toString(16).padStart(2, "0")
+  return `#${[r, g, b].map(hex).join("")}${a === 255 ? "" : hex(a)}`
+}
+
+/** What a theme colours, as what has this style has it (see takesAlpha). */
+export const slotColourOf = (
+  style: CSSStyleDeclaration,
+  { id, token }: { id: SlotId; token: string }
+) => (takesAlpha(id) ? hexaOf : hexOf)(style.getPropertyValue(token).trim())
+
 /** A circuit board's colours in PCB mode, as what has this style has them. */
 export const pcbColoursOf = (style: CSSStyleDeclaration) =>
   Object.fromEntries(
-    PCB_SLOTS.map(({ id, token }) => [
-      id,
-      hexOf(style.getPropertyValue(token).trim()),
-    ])
+    PCB_SLOTS.map((slot) => [slot.id, slotColourOf(style, slot)])
   ) as PcbColours
 
 export type ThemeColors = {

@@ -2,11 +2,10 @@ import { describe, expect, it } from "vitest"
 
 import type { PcbColours } from "@shared/theme-format"
 import {
-  awayFaded,
   drawingOf,
   fromUnder,
   holesEdged,
-  poursLightened,
+  poursColoured,
   turnedOver,
 } from "./drawing"
 import { DRAWN } from "./ground"
@@ -75,56 +74,76 @@ describe("holesEdged", () => {
   })
 })
 
-describe("awayFaded", () => {
+describe("poursColoured", () => {
   const drawing =
-    '<svg width="10" height="10"><path data-pcb-layer="top"/><path data-pcb-layer="bottom"/></svg>'
-  const fadedOf = (layer: Parameters<typeof awayFaded>[1]) =>
-    /<style>(.*) \{ opacity: [\d.]+; \}<\/style>/.exec(
-      awayFaded(drawing, layer)
-    )?.[1]
+    '<svg width="10" height="10"><path data-type="pcb_copper_pour" data-pcb-layer="top"/></svg>'
+  const colours = {
+    "technical-top-behind": "#11111133",
+    "technical-inner1-behind": "#22222266",
+    "technical-inner2-behind": "#333333",
+    "technical-bottom-behind": "#44444400",
+  } as PcbColours
+  /** What each layer's pours are drawn in, as the drawing has it. */
+  const poursOf = (layer: Parameters<typeof poursColoured>[1]) =>
+    Object.fromEntries(
+      [
+        ...poursColoured(drawing, layer, colours).matchAll(
+          /\[data-type="pcb_copper_pour"\]\[data-pcb-layer="(\w+)"\] \{ fill: (#\w+); fill-opacity: ([\d.]+); \}/g
+        ),
+      ].map(([, one, fill, opacity]) => [
+        one,
+        { fill, opacity: Number(opacity) },
+      ])
+    )
 
-  it("draws the bottom and the layers inside faint under the top, seen from over the board", () => {
-    expect(awayFaded(drawing, "top")).toMatch(
-      /^<svg width="10" height="10"><style>/
-    )
-    expect(fadedOf("top")).toBe(
-      '[data-pcb-layer="bottom"], [data-pcb-layer^="inner"]:not([data-pcb-layer="top"])'
-    )
+  it("draws each layer's pours in the theme's colour for them, as much of it as it has show, whichever is looked at", () => {
+    for (const layer of ["top", "inner2", "bottom"] as const) {
+      const pours = poursOf(layer)
+      expect(pours.top.fill).toBe("#111111")
+      expect(pours.top.opacity).toBeCloseTo(0x33 / 255, 3)
+      // a colour that says nothing of it shows all of it, and none shows none
+      expect(pours.inner2.opacity).toBe(1)
+      expect(pours.bottom.opacity).toBe(0)
+      // and those inside past the second by turns
+      expect(pours.inner3.fill).toBe("#222222")
+    }
   })
 
-  it("draws the top faint under the bottom, seen from under it", () => {
-    expect(fadedOf("bottom")).toBe(
-      '[data-pcb-layer="top"], [data-pcb-layer^="inner"]:not([data-pcb-layer="bottom"])'
-    )
+  it("leaves the traces and pads of every layer as they are: only print is made faint", () => {
+    const faint = [
+      ...poursColoured(drawing, "inner1", colours).matchAll(
+        /([^{}>]+) \{ opacity:/g
+      ),
+    ].map(([, rule]) => rule.trim())
+    expect(faint).toEqual([
+      '[data-type^="pcb_silkscreen"][data-pcb-layer="bottom"]',
+    ])
   })
 
-  it("draws both sides and the other layers inside faint, for one inside", () => {
-    expect(fadedOf("inner2")).toBe(
-      '[data-pcb-layer="top"], [data-pcb-layer="bottom"], [data-pcb-layer^="inner"]:not([data-pcb-layer="inner2"])'
+  it("draws faint what is printed on the side not looked from", () => {
+    expect(poursColoured(drawing, "top", colours)).toMatch(
+      /\[data-type\^="pcb_silkscreen"\]\[data-pcb-layer="bottom"\] \{ opacity: [\d.]+; \}/
     )
-  })
-})
-
-describe("poursLightened", () => {
-  it("draws every pour of copper in less of its colour than tscircuit's half", () => {
-    const lightened = poursLightened(
-      '<svg width="10" height="10"><path fill-opacity="0.5" data-type="pcb_copper_pour"/></svg>'
+    expect(poursColoured(drawing, "inner1", colours)).toContain(
+      '[data-type^="pcb_silkscreen"][data-pcb-layer="bottom"]'
     )
-    const opacity =
-      /\[data-type="pcb_copper_pour"\] \{ fill-opacity: ([\d.]+); \}/.exec(
-        lightened
-      )
-    expect(Number(opacity?.[1])).toBeLessThan(0.5)
+    expect(poursColoured(drawing, "bottom", colours)).toContain(
+      '[data-type^="pcb_silkscreen"][data-pcb-layer="top"]'
+    )
   })
 })
 
 describe("drawingOf", () => {
-  it("draws each layer of copper in the theme's colour for it", () => {
+  it("draws each layer of copper in the theme's colour for it, whichever is looked at", () => {
     const colours = {
       "technical-top": "#a10000",
       "technical-inner1": "#a20000",
       "technical-inner2": "#a30000",
       "technical-bottom": "#a40000",
+      "technical-top-behind": "#b1000066",
+      "technical-inner1-behind": "#b2000066",
+      "technical-inner2-behind": "#b3000066",
+      "technical-bottom-behind": "#b4000066",
       "technical-print": "#ffffff",
       "technical-edge": "#888888",
     } as PcbColours
