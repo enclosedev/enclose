@@ -48,6 +48,7 @@ import {
   type Commands,
   type ConversationSummary,
   type Effort,
+  type Feature,
   type ObjectRef,
   type PartNote,
   type PartRef,
@@ -579,6 +580,28 @@ function enteredNow(view: View, before: Entered[]): Entered[] {
     (name) => on[name] && !still.includes(name)
   )
   return [...still, ...fresh]
+}
+
+/** How a board is looked at in PCB mode, where that is counted (FEATURES). */
+type BoardWay = Exclude<Feature, Entered>
+
+/**
+ * What of the view is counted as put to use (FEATURES): what it was put into, and in PCB
+ * mode how the board is looked at, besides in 3D, as every board is first seen. (How a
+ * board is looked at is not got out of with Esc, as what is gone into is: PCB mode is.)
+ */
+function inUse(entered: Entered[], view: View): Feature[] {
+  if (view.board === null) return entered
+  const ways: Record<BoardWay, boolean> = {
+    technical: view.boardAs === "pcb",
+    schematic: view.boardAs === "schematic",
+    layers: view.boardAs === "pcb" && view.boardLayer > 1,
+    hand: view.boardAs === "3d" && view.boardHand,
+  }
+  return [
+    ...entered,
+    ...(Object.keys(ways) as BoardWay[]).filter((way) => ways[way]),
+  ]
 }
 
 type State = {
@@ -1365,7 +1388,7 @@ export const useStore = create<State>()((set, get) => ({
     const kept =
       patch.section && activeId ? { ...cuts, [activeId]: patch.section } : cuts
     if (kept !== cuts) keepCuts(kept)
-    const before = get().entered
+    const before = inUse(get().entered, get().view)
     set((state) => {
       const view = { ...state.view, ...patch }
       // the blueprint, the guides, a board and the inspiration board have the view's
@@ -1448,7 +1471,7 @@ export const useStore = create<State>()((set, get) => ({
         }),
       }
     })
-    for (const name of get().entered)
+    for (const name of inUse(get().entered, get().view))
       if (!before.includes(name)) window.cad.analytics.used(name)
   },
 

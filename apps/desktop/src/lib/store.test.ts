@@ -207,6 +207,23 @@ describe("a circuit board, in PCB mode", () => {
     state().setView({ board: "main", boardAs: "pcb" })
     expect(view().boardAs).toBe("pcb")
   })
+
+  it("counts each way it is looked at besides in 3D, as it is come to", () => {
+    state().setView({ board: "main" })
+    expect(used).toEqual(["board"])
+    state().setView({ boardHand: true })
+    state().setView({ boardAs: "pcb" })
+    state().setView({ boardLayer: 3 })
+    state().setView({ boardLayer: 2 })
+    state().setView({ boardAs: "schematic" })
+    expect(used).toEqual(["board", "hand", "technical", "layers", "schematic"])
+    // the hand only where it is shown, in 3D; and the top layer is how a board is drawn
+    used.length = 0
+    state().setView({ board: null })
+    state().setView({ board: "main", boardAs: "pcb", boardLayer: 1 })
+    state().setView({ boardHand: true })
+    expect(used).toEqual(["board", "technical"])
+  })
 })
 
 describe("what Esc steps back through", () => {

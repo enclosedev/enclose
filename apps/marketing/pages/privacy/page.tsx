@@ -37,7 +37,8 @@ export default function Privacy() {
         <li>
           that a circuit board made in detail in the background was done, stopped or failed:
           the agent, its model, the effort and the permissions, how long it took and how long
-          it was at each of its steps, and how many parts, nets, connections and vias it has;
+          it was at each of its steps, and how many parts, nets, connections, vias, layers of
+          copper and pieces of artwork it has;
         </li>
         <li>
           that an assembly guide was asked for, written, opened, saved or removed, and how
@@ -46,7 +47,9 @@ export default function Privacy() {
         <li>
           which features the view was put into (a section, the exploded view, parts shown
           alone or hidden, the blueprint, the assembly guides, a reference scene, a project’s
-          own tools, a circuit board), once for a run of the app;
+          own tools, a circuit board, the inspiration board) and how a circuit board was
+          looked at (its technical view, its schematic, a layer of its copper, on a hand),
+          once for a run of the app;
         </li>
         <li>
           that an agent was switched on or off or updated, that an update was fetched, and

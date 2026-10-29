@@ -341,6 +341,10 @@ export type MadeOf = {
   /** the connections between its parts' pins, routed or not */
   connections: number
   vias: number
+  /** its layers of copper, as `layersOf` has them */
+  layers: number
+  /** the pieces of artwork printed on it (kit/board-art.mjs) */
+  artwork: number
 }
 
 /**
@@ -370,6 +374,8 @@ export function madeOf(circuit: unknown): MadeOf {
     nets: count("source_net"),
     connections,
     vias: count("pcb_via"),
+    layers: layersOf(circuit),
+    artwork: count("pcb_silkscreen_graphic"),
   }
 }
 

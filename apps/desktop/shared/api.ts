@@ -795,7 +795,9 @@ export type Settings = {
 
 /**
  * What the window tells the app was put to use, for that count: the things the view can
- * be put into. The rest of what is counted happens in the app's own process.
+ * be put into, and in PCB mode how a board is looked at (its technical view, its
+ * schematic, a layer of its copper under the top, and the hand it is shown on in 3D).
+ * The rest of what is counted happens in the app's own process.
  */
 export const FEATURES = [
   "section",
@@ -808,6 +810,10 @@ export const FEATURES = [
   "tools",
   "board",
   "inspiration",
+  "technical",
+  "schematic",
+  "layers",
+  "hand",
 ] as const
 export type Feature = (typeof FEATURES)[number]
 

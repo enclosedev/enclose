@@ -1208,11 +1208,13 @@ describe("a board made in the background", () => {
     fs.writeFileSync(
       path.join(dir, "pcb", "build", "main.circuit.json"),
       JSON.stringify([
+        { type: "pcb_board", num_layers: 4 },
         { type: "source_component" },
         { type: "source_component" },
         { type: "source_net" },
         { type: "source_trace" },
         { type: "pcb_trace" },
+        { type: "pcb_silkscreen_graphic" },
       ])
     )
     go()
@@ -1224,7 +1226,15 @@ describe("a board made in the background", () => {
       builds: 1,
       rough: false,
       finished: false,
-      made: { step: "routed", parts: 2, nets: 1, connections: 1, vias: 0 },
+      made: {
+        step: "routed",
+        parts: 2,
+        nets: 1,
+        connections: 1,
+        vias: 0,
+        layers: 4,
+        artwork: 1,
+      },
     })
     expect(how.took).toBeGreaterThanOrEqual(0)
     // (built once, routed: it went from placing its parts to checking them)

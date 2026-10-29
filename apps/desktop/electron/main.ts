@@ -2546,6 +2546,8 @@ if (!app.requestSingleInstanceLock()) {
           nets: made.made?.nets ?? null,
           connections: made.made?.connections ?? null,
           vias: made.made?.vias ?? null,
+          layers: made.made?.layers ?? null,
+          artwork: made.made?.artwork ?? null,
         }),
       onSignedOut: (id) => providers.signedOut(id),
     })

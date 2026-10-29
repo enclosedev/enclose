@@ -156,9 +156,19 @@ describe("madeOf", () => {
         "source_trace",
         "source_trace",
         "source_trace",
-        "pcb_via"
+        "pcb_via",
+        "pcb_silkscreen_graphic"
       )
-    ).toEqual({ step: "connected", parts: 2, nets: 1, connections: 3, vias: 1 })
+    ).toEqual({
+      step: "connected",
+      parts: 2,
+      nets: 1,
+      connections: 3,
+      vias: 1,
+      layers: 2,
+      artwork: 1,
+    })
+    expect(madeOf([{ type: "pcb_board", num_layers: 4 }]).layers).toBe(4)
   })
 
   it("is nothing of what is not a board", () => {
@@ -168,6 +178,8 @@ describe("madeOf", () => {
       nets: 0,
       connections: 0,
       vias: 0,
+      layers: 2,
+      artwork: 0,
     })
   })
 })
