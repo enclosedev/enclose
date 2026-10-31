@@ -224,7 +224,8 @@ function Written({
         >
           {NEWS[news].label}
           {news === "working" && conversation?.since != null && (
-            <Going since={conversation.since} />
+            // (as if begun later, by as long as the user was away from it)
+            <Going since={conversation.since + conversation.away} />
           )}
           {news === "board" && conversation?.job && (
             <Going since={conversation.job.since} />

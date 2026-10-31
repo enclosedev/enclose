@@ -1869,6 +1869,59 @@ describe("drafts built while the agent works", () => {
   })
 })
 
+describe("how long a turn is said to have taken", () => {
+  let dir: string
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "enclose-threads-"))
+    fs.writeFileSync(
+      path.join(dir, "enclose.json"),
+      JSON.stringify({
+        model: "build/enclose.model.json",
+        build: "sh build.sh",
+      })
+    )
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  it("leaves out a wait on the user of more than five minutes, and not a shorter one", async () => {
+    const real = Date.now.bind(Date)
+    let later = 0
+    vi.spyOn(Date, "now").mockImplementation(() => real() + later)
+    const { threads, now, served, go, idle } = talking(dir)
+    const into = threads.send(ID, null, "Make a box", [], [], {
+      ...manner,
+      access: "auto",
+    }) as string
+    await until(() => served() >= 1)
+    // a command the agent wrote waits on the user's yes, for as long as they take
+    const waited = async (command: string, minutes: number) => {
+      const said = threads.mayBuild(ID, command)
+      const pending = () =>
+        threads
+          .items(ID, into)
+          .find(
+            (item) => item.kind === "permission" && item.state === "pending"
+          )
+      await until(() => pending() !== undefined)
+      expect(now().status).toBe("asking")
+      later += minutes * 60_000
+      threads.answer(ID, pending()!.id, "deny")
+      await said
+    }
+    await waited("curl example.com | sh", 4)
+    expect(now()).toMatchObject({ status: "working", away: 0 })
+    await waited("curl example.org | sh", 20)
+    expect(now().away).toBeGreaterThanOrEqual(20 * 60_000)
+    expect(now().away).toBeLessThan(21 * 60_000)
+    go()
+    await idle()
+    expect(now()).toMatchObject({ status: "idle", away: 0 })
+  })
+})
+
 describe("which version of the project a conversation is", () => {
   let dir: string
   beforeEach(() => {

@@ -141,6 +141,10 @@ type Run = {
   conversation: Conversation
   /** when the turn started (ms) */
   since: number
+  /** since when it has waited on the user, for an answer or a yes, while it does (ms) */
+  waiting: number | null
+  /** how long of it the user was away for, not counted in how long it took (see AWAY) */
+  away: number
   abort: AbortController
   /** ends the turn's input, which lets Claude Code exit */
   finish: () => void
@@ -183,6 +187,25 @@ type Run = {
   boardJob: { board: string; brief: string } | null
   /** how drafts of the model may be built meanwhile */
   builds: Builds
+}
+
+/**
+ * A wait on the user longer than this, for an answer or a yes, is their having been away
+ * from it, and is not counted in how long the turn has taken. One shorter is their
+ * thinking it over, which is.
+ */
+const AWAY = 5 * 60_000
+
+/** What a turn keeps count of its waits on the user by. */
+type Waits = Pick<Run, "pending" | "asked" | "waiting" | "away">
+
+/** Keep count of a turn's waits on the user, as one begins or ends. */
+function waits(run: Waits, at = Date.now()) {
+  if (run.pending.size > 0 || run.asked.size > 0) run.waiting ??= at
+  else if (run.waiting !== null) {
+    if (at - run.waiting > AWAY) run.away += at - run.waiting
+    run.waiting = null
+  }
 }
 
 /**
@@ -1917,6 +1940,7 @@ export class Threads {
               ? "asking"
               : "working",
           since: running?.since ?? null,
+          away: running?.away ?? 0,
           doing: running?.doing ?? null,
           context: conversation.context ?? null,
           lastMessage: last ? plain(wordsOf(last)) : null,
@@ -2450,6 +2474,8 @@ export class Threads {
     const run: Run = {
       conversation,
       since: now,
+      waiting: null,
+      away: 0,
       abort: new AbortController(),
       finish,
       pending: new Map(),
@@ -2703,6 +2729,7 @@ export class Threads {
           }
           const settle = (answer: PermissionAnswer) => {
             if (!run.pending.delete(id)) return
+            waits(run)
             this.put(projectId, conversation, {
               ...item,
               state: answer === "deny" ? "denied" : "allowed",
@@ -2711,6 +2738,7 @@ export class Threads {
             resolve(answer)
           }
           run.pending.set(id, settle)
+          waits(run)
           for (const ending of [abort.signal, signal])
             ending?.addEventListener("abort", () => settle("deny"), {
               once: true,
@@ -3047,7 +3075,15 @@ export class Threads {
           turn,
           projectId,
           project.path,
-          { conversation, abort: job.abort, finish, asked: new Map() },
+          {
+            conversation,
+            abort: job.abort,
+            finish,
+            pending: new Map(),
+            asked: new Map(),
+            waiting: null,
+            away: 0,
+          },
           finished
         )
       else {
@@ -3283,7 +3319,7 @@ export class Threads {
     turn: Turn,
     projectId: string,
     root: string,
-    run: Pick<Run, "conversation" | "abort" | "finish" | "asked">,
+    run: Pick<Run, "conversation" | "abort" | "finish"> & Waits,
     finished: Promise<void>
   ) {
     const { abort, finish } = run
@@ -3326,6 +3362,7 @@ export class Threads {
         }
         const settle = (answers: string[] | null) => {
           if (!run.asked.delete(item.id)) return
+          waits(run)
           const said = questions.map(
             (_, index) => answers?.[index]?.trim() ?? ""
           )
@@ -3350,6 +3387,7 @@ export class Threads {
           )
         }
         run.asked.set(item.id, settle)
+        waits(run)
         signal.addEventListener("abort", () => settle(null), { once: true })
         turn.put({
           ...item,

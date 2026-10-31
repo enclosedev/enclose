@@ -540,10 +540,12 @@ function AtWork({
   const turn = project.conversations.find((c) => c.status !== "idle")
   const items = useStore((s) => (turn ? s.items[turn.id] : undefined))
   // Counted from when this came up, which is a moment before Claude is set to it; or
-  // from when it was, if this is come back to with the turn already under way.
+  // from when it was, if this is come back to with the turn already under way. Not
+  // counted is how long the user was away from it, as on its card.
   const [shown] = React.useState(() => Date.now())
   const now = useNow(1000)
-  const taken = now - Math.min(shown, turn?.since ?? Infinity)
+  const taken =
+    now - Math.min(shown, turn?.since ?? Infinity) - (turn?.away ?? 0)
   const doing = (items && atWork(items, turn?.doing)) ?? meanwhile
   return (
     <Floating className="pointer-events-auto flex items-center gap-3 py-2.5 pr-2.5 pl-6">

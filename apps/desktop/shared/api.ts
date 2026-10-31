@@ -79,6 +79,12 @@ export type ConversationSummary = {
   /** when the current turn started (ms), while one is running */
   since: number | null
   /**
+   * How long of the current turn the user was away for (ms): each wait on them, for an
+   * answer or a yes, that went on for more than five minutes. It is not counted in how
+   * long the turn is said to have taken.
+   */
+  away: number
+  /**
    * What its agent is at just now, while it is on a turn and nothing shows it: null
    * while it is saying or doing something, and from an agent that does not tell.
    */

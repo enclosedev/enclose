@@ -19,6 +19,7 @@ const left = (
   provider: "claude",
   status,
   since: null,
+  away: 0,
   doing: null,
   context: null,
   lastMessage: null,

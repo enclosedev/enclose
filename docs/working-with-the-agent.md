@@ -384,6 +384,10 @@ models, which is given the message and nothing else; with Claude switched off, t
 shows as much of the message as fits. If the agent is at work in a conversation under
 the card, the edge of the card says so.
 
+While the agent is at work, the card says **Working** and for how long. Where it has
+stopped to ask you something, or for a yes, a wait of more than five minutes for your
+answer is not counted: you were away, and it was not working.
+
 ## Versions
 
 Each conversation has the project its own way. A new one begins from the model as it is
