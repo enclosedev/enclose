@@ -337,7 +337,7 @@ function GroupHeading({ group }: { group: Project["group"] }) {
       >
         {name}
       </button>
-      <span aria-hidden className="mx-1 h-px min-w-4 flex-1 bg-white/30" />
+      <span aria-hidden className="mx-1 h-px min-w-4 flex-1 bg-white/15" />
       <Tooltip disableHoverablePopup>
         <TooltipTrigger
           render={
