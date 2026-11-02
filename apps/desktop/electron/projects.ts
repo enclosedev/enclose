@@ -3,7 +3,12 @@ import { randomBytes } from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
 
-import type { BringingIn, ConversationSummary, Project } from "../shared/api"
+import {
+  NEW_GROUP,
+  type BringingIn,
+  type ConversationSummary,
+  type Project,
+} from "../shared/api"
 import { CONFIG_NAMES, MANIFEST_NAMES } from "../shared/manifest-format"
 import { findReference } from "./reference"
 import { findTools } from "./custom-tools"
@@ -60,23 +65,55 @@ type Saved = {
   sessionId?: string | null
   /** from when a project taken off the list was remembered: such a one is now forgotten */
   closed?: boolean
-  /** when the user pinned it to the top of the list, if they have */
+  /**
+   * From when a project was pinned to the top of the list on its own: its group is
+   * pinned in its place, the first time the list is read.
+   */
   pinned?: number
+  /** the group it is listed in, which every project is */
+  group?: string
 }
 
 /**
- * The projects in the order they are listed: those pinned first, the one pinned last at
- * the top; then the rest, the one added last first.
+ * Projects the user keeps together, as parts of one thing (a speaker and its mic): the
+ * list has them under one heading, and the agent at work on any of them is told of the
+ * others. It is the app's alone: their folders are wherever they are.
  */
-function listOrder(saved: Saved[]): Saved[] {
-  const latest = [...saved].reverse()
+type Group = {
+  id: string
+  /**
+   * What it goes by. None yet for a new project's, which is listed as New Project; and
+   * one made with a project, called as that is, which may only be its folder's name.
+   */
+  name?: string
+  /**
+   * Its name is its own: given by the user, or taken from its project once. Until then
+   * it takes the next name its project is given, by the user or by its model; after
+   * that the two go their own ways.
+   */
+  own?: true
+  /** when the user pinned it to the top of the list, if they have */
+  pinned?: number
+  addedAt: number
+}
+
+/**
+ * The projects in the order they are listed, by their groups: the groups pinned first,
+ * the one pinned last at the top; then the rest, the one made last first. In a group,
+ * the project added first comes first, as the one the others were added to.
+ */
+function listOrder(saved: Saved[], groups: Group[]): Saved[] {
+  const latest = [...groups].reverse()
   return [
     ...latest
-      .filter((p) => p.pinned !== undefined)
+      .filter((g) => g.pinned !== undefined)
       .sort((a, b) => (b.pinned ?? 0) - (a.pinned ?? 0)),
-    ...latest.filter((p) => p.pinned === undefined),
-  ]
+    ...latest.filter((g) => g.pinned === undefined),
+  ].flatMap((group) => saved.filter((p) => p.group === group.id))
 }
+
+/** A new id for a project or a group: lower-case hex, as a host name in model URLs has it. */
+const newId = () => randomBytes(6).toString("hex")
 
 /** Whether what was kept of a project reads as one: it says what it goes by, and where. */
 const readsAsProject = (given: unknown): given is Saved =>
@@ -361,6 +398,7 @@ export class Projects {
   private readonly file: string
   private readonly onChange: () => void
   private saved: Saved[] = []
+  private groups: Group[] = []
   private found = new Map<string, Found>()
   private revisions = new Map<string, number>()
   /**
@@ -435,7 +473,8 @@ export class Projects {
     this.file = file
     this.onChange = onChange
     this.onBoard = onBoard
-    let state: { projects?: unknown; kept?: boolean } | null = null
+    let state: { projects?: unknown; groups?: unknown; kept?: boolean } | null =
+      null
     try {
       const read: unknown = JSON.parse(fs.readFileSync(file, "utf8"))
       if (typeof read !== "object" || read === null || Array.isArray(read))
@@ -451,11 +490,20 @@ export class Projects {
       this.saved = (Array.isArray(state.projects) ? state.projects : []).filter(
         (p): p is Saved => readsAsProject(p) && !p.closed
       )
-      for (const project of this.saved) {
-        if (!fs.existsSync(project.path)) this.unavailable.add(project.id)
+      this.groups = (Array.isArray(state.groups) ? state.groups : []).filter(
+        (g): g is Group =>
+          typeof (g as Group | null)?.id === "string" &&
+          Number.isFinite((g as Group).addedAt)
+      )
+      for (const group of this.groups) {
         // (pinned at no time that can be told is not pinned)
-        if (!Number.isFinite(project.pinned)) delete project.pinned
+        if (!Number.isFinite(group.pinned)) delete group.pinned
+        if (typeof group.name !== "string" || !group.name) delete group.name
+        if (group.own !== true) delete group.own
       }
+      for (const project of this.saved)
+        if (!fs.existsSync(project.path)) this.unavailable.add(project.id)
+      if (this.grouped()) this.save()
       // From before the app kept which repositories it set up: those it knew then that say
       // so of themselves are taken at their word, once. A folder opened after never is.
       if (!state.kept) {
@@ -479,8 +527,69 @@ export class Projects {
     // (`kept`: each project says for itself whether its history is the app's to keep)
     writeWhole(
       this.file,
-      JSON.stringify({ projects: this.saved, kept: true }, null, 2)
+      JSON.stringify(
+        { projects: this.saved, groups: this.groups, kept: true },
+        null,
+        2
+      )
     )
+  }
+
+  /**
+   * See that every project is in a group, and every group has a project in it. A project
+   * in none, as every one was before there were groups, is put in one of its own, called
+   * as it is (unless it is still waiting for a name) and pinned where it was. Whether
+   * anything changed.
+   */
+  private grouped(): boolean {
+    let changed = false
+    for (const project of this.saved) {
+      if (project.group && this.groups.some((g) => g.id === project.group))
+        continue
+      const pinned = Number.isFinite(project.pinned)
+        ? project.pinned
+        : undefined
+      // (one that has been worked on long enough to be grouped keeps its name)
+      project.group = this.newGroup(
+        project.standIn
+          ? undefined
+          : (project.name ?? path.basename(project.path)),
+        project.addedAt,
+        pinned,
+        !project.standIn
+      ).id
+      changed = true
+    }
+    for (const project of this.saved)
+      if (project.pinned !== undefined) {
+        delete project.pinned
+        changed = true
+      }
+    const left = this.groups.filter((g) =>
+      this.saved.some((p) => p.group === g.id)
+    )
+    if (left.length !== this.groups.length) changed = true
+    this.groups = left
+    return changed
+  }
+
+  /** Make a group, with nothing in it yet. */
+  private newGroup(
+    name: string | undefined,
+    addedAt: number,
+    pinned?: number,
+    /** its name is not to follow its project's */
+    own = false
+  ) {
+    const group: Group = {
+      id: newId(),
+      ...(name ? { name } : {}),
+      ...(own ? { own: true as const } : {}),
+      ...(pinned !== undefined ? { pinned } : {}),
+      addedAt,
+    }
+    this.groups.push(group)
+    return group
   }
 
   /**
@@ -831,7 +940,13 @@ export class Projects {
    * whose folder is not there is on it as `missing`, with nothing of its folder's.
    */
   list(conversations: (id: string) => ConversationSummary[]): Project[] {
-    return listOrder(this.saved).map((p): Project => {
+    return listOrder(this.saved, this.groups).map((p): Project => {
+      const g = this.groups.find((one) => one.id === p.group)
+      const group = {
+        id: p.group ?? p.id,
+        name: g?.name ?? null,
+        pinned: g?.pinned !== undefined,
+      }
       if (this.unavailable.has(p.id))
         return {
           id: p.id,
@@ -853,7 +968,7 @@ export class Projects {
           redo: null,
           conversations: [],
           settingsToTrust: false,
-          pinned: p.pinned !== undefined,
+          group,
         }
       const manifest = this.found.get(p.id)?.manifest ?? null
       return {
@@ -891,22 +1006,107 @@ export class Projects {
         conversations: conversations(p.id),
         settingsToTrust:
           !madeHere(p) && p.trusted === undefined && ownSettings(p.path),
-        pinned: p.pinned !== undefined,
+        group,
       }
     })
   }
 
   /**
-   * Pin a project to the top of the list, over the others pinned before it; or let it go
+   * Pin a group to the top of the list, over the others pinned before it; or let it go
    * back to its place among the rest.
    */
-  pin(id: string, pinned: boolean, now = Date.now()) {
-    const project = this.saved.find((p) => p.id === id)
-    if (!project || (project.pinned !== undefined) === pinned) return
-    if (pinned) project.pinned = now
-    else delete project.pinned
+  pin(groupId: string, pinned: boolean, now = Date.now()) {
+    const group = this.groups.find((g) => g.id === groupId)
+    if (!group || (group.pinned !== undefined) === pinned) return
+    if (pinned) group.pinned = now
+    else delete group.pinned
     this.save()
     this.onChange()
+  }
+
+  /** Call a group something else, as the user asks. A name that says nothing changes nothing. */
+  renameGroup(groupId: string, name: string) {
+    const group = this.groups.find((g) => g.id === groupId)
+    const called = name.replace(/\s+/g, " ").trim().slice(0, NAME_LENGTH)
+    if (!group || !called || (called === group.name && group.own)) return
+    group.name = called
+    group.own = true
+    this.save()
+    this.onChange()
+  }
+
+  /**
+   * Put a project in another group (`groupId`), or in a new one of its own (null), which
+   * is called as the project is and goes at the top of the list. A group left with
+   * nothing in it is gone.
+   */
+  move(id: string, groupId: string | null, now = Date.now()) {
+    const project = this.saved.find((p) => p.id === id)
+    if (!project || project.group === groupId) return
+    if (groupId !== null && !this.groups.some((g) => g.id === groupId)) return
+    // alone in its group already, it has one of its own
+    if (
+      groupId === null &&
+      this.saved.filter((p) => p.group === project.group).length === 1
+    )
+      return
+    project.group =
+      groupId ??
+      this.newGroup(
+        project.standIn
+          ? undefined
+          : (project.name ?? path.basename(project.path)),
+        now,
+        undefined,
+        !project.standIn
+      ).id
+    this.grouped()
+    this.save()
+    this.onChange()
+  }
+
+  /**
+   * The other projects in a project's group, whose folders are there: what the agent at
+   * work on it is told of, and may read. With what the group goes by.
+   */
+  siblings(id: string): {
+    group: string
+    projects: {
+      id: string
+      name: string
+      path: string
+      manifest: string | null
+    }[]
+  } | null {
+    const project = this.saved.find((p) => p.id === id)
+    const group = this.groups.find((g) => g.id === project?.group)
+    if (!project || !group) return null
+    const others = this.saved
+      .filter(
+        (p) =>
+          p.group === group.id && p !== project && !this.unavailable.has(p.id)
+      )
+      .map((p) => ({
+        id: p.id,
+        name: p.name ?? path.basename(p.path),
+        path: p.path,
+        manifest: this.found.get(p.id)?.manifest ?? null,
+      }))
+    if (others.length === 0) return null
+    return { group: group.name ?? NEW_GROUP, projects: others }
+  }
+
+  /** The group a project is listed in. */
+  groupOf(id: string): string | null {
+    return this.saved.find((p) => p.id === id)?.group ?? null
+  }
+
+  /** A group whose name is not its own yet takes the one its project is given, once. */
+  private named(project: Saved) {
+    const group = this.groups.find((g) => g.id === project.group)
+    if (!group || group.own || !project.name) return
+    group.name = project.name
+    group.own = true
   }
 
   /**
@@ -988,7 +1188,9 @@ export class Projects {
       standIn?: boolean
       reading?: boolean
       lookOver?: Written
-    }
+    },
+    /** the group it goes in; a new one of its own where none is given, or it is gone */
+    into?: string | null
   ): string {
     const real = fs.realpathSync(dir)
     // (one whose folder was not there is the same project, with all that was kept of it)
@@ -1000,9 +1202,15 @@ export class Projects {
       }
       return existing.id
     }
-    // lower-case hex: the id is used as a host name in model URLs
+    const now = Date.now()
+    const group =
+      (into && this.groups.find((g) => g.id === into)) ||
+      this.newGroup(
+        made?.standIn ? undefined : (made?.name ?? path.basename(real)),
+        now
+      )
     const project: Saved = {
-      id: randomBytes(6).toString("hex"),
+      id: newId(),
       path: real,
       ...(made
         ? {
@@ -1012,7 +1220,8 @@ export class Projects {
             ...(made.lookOver ? { lookOver: made.lookOver } : {}),
           }
         : {}),
-      addedAt: Date.now(),
+      addedAt: now,
+      group: group.id,
     }
     this.saved.push(project)
     if (made?.reading)
@@ -1101,6 +1310,7 @@ export class Projects {
     this.bringing.delete(id)
     this.unavailable.delete(id)
     this.saved = this.saved.filter((p) => p !== project)
+    this.grouped()
     if (madeHere(project)) removeIfEmpty(project.path)
     this.save()
     this.onChange()
@@ -1126,6 +1336,7 @@ export class Projects {
     if (project.standIn && moved) this.rehouse(project, called, moved)
     project.name = called
     delete project.standIn
+    this.named(project)
     this.save()
     this.onChange()
   }
@@ -1152,6 +1363,7 @@ export class Projects {
     this.rehouse(project, name, moved)
     project.name = name
     delete project.standIn
+    this.named(project)
     this.save()
     this.onChange()
   }

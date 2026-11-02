@@ -27,6 +27,11 @@ export default function Privacy() {
           or a folder;
         </li>
         <li>
+          that a project was moved to another group, a group renamed, or a change handed
+          over by the agent to another project of the group: the agent, its model, the effort
+          and the permissions;
+        </li>
+        <li>
           that a message was sent: the agent, its model, the effort and the permissions, how
           many parts and pictures went with it, and whether a circuit board was on screen;
         </li>

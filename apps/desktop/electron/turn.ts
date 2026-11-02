@@ -99,6 +99,11 @@ export type Turn = {
    * and answer, and is let write nothing, as far as it can be kept from it.
    */
   readOnly?: boolean
+  /**
+   * The folders of the other projects of the project's group: the agent may read them,
+   * and is kept from writing in them, as far as it can be (see threads.ts `grouping`).
+   */
+  siblings?: string[]
   /** Nobody is there to answer a question: the agent decides, and says what it decided. */
   noQuestions?: boolean
   /**

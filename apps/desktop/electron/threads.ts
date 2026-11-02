@@ -58,7 +58,7 @@ import { PALETTE_NAMES } from "../shared/palette"
 import { COLOURS_FILE } from "../shared/colours-format"
 import { pictureMark, pictureName } from "../shared/pictures"
 import { replyOf } from "../shared/reply"
-import { Following } from "./boards"
+import { Following, findBoards } from "./boards"
 import type { Changes } from "./changes"
 import {
   followDoing,
@@ -107,6 +107,7 @@ import {
   viewportTools,
   type AppTool,
   type Fitting,
+  type HandOver,
   type NewProject,
   type Serving,
   type ToolServer,
@@ -180,6 +181,11 @@ type Run = {
    * and a conversation begun in it (see `startProject`).
    */
   newProject: NewProject | null
+  /**
+   * The changes the agent handed over to other projects of the group, if it did, each
+   * with the project's id: when the turn is over, each is said there (see `handOver`).
+   */
+  handOvers: (HandOver & { id: string })[]
   /**
    * The circuit board the agent asked to have made in detail in the background, if it
    * did, and its brief: when the turn is over, that is begun (see `startJob`).
@@ -275,6 +281,11 @@ type Asked = {
    * project's first
    */
   madeFrom?: string
+  /**
+   * It is a change the agent at work on another project of the group, the one called
+   * this, handed over to be made here
+   */
+  handedFrom?: string
   /**
    * It is the app passing on what the model needs changed for the board called this,
    * just made in detail in the background, and nothing the user wrote
@@ -384,6 +395,8 @@ export type ThreadsDeps = {
    * The new project was begun, from that conversation: the conversation begun in it is
    * `to`.
    */
+  /** a change was handed over to another project of the group, and said there */
+  onHandedOver?: (manner: Manner) => void
   onProject: (
     from: { projectId: string; conversationId: string },
     to: { projectId: string; conversationId: string }
@@ -994,6 +1007,62 @@ export function projectAsked(
   return lines.join("\n")
 }
 
+/**
+ * The other projects of a project's group, as the agent is told of them: what the group
+ * goes by, and each with its name, its folder, what its model is called and its boards.
+ */
+export type Grouped = {
+  name: string
+  projects: {
+    name: string
+    path: string
+    title: string | null
+    boards: string[]
+  }[]
+}
+
+/**
+ * What an agent is told of the other projects of its project's group: that they are
+ * parts of one thing, where each is, to be read as it needs and never changed, and that
+ * a change one of them needs is handed over to be made there.
+ */
+export function grouping(
+  tool: (set: string, name: string) => string,
+  group: Grouped
+): string[] {
+  return [
+    `- This project is one of several the user keeps together as "${group.name}": projects of their own, each with its own folder, conversations and history, that are parts of one thing. The others are:`,
+    ...group.projects.map(
+      (other) =>
+        `  - "${other.name}", in ${other.path}${other.title && other.title !== other.name ? `: its model is "${other.title}"` : ""}${other.boards.length > 0 ? `${other.title && other.title !== other.name ? "," : ":"} with the circuit board${other.boards.length === 1 ? "" : "s"} ${other.boards.join(", ")} in ${BOARD_FOLDER}/` : ""}`
+    ),
+    `- When the user speaks of one of them, by its name or as the thing it plainly is ("the mic"), that is the project they mean: look in its folder (its model script, its manifest, its ${BOARD_FOLDER}/ folder) before you answer, without asking where it is.`,
+    "- What is made here and there has to fit together: a connector and its mate, a cable between them, a board and the case it goes in, holes that line up. Before a change here that bears on one of the others, read what that one has, and make the change fit it.",
+    `- Read their files as you need to, but never change them, build them or run anything in their folders: each is changed only in its own conversations, where its history is kept. Where a change here calls for one there, or the user asks for one there, hand it over with ${tool(PROJECTS, "hand_over")}, and tell the user you did. Hand over only what is needed.`,
+  ]
+}
+
+/**
+ * What an agent is asked in a project's conversation by the agent at work on another
+ * project of the group: that it is that, and then the change, as that agent wrote it.
+ */
+export function handedAsked(from: string, brief: string): string {
+  return [
+    "<handed-over>",
+    `This was handed over by the agent at work on "${from}", another project of this one's group, which made a change there that this project has to follow, or was asked for one here. It is not the user's own message, but they know of it. Make the change here, as you would for them, and check that it still fits what "${from}" has: read its files where you need to, and change none of them.`,
+    "</handed-over>",
+    "",
+    brief,
+  ].join("\n")
+}
+
+/** What the conversation a change was handed over from says of it, once it is said there. */
+const HANDED = (name: string) => `Handed over to ${name}.`
+
+/** What the agent is told once a change is to be handed over. */
+const HANDING = (name: string) =>
+  `It will be said in ${name}'s latest conversation once this turn is over, and made there. Go on with what is to be done here.`
+
 /** What the conversation a new project was asked for in says of it, once it is made. */
 const STARTED = "A new project was created from here."
 
@@ -1041,6 +1110,39 @@ function keepingHistory(history: "off" | "local" | "github"): string[] {
   ]
 }
 
+/**
+ * The other projects of a group as the agent is told of them (see `grouping`): what each
+ * model is called, as its manifest has it, and the boards each has.
+ */
+function groupedOf(
+  siblings: NonNullable<ReturnType<Projects["siblings"]>>
+): Grouped {
+  return {
+    name: siblings.group,
+    projects: siblings.projects.map((other) => {
+      let title: string | null = null
+      try {
+        const read = other.manifest
+          ? (
+              JSON.parse(fs.readFileSync(other.manifest, "utf8")) as {
+                title?: unknown
+              }
+            ).title
+          : null
+        if (typeof read === "string" && read.trim()) title = read.trim()
+      } catch {
+        // a manifest that cannot be read says nothing of what the model is called
+      }
+      return {
+        name: other.name,
+        path: other.path,
+        title,
+        boards: findBoards(other.path),
+      }
+    }),
+  }
+}
+
 /** What an agent is told about where it is, on top of its own instructions. */
 function guide(
   provider: ProviderId,
@@ -1065,7 +1167,9 @@ function guide(
   /** what the circuit board being made in the background is called, while one is */
   job: string | null = null,
   /** the project has an inspiration board with pictures on it */
-  inspired = false
+  inspired = false,
+  /** the other projects of its group, where it is one of several */
+  group: Grouped | null = null
 ): string {
   const tool = knownAs(provider)
   const lines = [
@@ -1108,6 +1212,7 @@ function guide(
     ...(job ? locked(tool, job) : []),
     ...(trying ? versioning(tool) : []),
     ...(trying ? projecting(tool) : []),
+    ...(group ? grouping(tool, group) : []),
     ...keepingHistory(history),
     ...SIZES,
     ...(canAsk ? QUESTIONS : []),
@@ -1532,6 +1637,7 @@ function saidOf(
     ...(asked.assembly ? { assembly: true as const } : {}),
     ...(asked.version ? { version: true as const } : {}),
     ...(asked.madeFrom !== undefined ? { madeFrom: asked.madeFrom } : {}),
+    ...(asked.handedFrom !== undefined ? { handedFrom: asked.handedFrom } : {}),
     ...(asked.fitting !== undefined ? { fitting: asked.fitting } : {}),
   }
 }
@@ -2491,6 +2597,7 @@ export class Threads {
       goesOn: null,
       madeFrom: asked.madeFrom !== undefined,
       newProject: null,
+      handOvers: [],
       boardJob: null,
       builds: buildsOf(manner.access, project.path),
     }
@@ -2568,6 +2675,11 @@ export class Threads {
     // a circuit board being made in the background has the project's files to itself
     const busy = book.job?.item.name ?? null
     project = this.deps.projects.get(projectId) ?? project
+    // the other projects of its group, which a model only looked over has no need of
+    const siblings =
+      asked.arrange === undefined
+        ? this.deps.projects.siblings(projectId)
+        : null
     const told = guide(
       provider,
       project.path,
@@ -2584,7 +2696,8 @@ export class Threads {
       this.deps.projects.hasMeshes(projectId),
       this.deps.history(projectId),
       busy,
-      (this.deps.inspiration?.(projectId) ?? null) !== null
+      (this.deps.inspiration?.(projectId) ?? null) !== null,
+      siblings && groupedOf(siblings)
     )
     const guided = createHash("sha1").update(told).digest("hex")
 
@@ -2619,8 +2732,15 @@ export class Threads {
             [VERSIONS]: versionTools((brief) =>
               this.wanted(projectId, run, brief)
             ),
-            [PROJECTS]: projectTools(async (wanted) =>
-              this.wantedProject(run, wanted)
+            [PROJECTS]: projectTools(
+              async (wanted) => this.wantedProject(run, wanted),
+              siblings
+                ? {
+                    others: siblings.projects.map((other) => other.name),
+                    over: async (asked) =>
+                      this.wantedHandOver(projectId, run, asked),
+                  }
+                : undefined
             ),
             [BOARDS]: boardTools({
               make: async (board, brief) => {
@@ -2664,6 +2784,9 @@ export class Threads {
 
     const turn: Turn = {
       cwd: project.path,
+      ...(siblings
+        ? { siblings: siblings.projects.map((other) => other.path) }
+        : {}),
       ownSettings: this.deps.projects.goesByOwnSettings(projectId),
       // (a turn with nothing to run it is over before this is read)
       launch: this.deps.launch(provider) ?? { path: "", args: [], env: {} },
@@ -2854,6 +2977,9 @@ export class Threads {
       // as it would have: unless it was stopped, which takes the asking back.
       if (!abort.signal.aborted && this.books.get(projectId) === book)
         this.startProject(projectId, run)
+      // and the changes it handed over to the other projects of the group are said there
+      if (!abort.signal.aborted && this.books.get(projectId) === book)
+        this.handOver(projectId, run)
       // A turn that asked for a new version of the project ends in one, which is then
       // what is carried on: unless it was stopped, which takes the asking back.
       const goesOn =
@@ -3244,6 +3370,71 @@ export class Threads {
     if (run.abort.signal.aborted) throw new Error("Stopped.")
     run.newProject = { ...wanted, brief }
     return STARTING
+  }
+
+  /**
+   * The agent hands a change over, in a turn, to another project of the group. That is
+   * said there when the turn is over (see `handOver`). Resolves to what the agent is
+   * told of it; rejects where it cannot be, in words that say why.
+   */
+  private wantedHandOver(projectId: string, run: Run, asked: HandOver): string {
+    const brief = asked.brief.trim()
+    if (!brief)
+      throw new Error(
+        "Give a brief: what is to change in that project, and why."
+      )
+    const other = this.deps.projects
+      .siblings(projectId)
+      ?.projects.find((one) => one.name === asked.project)
+    if (!other)
+      throw new Error(
+        `There is no project called "${asked.project}" in this one's group.`
+      )
+    if (run.abort.signal.aborted) throw new Error("Stopped.")
+    run.handOvers = [
+      ...run.handOvers.filter((one) => one.id !== other.id),
+      { id: other.id, project: other.name, brief },
+    ]
+    return HANDING(other.name)
+  }
+
+  /**
+   * Say the changes a turn handed over in the other projects of the group, now that the
+   * turn is over: each in its project's latest conversation, or in the one at work
+   * there, where it waits its turn; and in a new one where it has none. It is answered
+   * as that conversation is, by the agent it began with. The conversation it was handed
+   * over from says it was, or why it could not be.
+   */
+  private handOver(projectId: string, run: Run) {
+    const project = this.deps.projects.get(projectId)
+    if (!project || run.handOvers.length === 0) return
+    const called = project.name ?? path.basename(project.path)
+    for (const handed of run.handOvers) {
+      const book = this.book(handed.id)
+      const latest =
+        book.run?.conversation.id ?? this.summaries(handed.id)[0]?.id ?? null
+      const into = this.say(
+        handed.id,
+        latest,
+        handed.brief,
+        [],
+        [],
+        run.manner,
+        {
+          content: handedAsked(called, handed.brief),
+          handedFrom: called,
+        }
+      )
+      this.notice(
+        projectId,
+        run.conversation,
+        into === null ? "error" : "info",
+        into === null
+          ? `${handed.project} could not be handed the change: say it there.`
+          : HANDED(handed.project)
+      )
+      if (into !== null) this.deps.onHandedOver?.(run.manner)
+    }
   }
 
   /**
@@ -3668,8 +3859,22 @@ export class Threads {
                 }
               : { permissionMode: ASKING[manner.access] }),
           canUseTool,
+          // the folders of the other projects of the group are there to be read, and
+          // nothing in them is written from here
+          ...(turn.siblings?.length
+            ? { additionalDirectories: turn.siblings }
+            : {}),
           // while a board is made in the background, nothing here writes a file
-          ...(turn.readOnly ? { disallowedTools: WRITING_TOOLS } : {}),
+          ...(turn.readOnly || turn.siblings?.length
+            ? {
+                disallowedTools: [
+                  ...(turn.readOnly ? WRITING_TOOLS : []),
+                  ...(turn.siblings ?? []).flatMap((dir) =>
+                    ["Edit", "Write"].map((tool) => `${tool}(/${dir}/**)`)
+                  ),
+                ],
+              }
+            : {}),
           stderr: (data) => {
             stderr = (stderr + data).slice(-2000)
           },

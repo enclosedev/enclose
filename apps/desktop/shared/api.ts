@@ -250,9 +250,17 @@ export type Project = {
    * yet to say whether to trust them: until they do, the agent goes by the user's alone.
    */
   settingsToTrust: boolean
-  /** the user pinned it to the top of the list */
-  pinned: boolean
+  /**
+   * The group it is listed in, with the other projects that are parts of the same
+   * thing: what that goes by (null for a new project's, until it is given a name, and
+   * listed as New Project), and whether the user pinned it to the top of the list. The
+   * list has the projects of a group one after another.
+   */
+  group: { id: string; name: string | null; pinned: boolean }
 }
+
+/** What a group of projects with no name of its own yet is listed as. */
+export const NEW_GROUP = "New Project"
 
 /**
  * A whole object of the model, as the view picks one out: the parts of a group that are
@@ -379,6 +387,11 @@ export type ThreadItem =
        * to begin with.
        */
       madeFrom?: string
+      /**
+       * Not written by the user: a change the agent at work on another project of the
+       * group, the one called this, handed over to be made here
+       */
+      handedFrom?: string
       /**
        * Not written by the user: asked by the app itself once the board called this was
        * made in detail, that the model be changed for it as its agent said it needs
@@ -908,8 +921,11 @@ export type CadApi = {
     add(kind?: "file" | "folder"): Promise<Project | null>
     /** open what the user dropped on the window: folders, CAD files, or both */
     open(paths: string[]): Promise<Project | null>
-    /** make a folder where new projects go, under a stand-in name, and add it */
-    create(): Promise<Project>
+    /**
+     * Make a folder where new projects go, under a stand-in name, and add it: to a group
+     * already listed, or to a new one of its own, called New Project until it has a name.
+     */
+    create(group?: string): Promise<Project>
     /**
      * Make a project of one of the app's examples (shared/examples.ts), where new
      * projects go, and add it: the example is fetched first, unless the app has it.
@@ -932,10 +948,14 @@ export type CadApi = {
      */
     rename(id: string, name: string): Promise<void>
     /**
-     * Pin the project to the top of the list, over those pinned before it, or let it go
-     * back to its place among the rest.
+     * Pin a group of projects to the top of the list, over those pinned before it, or let
+     * it go back to its place among the rest.
      */
-    pin(id: string, pinned: boolean): Promise<void>
+    pin(group: string, pinned: boolean): Promise<void>
+    /** Call a group of projects something else. */
+    renameGroup(group: string, name: string): Promise<void>
+    /** Put a project in another group, or in a new one of its own (null). */
+    move(id: string, group: string | null): Promise<void>
     /**
      * Say, once, whether the agent goes by the settings the project's folder has of its
      * own (see Project.settingsToTrust).
@@ -1359,6 +1379,8 @@ export const CHANNEL = {
   projectsRemove: "projects:remove",
   projectsRename: "projects:rename",
   projectsPin: "projects:pin",
+  projectsRenameGroup: "projects:rename-group",
+  projectsMove: "projects:move",
   projectsTrustSettings: "projects:trust-settings",
   projectsReveal: "projects:reveal",
   projectsChanged: "projects:changed",

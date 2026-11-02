@@ -845,8 +845,11 @@ type State = {
   addProject(kind?: "file" | "folder"): Promise<boolean>
   /** Open what was dropped on the window, and turn to the project that came of it. */
   openPaths(paths: string[]): Promise<void>
-  /** Make a new project's folder where new projects go, and open it. */
-  createProject(): Promise<void>
+  /**
+   * Make a new project's folder where new projects go, and open it: in a group already
+   * listed, or in a new one of its own.
+   */
+  createProject(group?: string): Promise<void>
   /** Make a project of one of the app's examples, fetching it first, and open it. */
   startExample(id: string): Promise<void>
   removeProject(id: string): Promise<void>
@@ -1357,8 +1360,8 @@ export const useStore = create<State>()((set, get) => ({
     if (project) get().activate(project.id)
   },
 
-  async createProject() {
-    const project = await window.cad.projects.create()
+  async createProject(group) {
+    const project = await window.cad.projects.create(group)
     get().activate(project.id)
   },
 

@@ -1,6 +1,7 @@
 import * as React from "react"
 import { cn } from "cn"
 import {
+  ArrowRightLeftIcon,
   ArrowUpIcon,
   BoxesIcon,
   BoxIcon,
@@ -194,6 +195,15 @@ const UserMessage = React.memo(function UserMessage({
         >
           <FolderPlusIcon data-icon="inline-start" />
           From {item.madeFrom}
+        </Badge>
+      )}
+      {item.handedFrom !== undefined && (
+        <Badge
+          variant="outline"
+          title={`A change handed over by the agent at work on ${item.handedFrom}`}
+        >
+          <ArrowRightLeftIcon data-icon="inline-start" />
+          From {item.handedFrom}
         </Badge>
       )}
       {item.objects && item.objects.length > 0 && (

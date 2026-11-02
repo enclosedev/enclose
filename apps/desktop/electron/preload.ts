@@ -21,14 +21,18 @@ const api: CadApi = {
     list: () => ipcRenderer.invoke(CHANNEL.projectsList),
     add: (kind) => ipcRenderer.invoke(CHANNEL.projectsAdd, kind),
     open: (paths) => ipcRenderer.invoke(CHANNEL.projectsOpen, paths),
-    create: () => ipcRenderer.invoke(CHANNEL.projectsCreate),
+    create: (group) => ipcRenderer.invoke(CHANNEL.projectsCreate, group),
     example: (id) => ipcRenderer.invoke(CHANNEL.projectsExample, id),
     onExampleProgress: (listener) =>
       on(CHANNEL.projectsExampleProgress, listener),
     pathOf: (file) => webUtils.getPathForFile(file),
     remove: (id) => ipcRenderer.invoke(CHANNEL.projectsRemove, id),
     rename: (id, name) => ipcRenderer.invoke(CHANNEL.projectsRename, id, name),
-    pin: (id, pinned) => ipcRenderer.invoke(CHANNEL.projectsPin, id, pinned),
+    pin: (group, pinned) =>
+      ipcRenderer.invoke(CHANNEL.projectsPin, group, pinned),
+    renameGroup: (group, name) =>
+      ipcRenderer.invoke(CHANNEL.projectsRenameGroup, group, name),
+    move: (id, group) => ipcRenderer.invoke(CHANNEL.projectsMove, id, group),
     trustSettings: (id, trusted) =>
       ipcRenderer.invoke(CHANNEL.projectsTrustSettings, id, trusted),
     reveal: (id) => ipcRenderer.invoke(CHANNEL.projectsReveal, id),

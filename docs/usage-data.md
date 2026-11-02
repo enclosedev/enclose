@@ -14,8 +14,11 @@ Each thing counted is an event: its name, and a few words and numbers that say w
 | Event | What goes with it |
 |---|---|
 | `app opened` | |
-| `project added` | Whether it was new, an example, CAD files or a folder; which example; how many CAD files |
+| `project added` | Whether it was new, an example, CAD files or a folder; which example; how many CAD files; for a new one, whether it was started in a group already there |
 | `project removed` | |
+| `project moved` | Whether it went into another group or a new one of its own |
+| `project group renamed` | |
+| `change handed over` | Of a change the agent handed over to another project of the group: the agent, its model, the effort and the permissions |
 | `message sent` | The agent, its model, the effort and the permissions; whether it began a conversation; how many notes on parts, quotes, parts called on by name and pictures went with it; whether it was about a reference scene, or written with a circuit board on screen |
 | `model looked over` | The agent, its model, the effort and the permissions |
 | `version begun` | The agent, its model, the effort and the permissions |

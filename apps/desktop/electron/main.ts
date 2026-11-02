@@ -807,14 +807,16 @@ const NOT_COPIED = new Set([...LEFT_BEHIND, ".git", ".venv", "venv"])
  * Make a new project, as one is made from the welcome screen: a folder where new projects
  * go, under a stand-in name until what is made in it gives it one, with its history kept
  * from the start. It is empty, or begun with a copy of another project's files (`from`),
- * its model with them: made, where that has none built. Returns its id.
+ * its model with them: made, where that has none built. It goes in a group already
+ * listed (`into`), or in a new one of its own. Returns its id.
  *
  * The copy is the app's, which goes by its own settings for Claude Code without asking
  * (see projects.ts): it has those of the other project only where that went by them.
  */
 function startProject(
   from: { path: string; name: string; ownSettings: boolean } | null,
-  how: "new" | "conversation"
+  how: "new" | "conversation",
+  into: string | null = null
 ): string {
   let made: { dir: string; name: string }
   if (from) {
@@ -833,7 +835,7 @@ function startProject(
     }
     if (!from.ownSettings) dropOwnSettings(made.dir)
   } else made = newFolder()
-  const id = projects.add(made.dir, { name: made.name, standIn: true })
+  const id = projects.add(made.dir, { name: made.name, standIn: true }, into)
   void backups.prepare(
     id,
     from ? `Started from ${from.name}` : "Started in Enclose"
@@ -841,6 +843,7 @@ function startProject(
   analytics?.record("project added", {
     from: how,
     ...(how === "conversation" && { copy: from !== null }),
+    ...(how === "new" && { grouped: into !== null }),
   })
   if (from && !projects.get(id)?.manifest) makeModel(id)
   return id
@@ -1309,8 +1312,12 @@ function wire() {
   ipcMain.handle(CHANNEL.projectsOpen, (_, paths: unknown) =>
     openFor(Array.isArray(paths) ? paths.map(String) : [])
   )
-  ipcMain.handle(CHANNEL.projectsCreate, () => {
-    const id = startProject(null, "new")
+  ipcMain.handle(CHANNEL.projectsCreate, (_, group: unknown) => {
+    const id = startProject(
+      null,
+      "new",
+      typeof group === "string" ? group : null
+    )
     return list().find((p) => p.id === id) ?? null
   })
   ipcMain.handle(CHANNEL.projectsExample, async (_, wanted: unknown) => {
@@ -1392,8 +1399,24 @@ function wire() {
     projects.remove(project.id)
     analytics?.record("project removed")
   })
-  ipcMain.handle(CHANNEL.projectsPin, (_, id: string, pinned: boolean) =>
-    projects.pin(String(id), pinned === true)
+  ipcMain.handle(CHANNEL.projectsPin, (_, group: string, pinned: boolean) =>
+    projects.pin(String(group), pinned === true)
+  )
+  ipcMain.handle(
+    CHANNEL.projectsRenameGroup,
+    (_, group: string, name: string) => {
+      projects.renameGroup(String(group), String(name))
+      analytics?.record("project group renamed")
+    }
+  )
+  ipcMain.handle(
+    CHANNEL.projectsMove,
+    (_, id: string, group: string | null) => {
+      projects.move(String(id), group === null ? null : String(group))
+      analytics?.record("project moved", {
+        into: group === null ? "new" : "group",
+      })
+    }
   )
   ipcMain.handle(CHANNEL.projectsRename, (_, id: string, name: string) => {
     // a folder still named after its stand-in takes the name too, unless something is
@@ -2505,7 +2528,9 @@ if (!app.requestSingleInstanceLock()) {
                 ownSettings: projects.goesByOwnSettings(fromId),
               }
             : null,
-          "conversation"
+          "conversation",
+          // a project begun from another is a part of the same thing, until moved
+          projects.groupOf(fromId)
         )
         pictures.share(
           fromId,
@@ -2514,6 +2539,8 @@ if (!app.requestSingleInstanceLock()) {
         )
         return id
       },
+      onHandedOver: (manner) =>
+        analytics?.record("change handed over", mannerSaid(manner)),
       onProject: (from, to) => {
         // the window has it in the list before it is told to turn to it
         broadcast()

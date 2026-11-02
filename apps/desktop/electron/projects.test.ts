@@ -241,18 +241,20 @@ describe("Projects", () => {
     projects.close()
   })
 
-  it("lists the pinned first, the one pinned last at the top, and so after a restart", () => {
+  it("lists the pinned groups first, the one pinned last at the top, and so after a restart", () => {
     const file = path.join(root, "state/projects.json")
     const projects = new Projects(file, () => {})
-    const [first, second, third, fourth] = ["a", "b", "c", "d"].map((name) => {
+    const [first, second, , fourth] = ["a", "b", "c", "d"].map((name) => {
       fs.mkdirSync(path.join(root, name))
       return projects.add(path.join(root, name))
     })
-    projects.pin(second, true, 1)
-    projects.pin(first, true, 2)
+    const third = projects.list(idle)[1].id
+    const groupOf = (id: string) => projects.groupOf(id) ?? ""
+    projects.pin(groupOf(second), true, 1)
+    projects.pin(groupOf(first), true, 2)
     const order = [first, second, fourth, third]
     expect(projects.list(idle).map((p) => p.id)).toEqual(order)
-    expect(projects.list(idle).map((p) => p.pinned)).toEqual([
+    expect(projects.list(idle).map((p) => p.group.pinned)).toEqual([
       true,
       true,
       false,
@@ -262,7 +264,7 @@ describe("Projects", () => {
       order
     )
     // let go, it is back where it was among the rest
-    projects.pin(first, false)
+    projects.pin(groupOf(first), false)
     expect(projects.list(idle).map((p) => p.id)).toEqual([
       second,
       fourth,
@@ -277,29 +279,177 @@ describe("Projects", () => {
     const file = path.join(root, "state/projects.json")
     let told = 0
     const projects = new Projects(file, () => void told++)
-    const id = projects.add(path.join(root, "a"))
+    const group = projects.groupOf(projects.add(path.join(root, "a"))) ?? ""
     told = 0
-    projects.pin(id, false)
+    projects.pin(group, false)
     projects.pin("nothing", true)
     expect(told).toBe(0)
-    projects.pin(id, true)
-    projects.pin(id, true)
+    projects.pin(group, true)
+    projects.pin(group, true)
     expect(told).toBe(1)
     projects.close()
   })
 
-  it("takes a project kept as pinned at no time it can tell for one not pinned", () => {
+  it("puts each project from before groups in one of its own, called as it is and pinned where it was", () => {
     write("odd/model.json", MANIFEST)
+    write("pinned/model.json", MANIFEST)
+    write("new/model.json", MANIFEST)
+    const file = path.join(root, "state/projects.json")
     write("state/projects.json", {
       projects: [
         { id: "odd", path: path.join(root, "odd"), addedAt: 1, pinned: "x" },
+        {
+          id: "pinned",
+          path: path.join(root, "pinned"),
+          name: "Clock",
+          addedAt: 2,
+          pinned: 5,
+        },
+        {
+          id: "new",
+          path: path.join(root, "new"),
+          name: "Brave otter",
+          standIn: true,
+          addedAt: 3,
+        },
+      ],
+      kept: true,
+    })
+    const projects = new Projects(file, () => {})
+    expect(
+      projects.list(idle).map((p) => [p.id, p.group.name, p.group.pinned])
+    ).toEqual([
+      ["pinned", "Clock", true],
+      ["new", null, false],
+      ["odd", "odd", false],
+    ])
+    // and so it is kept
+    const kept = JSON.parse(fs.readFileSync(file, "utf8")) as {
+      projects: { pinned?: unknown; group?: string }[]
+      groups: unknown[]
+    }
+    expect(kept.groups).toHaveLength(3)
+    expect(kept.projects.every((p) => p.pinned === undefined && p.group)).toBe(
+      true
+    )
+    expect(
+      new Projects(file, () => {}).list(idle).map((p) => p.group.id)
+    ).toEqual(projects.list(idle).map((p) => p.group.id))
+    projects.close()
+  })
+
+  it("adds a project to a group, or to a new one of its own, which takes the first name it is given", () => {
+    const file = path.join(root, "state/projects.json")
+    const projects = new Projects(file, () => {})
+    fs.mkdirSync(path.join(root, "speaker"))
+    fs.mkdirSync(path.join(root, "mic"))
+    fs.mkdirSync(path.join(root, "other"))
+    const speaker = projects.add(path.join(root, "speaker"), {
+      name: "Brave otter",
+      standIn: true,
+    })
+    const group = projects.groupOf(speaker) ?? ""
+    const mic = projects.add(
+      path.join(root, "mic"),
+      { name: "Calm heron", standIn: true },
+      group
+    )
+    const other = projects.add(path.join(root, "other"))
+    expect(projects.list(idle).map((p) => [p.id, p.group.name])).toEqual([
+      [other, "other"],
+      [speaker, null],
+      [mic, null],
+    ])
+    // one opened, called for now as its folder is, takes its first name too
+    projects.rename(other, "Other thing")
+    projects.rename(other, "Other thing 2")
+    expect(projects.list(idle)[0].group.name).toBe("Other thing")
+
+    // the first project of the two to be given a name gives it the group
+    projects.rename(mic, "Mic")
+    projects.rename(speaker, "Sound speaker")
+    expect(projects.list(idle).find((p) => p.id === speaker)?.group).toEqual({
+      id: group,
+      name: "Mic",
+      pinned: false,
+    })
+    // and the user calls it what they like, even what it is called already
+    projects.renameGroup(group, "Mic")
+    projects.rename(mic, "Mic 3")
+    expect(projects.list(idle)[1].group.name).toBe("Mic")
+    projects.renameGroup(group, "  Sound   speaker ")
+    projects.rename(mic, "Mic 2")
+    expect(projects.list(idle)[1].group.name).toBe("Sound speaker")
+    projects.close()
+  })
+
+  it("moves a project to another group, or to one of its own, and forgets a group left empty", () => {
+    const file = path.join(root, "state/projects.json")
+    const projects = new Projects(file, () => {})
+    const [a, b, c] = ["a", "b", "c"].map((name) => {
+      fs.mkdirSync(path.join(root, name))
+      return projects.add(path.join(root, name), { name: name.toUpperCase() })
+    })
+    const groupOf = (id: string) => projects.groupOf(id) ?? ""
+    projects.move(b, groupOf(a))
+    projects.move(c, groupOf(a))
+    expect(new Set(projects.list(idle).map((p) => p.group.id)).size).toBe(1)
+    expect(projects.list(idle).map((p) => p.id)).toEqual([a, b, c])
+    expect(
+      (JSON.parse(fs.readFileSync(file, "utf8")) as { groups: unknown[] })
+        .groups
+    ).toHaveLength(1)
+
+    // one of its own, called as it is, at the top
+    projects.move(c, null, Date.now() + 1)
+    expect(projects.list(idle).map((p) => [p.id, p.group.name])).toEqual([
+      [c, "C"],
+      [a, "A"],
+      [b, "A"],
+    ])
+    // alone already, it stays where it is
+    const was = groupOf(c)
+    projects.move(c, null)
+    expect(groupOf(c)).toBe(was)
+    projects.move(a, "nothing")
+    expect(groupOf(a)).toBe(groupOf(b))
+
+    projects.remove(a)
+    projects.remove(b)
+    expect(
+      (JSON.parse(fs.readFileSync(file, "utf8")) as { groups: unknown[] })
+        .groups
+    ).toHaveLength(1)
+    projects.close()
+  })
+
+  it("tells of the other projects of a group, whose folders are there", () => {
+    write("speaker/model.json", MANIFEST)
+    write("mic/model.json", MANIFEST)
+    const file = path.join(root, "state/projects.json")
+    const projects = new Projects(file, () => {})
+    const speaker = projects.add(path.join(root, "speaker"), {
+      name: "Sound speaker",
+    })
+    expect(projects.siblings(speaker)).toBeNull()
+    const mic = projects.add(
+      path.join(root, "mic"),
+      { name: "Mic" },
+      projects.groupOf(speaker)
+    )
+    expect(projects.siblings(speaker)).toEqual({
+      group: "Sound speaker",
+      projects: [
+        {
+          id: mic,
+          name: "Mic",
+          path: path.join(root, "mic"),
+          manifest: path.join(root, "mic/model.json"),
+        },
       ],
     })
-    const projects = new Projects(
-      path.join(root, "state/projects.json"),
-      () => {}
-    )
-    expect(projects.list(idle)[0]).toMatchObject({ id: "odd", pinned: false })
+    fs.rmSync(path.join(root, "mic"), { recursive: true })
+    expect(new Projects(file, () => {}).siblings(speaker)).toBeNull()
     projects.close()
   })
 

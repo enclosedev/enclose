@@ -369,15 +369,40 @@ export type NewProject = {
   parts: string[]
 }
 
+/** A change an agent hands over to another project of its group, to be made there. */
+export type HandOver = { project: string; brief: string }
+
 /**
  * What an agent begins a new project with, beside the one it is working in, with what the
- * user wants made there. `start` says what the agent is to do now, or rejects, in words
- * it can tell the user why by.
+ * user wants made there; and, where the project is one of a group, what it hands a change
+ * over to another of them with (`hand`, by the names of those it can: `others`). Each
+ * says what the agent is to do now, or rejects, in words it can tell the user why by.
  */
 export function projectTools(
-  start: (asked: NewProject) => Promise<string>
+  start: (asked: NewProject) => Promise<string>,
+  hand?: { others: string[]; over: (asked: HandOver) => Promise<string> }
 ): AppTool[] {
   return [
+    ...(hand
+      ? [
+          appTool(
+            "hand_over",
+            "Hand a change over to another project of this one's group, to be made there: one that a change here calls for (a connector moved here, its mate moved there), or one the user asks for in that project. Never change that project's files yourself. When this turn ends, the app says your brief in that project's latest conversation, as a message to the agent at work there, which makes the change in its own history; it waits its turn there if that agent is busy. Called again for the same project in the same turn, it takes the place of what was handed over to it before.",
+            {
+              project: z
+                .enum([...new Set(hand.others)] as [string, ...string[]])
+                .describe("The project to hand it over to, by its name."),
+              brief: z
+                .string()
+                .describe(
+                  "What is to change in that project, and why, for the agent there, which knows nothing of this conversation: what was changed here that it follows from, with every size, name, pin and place it has to match, and what it has to keep fitting. Written as a request, in the user's voice."
+                ),
+            },
+            async ({ project, brief }) =>
+              hand.over({ project, brief }).then(words, failed)
+          ),
+        ]
+      : []),
     appTool(
       "start",
       "Start a new project, when the user asks for one: a project of its own in the app's list, beside this one, which is left as it is. It begins empty, or with a copy of this project's files, to be made from the whole of this model or from some of its parts. Call it before you change anything, and once in a turn. When this turn ends, the app makes the project, as it makes any new one, opens a conversation there with your brief as the user's own message, takes the user to it, and the work goes on there. Called again in the same turn, it takes the place of what the turn asked for before.",

@@ -4,16 +4,42 @@ A project is a folder. Drop one on the window, or use the + under the project ca
 open one (Cmd+O) or to start a new project (Cmd+N). STEP, STL and OBJ files can be
 dropped and opened the same way: see [Starting from CAD files](#starting-from-cad-files).
 
-The cards are in the order the projects were added, the newest at the top, under any
-that are pinned. With more of them than the window has room for, the cards scroll and the
-+ stays where it can be reached, over the settings button.
+The cards are listed by group, under a heading for each (see [Groups](#groups)): the
+newest group at the top, under any that are pinned. With more of them than the window has
+room for, the cards scroll and the + stays where it can be reached, over the settings
+button.
 
-## Pinning a project
+## Groups
 
-Right-click a project's card for **Pin to top**, and the card slides up to the top of the
-list. A pinned card shows a pin where it would say when its conversation was last carried
-on. Pinned projects are listed in the order they were pinned, the one pinned last at the
-top. **Unpin** sends the card back to its place among the others.
+Projects that are parts of one thing, such as a speaker and the mic that comes with it,
+are kept together in a group: each is still a project of its own, with its own folder,
+conversations, versions and circuit boards, and the group is only how the app lists and
+thinks of them. No folder is moved.
+
+Every project is in a group. A new project from the + at the foot of the list starts a
+group of its own, called **New Project** until the project has a name: the first name the
+project is given, by you or by its model, becomes the group's too, and after that the two
+are renamed on their own. A project the agent starts from a conversation goes in the
+group of the project it was started from.
+
+- **Rename** a group by clicking its name, over its cards.
+- The **+** beside it starts a new project in that group.
+- The **pin** beside that pins the whole group to the top of the list. Pinned groups are
+  listed in the order they were pinned, the one pinned last at the top; pressed again, the
+  group goes back to its place among the others.
+- Right-click a project's card for **Move to group**: another group, or a new one of its
+  own. A group left with nothing in it is gone.
+
+The agent at work on any project of a group is told of the others: what each is called,
+where its folder is, what its model is and which circuit boards it has. When you speak of
+one of them ("the mic"), it looks in that project's folder without being told where it
+is, and before a change that bears on another (a connector and its mate, a board and the
+case it goes in) it reads what that one has, to make the change fit. It reads the other
+projects' files, and never changes them: where a change here needs one there, it hands it
+over. Once its turn is over, what it wrote is said in that project's latest conversation,
+marked as coming from this project, and the agent there makes the change, in that
+project's own history. Where that conversation is busy, it waits its turn. This
+conversation says it was handed over.
 
 ## New projects
 

@@ -9,7 +9,7 @@ import {
   XIcon,
 } from "lucide-react"
 
-import type { ConversationSummary, Project } from "@shared/api"
+import { NEW_GROUP, type ConversationSummary, type Project } from "@shared/api"
 import { EXAMPLES, type Example } from "@shared/examples"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,6 +18,9 @@ import {
   ContextMenuGroup,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
 import {
@@ -30,6 +33,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { RenameGroup } from "@/components/rename-group"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Tooltip,
@@ -126,25 +130,6 @@ function When({
       className={cn(SMALL, "shrink-0 text-muted-foreground/60 tabular-nums")}
     >
       {ago(conversation.updatedAt, now)}
-    </span>
-  )
-}
-
-/**
- * Top right of the card of a project pinned to the top, in place of when its conversation
- * was last carried on: pinned, it is kept to hand whenever that was.
- */
-function Pinned({
-  conversation,
-}: {
-  conversation: ConversationSummary | null
-}) {
-  const finished = useStore((state) => state.finished)
-  // (as there, news of its conversation says that instead)
-  if (newsOf(conversation, finished)) return null
-  return (
-    <span className="self-center text-muted-foreground/60">
-      <PinIcon aria-label="Pinned" className="size-3" fill="currentColor" />
     </span>
   )
 }
@@ -305,6 +290,102 @@ function Under({
   )
 }
 
+/** The projects of one group, as the list has them one after another. */
+type Listed = { group: Project["group"]; projects: Project[] }
+
+/** The projects as the list has them, by their groups, in the order they come. */
+function byGroup(projects: Project[]): Listed[] {
+  const listed: Listed[] = []
+  for (const project of projects) {
+    const last = listed.at(-1)
+    if (last?.group.id === project.group.id) last.projects.push(project)
+    else listed.push({ group: project.group, projects: [project] })
+  }
+  return listed
+}
+
+/**
+ * Over the projects of a group, as wide as their cards: what the group goes by, which is
+ * renamed by clicking it, a line out to what is done with the group: a new project in it,
+ * and pinning all of it to the top of the list.
+ */
+function GroupHeading({ group }: { group: Project["group"] }) {
+  const createProject = useStore((state) => state.createProject)
+  const [renaming, setRenaming] = React.useState(false)
+  const name = group.name ?? NEW_GROUP
+  return (
+    <div className={cn("flex w-49 items-center gap-1", FADES)}>
+      <button
+        type="button"
+        title="Rename"
+        onClick={() => setRenaming(true)}
+        className={cn(
+          SMALL,
+          "pointer-events-auto min-w-0 shrink truncate rounded-md text-left text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        )}
+      >
+        {name}
+      </button>
+      <span className="mx-1 h-px min-w-4 flex-1 bg-foreground/10" />
+      <Tooltip disableHoverablePopup>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className="pointer-events-auto text-muted-foreground"
+              onClick={() => void createProject(group.id)}
+            />
+          }
+        >
+          <PlusIcon />
+          <span className="sr-only">New project in {name}</span>
+        </TooltipTrigger>
+        <TooltipContent side="right">New project in {name}</TooltipContent>
+      </Tooltip>
+      <Tooltip disableHoverablePopup>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-pressed={group.pinned}
+              className={cn(
+                "pointer-events-auto",
+                group.pinned ? "text-foreground" : "text-muted-foreground"
+              )}
+              onClick={() => {
+                // (it goes to its new place from where it is, and the others make way)
+                notePlaces()
+                void window.cad.projects.pin(group.id, !group.pinned)
+              }}
+            />
+          }
+        >
+          <PinIcon fill={group.pinned ? "currentColor" : "none"} />
+          <span className="sr-only">
+            {group.pinned ? "Unpin" : "Pin to top"}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          {group.pinned ? "Unpin" : "Pin to top"}
+        </TooltipContent>
+      </Tooltip>
+      {renaming && (
+        <RenameGroup
+          name={name}
+          onNamed={(named) => {
+            setRenaming(false)
+            if (named !== group.name)
+              void window.cad.projects.renameGroup(group.id, named)
+          }}
+          onCancel={() => setRenaming(false)}
+        />
+      )}
+    </div>
+  )
+}
+
 /**
  * A project: its card, which is the conversation being carried on about it or the offer
  * of a new one, and under the card the conversations had before, which spread out below
@@ -367,13 +448,9 @@ function ProjectCard({ project, now }: { project: Project; now: number }) {
                 {project.name}
               </span>
               {/* makes way for the close button while the pointer is on the card */}
-              {(cover || project.pinned) && !renaming && (
+              {cover && !renaming && (
                 <span className="flex self-stretch transition-opacity group-focus-within/card:opacity-0 group-hover/card:opacity-0">
-                  {project.pinned ? (
-                    <Pinned conversation={cover} />
-                  ) : (
-                    cover && <When conversation={cover} now={now} />
-                  )}
+                  <When conversation={cover} now={now} />
                 </span>
               )}
             </span>
@@ -619,22 +696,25 @@ function ProjectMenu({
 }) {
   const removeProject = useStore((state) => state.removeProject)
   const recolour = useStore((state) => state.recolour)
+  const projects = useStore((state) => state.projects)
   const [card, ...inside] = children
+  // the groups it can go in, and whether it has others with it where it is
+  const groups = byGroup(projects)
+  const others = groups.filter(({ group }) => group.id !== project.group.id)
+  const alone =
+    groups.find(({ group }) => group.id === project.group.id)?.projects
+      .length === 1
+  const move = (group: string | null) => {
+    // (it goes to its new place from where it is, and the others make way)
+    notePlaces()
+    void window.cad.projects.move(project.id, group)
+  }
   return (
     <ContextMenu>
       <ContextMenuTrigger render={card}>{inside}</ContextMenuTrigger>
       {/* closed to have the name written, it leaves the caret in the name and not on the card */}
       <ContextMenuContent finalFocus={() => naming.current ?? true}>
         <ContextMenuGroup>
-          <ContextMenuItem
-            onClick={() => {
-              // (it goes to its new place from where it is, and the others make way)
-              notePlaces()
-              void window.cad.projects.pin(project.id, !project.pinned)
-            }}
-          >
-            {project.pinned ? "Unpin" : "Pin to top"}
-          </ContextMenuItem>
           <ContextMenuItem
             onClick={() => void window.cad.projects.reveal(project.id)}
           >
@@ -645,6 +725,29 @@ function ProjectMenu({
             <ContextMenuItem onClick={() => recolour(project.id)}>
               Recolor
             </ContextMenuItem>
+          )}
+          {(others.length > 0 || !alone) && (
+            <ContextMenuSub>
+              <ContextMenuSubTrigger>Move to group</ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-48">
+                {others.map(({ group }) => (
+                  <ContextMenuItem
+                    key={group.id}
+                    onClick={() => move(group.id)}
+                  >
+                    <span className="truncate">{group.name ?? NEW_GROUP}</span>
+                  </ContextMenuItem>
+                ))}
+                {!alone && (
+                  <>
+                    {others.length > 0 && <ContextMenuSeparator />}
+                    <ContextMenuItem onClick={() => move(null)}>
+                      New group
+                    </ContextMenuItem>
+                  </>
+                )}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
           )}
         </ContextMenuGroup>
         <ContextMenuSeparator />
@@ -665,7 +768,7 @@ function ProjectMenu({
 /** How long a card takes to slide to its new place in the list. */
 const SLIDING_MS = 400
 
-/** The cards in the list, by project. */
+/** The cards in the list, by project, and the headings of their groups. */
 const cards = new Map<string, HTMLElement>()
 /** where each card was, before what is to change their order next */
 let were: Map<string, number> | null = null
@@ -786,7 +889,14 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
   const starting = useStore((state) => Object.keys(state.starting).length > 0)
   const [adding, setAdding] = React.useState(false)
   const now = useNow()
-  useSliding(projects.map((project) => project.id).join(" "))
+  const groups = byGroup(projects)
+  useSliding(
+    groups
+      .map(({ group, projects }) =>
+        [group.id, ...projects.map((project) => project.id)].join(" ")
+      )
+      .join(" ")
+  )
   // with no projects the middle of the window is where one is started
   if (projects.length === 0 && missing.length === 0)
     return (
@@ -806,16 +916,28 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
       {/* a list that scrolls cuts off whatever is outside it, and a card's edge is drawn
           just outside the card: it starts a little higher than the first card does */}
       <div className="-mt-1 flex min-h-0 grow [scrollbar-width:none] flex-col items-start gap-1.5 overflow-y-auto px-4.5 pt-1">
-        {projects.map((project) => (
+        {/* each group's heading, over its projects: put away with the projects that are
+            put away, and taken for one of the cards in sliding to a new place */}
+        {groups.flatMap(({ group, projects }) => [
           <Tucked
-            key={project.id}
-            ref={holding(project.id)}
-            away={oneProject && project.id !== activeId}
+            key={`group-${group.id}`}
+            ref={holding(`group-${group.id}`)}
+            away={oneProject}
             faded={alone}
           >
-            <ProjectCard project={project} now={now} />
-          </Tucked>
-        ))}
+            <GroupHeading group={group} />
+          </Tucked>,
+          ...projects.map((project) => (
+            <Tucked
+              key={project.id}
+              ref={holding(project.id)}
+              away={oneProject && project.id !== activeId}
+              faded={alone}
+            >
+              <ProjectCard project={project} now={now} />
+            </Tucked>
+          )),
+        ])}
         {/* (after the others: there is nothing to be done in them for now) */}
         {missing.map((project) => (
           <Tucked key={project.id} away={oneProject} faded={alone}>
@@ -855,6 +977,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
               </Tooltip>
               <DropdownMenuContent side="right" align="start" className="w-56">
                 <DropdownMenuGroup>
+                  {/* (in a group of its own, a new project being a new thing) */}
                   <DropdownMenuItem onClick={() => void createProject()}>
                     New project
                     <DropdownMenuShortcut className="pl-4">

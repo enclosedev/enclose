@@ -11,6 +11,7 @@ import {
   assemblyAsked,
   assembling,
   fastening,
+  grouping,
   inspiring,
   keeping,
   knownAs,
@@ -759,6 +760,8 @@ function talking(
     versioned = "yes" as "yes" | "off" | "big",
     deps = {} as Partial<ThreadsDeps>,
     provider = "codex" as ProviderId,
+    /** the other projects of the project's group, where it is one of several */
+    siblings = null as ReturnType<ThreadsDeps["projects"]["siblings"]>,
   } = {}
 ) {
   const flag = path.join(dir, "go")
@@ -834,6 +837,7 @@ on("turn/interrupt", () => {
       goesByOwnSettings: () => true,
       refresh: () => {},
       christen: () => void christened++,
+      siblings: (id: string) => (id === ID ? siblings : null),
     } as unknown as ThreadsDeps["projects"],
     changes: {
       before: async () => null,
@@ -882,6 +886,8 @@ on("turn/interrupt", () => {
     christened: () => christened,
     /** how many turns have been given the app's tools: under way, with all they need */
     served: () => given.length,
+    /** the app's tools the latest turn was given */
+    tools: () => given[given.length - 1],
     say: (text: string, into: string | null) =>
       threads.send(ID, into, text, [], [], { ...manner, provider }),
     /** what was said in it by the user, and in what order */
@@ -924,6 +930,17 @@ on("turn/interrupt", () => {
     ): Promise<ToolResult> => {
       await until(() => given.length >= turn)
       const tool = given[turn - 1].projects.find((one) => one.name === "start")
+      return tool!.run(asked as never)
+    },
+    /** The agent hands a change over to another project of the group, as `begin` does. */
+    handOver: async (
+      asked: { project: string; brief: string },
+      turn = 1
+    ): Promise<ToolResult> => {
+      await until(() => given.length >= turn)
+      const tool = given[turn - 1].projects.find(
+        (one) => one.name === "hand_over"
+      )
       return tool!.run(asked as never)
     },
     /** The agent asks for a board to be made in the background, as `begin` does. */
@@ -2184,6 +2201,100 @@ describe("projectAsked", () => {
     })
     expect(some).toContain("parts alone: @lid, @hinge_pin")
     expect(some).toContain("take every other part out of the model")
+  })
+})
+
+describe("a change handed over to another project of the group", () => {
+  let dir: string
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "enclose-threads-"))
+  })
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+  const MIC = {
+    group: "Sound speaker",
+    projects: [{ id: NEW, name: "Mic", path: "/mic", manifest: null }],
+  }
+  const notices = (threads: Threads, project: string, conversation: string) =>
+    threads
+      .items(project, conversation)
+      .flatMap((item) => (item.kind === "notice" ? [item.text] : []))
+
+  it("tells the agent of the other projects, to be read and handed changes over to", () => {
+    const told = grouping((set, name) => `${set}.${name}`, {
+      name: "Sound speaker",
+      projects: [
+        { name: "Mic", path: "/mic", title: "Mic", boards: ["main"] },
+        { name: "Stand", path: "/stand", title: "Floor stand", boards: [] },
+      ],
+    }).join("\n")
+    expect(told).toContain('as "Sound speaker"')
+    expect(told).toContain(
+      '"Mic", in /mic: with the circuit board main in pcb/'
+    )
+    expect(told).toContain('"Stand", in /stand: its model is "Floor stand"')
+    expect(told).toContain("projects.hand_over")
+    expect(told).toContain("never change them")
+  })
+
+  it("gives the tool to hand over with only where there is a group to hand over to", async () => {
+    const alone = talking(dir, { each: true })
+    alone.say("Hello", null)
+    await until(() => alone.served() === 1)
+    const other = fs.mkdtempSync(path.join(os.tmpdir(), "enclose-threads-"))
+    try {
+      const grouped = talking(other, { each: true, siblings: MIC })
+      grouped.say("Hello", null)
+      await until(() => grouped.served() === 1)
+      expect(
+        [alone, grouped].map((one) =>
+          one.tools().projects.map((tool) => tool.name)
+        )
+      ).toEqual([["start"], ["hand_over", "start"]])
+      grouped.go()
+      await grouped.idle()
+    } finally {
+      fs.rmSync(other, { recursive: true, force: true })
+    }
+    alone.go()
+    await alone.idle()
+  })
+
+  it("is said in the other project once the turn is over, as handed over from this one", async () => {
+    const { threads, go, handOver } = talking(dir, {
+      each: true,
+      siblings: MIC,
+    })
+    const from = threads.send(
+      ID,
+      null,
+      "Move the jack",
+      [],
+      [],
+      manner
+    ) as string
+    expect(
+      (await handOver({ project: "Nothing", brief: "Move it" })).isError
+    ).toBe(true)
+    const told = await handOver({
+      project: "Mic",
+      brief: "Move the mic's jack 4 mm to the left, to meet the speaker's",
+    })
+    expect(told.isError).toBeUndefined()
+    // (nothing is said there until the turn is over)
+    expect(threads.summaries(NEW)).toEqual([])
+    go()
+    await until(() => threads.summaries(NEW).length === 1)
+    const [{ id: to }] = threads.summaries(NEW)
+    expect(threads.items(NEW, to)[0]).toMatchObject({
+      kind: "user",
+      text: "Move the mic's jack 4 mm to the left, to meet the speaker's",
+      handedFrom: "Box",
+    })
+    expect(notices(threads, ID, from)).toEqual(["Handed over to Mic."])
+    go()
+    await until(() => threads.summaries(NEW)[0].status === "idle")
   })
 })
 
