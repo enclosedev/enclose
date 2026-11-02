@@ -1202,10 +1202,14 @@ describe("a board made in the background", () => {
     })
     await until(() => now().status === "idle")
     expect(job(threads, into)).toMatchObject({ state: "working" })
+    // (and its card, how it is going, for the window to hear it end)
+    const { id } = job(threads, into)!
+    expect(now().lastJob).toEqual({ id, state: "working" })
     go()
     await until(() => threads.jobOf(ID) === null)
     const made = job(threads, into)
     expect(made).toMatchObject({ state: "done", name: "Main board" })
+    expect(now().lastJob).toEqual({ id, state: "done" })
     expect(
       made?.kind === "job" && made.items.some((one) => one.kind === "assistant")
     ).toBe(true)

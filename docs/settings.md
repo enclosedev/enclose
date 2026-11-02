@@ -12,6 +12,7 @@ click on the app puts them away.
 | | Whether each conversation has [a version of the project](working-with-the-agent.md#versions) of its own |
 | | After how many days a [conversation](working-with-the-agent.md#conversations) left alone goes under its project's card |
 | | Whether the conversation says about how many tokens Claude has used while it thinks, beside how long it has been thinking, and once it is done, how many it wrote over its steps, beside how long it worked (off to begin with) |
+| | Whether a short pop is heard when an agent is done, needs you (two of the same note), fails (lower, falling), or finishes a [board](working-with-the-agent.md#circuit-boards) made in the background (rising, four notes). On to begin with; turning it on plays one |
 | | What a [blueprint](blueprints.md#exploded-dimensions-and-labels)'s dimensions are in, millimetres or inches |
 | | Whether what you [download](parts.md#saving-the-model) has the day before its name: `2026_10_11_table-clock.step` |
 | | Whether the app sends [usage data](usage-data.md) |
@@ -26,7 +27,7 @@ click on the app puts them away.
 | Connections | **GitHub**: **Connect** backs every project up to [private repositories on your GitHub account](projects.md#history-and-backup). A dialog shows a code to enter on GitHub's site (**Copy code and open GitHub**), where an account can be made on the way, and then asks for Enclose to be installed on the account; Esc or **Cancel** stops. Once connected it says which account, and **Disconnect** forgets it: what is on GitHub stays there. Where a project's history could not be kept or pushed the last time, it says which project and why, in red, until that next works |
 | Appearance | Beside the section's name, the look: **System**, **Light** or **Dark** |
 | | **Theme**: the app's own colours, or those of one of the [themes](#themes) beside them, each shown as the window would be drawn in it in the look chosen (light and dark side by side, for **System**) |
-| About | The app's version |
+| About | The app's version, and beside it a button to [update the app](install.md): **Check for updates**, **Update to** a newer version once there is one, and **Restart to update** once it is downloaded |
 
 ## Themes
 

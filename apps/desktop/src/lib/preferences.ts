@@ -45,6 +45,8 @@ export type Preferences = Buttons & {
   datedFiles: boolean
   /** what the model's files are saved as, as last chosen where they are downloaded */
   format: Format
+  /** a sound is played when an agent is done, needs the user, fails, or makes a board */
+  sounds: boolean
 }
 
 export const TURN_SPEED = { min: 0.4, max: 2.5 }
@@ -64,6 +66,7 @@ const DEFAULTS: Preferences = {
   units: "mm",
   datedFiles: true,
   format: "step",
+  sounds: true,
 }
 const KEY = "enclose:preferences"
 
@@ -113,6 +116,7 @@ function saved(): Preferences {
         read.format === "stl" || read.format === "obj"
           ? read.format
           : DEFAULTS.format,
+      sounds: read.sounds !== false,
     }
   } catch {
     return DEFAULTS

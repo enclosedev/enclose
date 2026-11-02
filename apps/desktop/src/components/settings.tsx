@@ -52,6 +52,7 @@ import {
 } from "@/lib/navigation"
 import { MAC } from "@/lib/platform"
 import { TURN_SPEED, usePreferences, ZOOM_SPEED } from "@/lib/preferences"
+import { play } from "@/lib/sounds"
 import { dated } from "@/lib/saved"
 import { useStore } from "@/lib/store"
 import { paletteOf, previewOf, useThemes } from "@/lib/themes"
@@ -180,6 +181,7 @@ function General() {
   const thinkingTokens = usePreferences((state) => state.thinkingTokens)
   const units = usePreferences((state) => state.units)
   const datedFiles = usePreferences((state) => state.datedFiles)
+  const sounds = usePreferences((state) => state.sounds)
   const change = usePreferences((state) => state.change)
   const [settings, setSettings] = React.useState<AppSettings | null>(null)
   React.useEffect(() => {
@@ -298,6 +300,20 @@ function General() {
             aria-label="Show token usage while Claude thinks"
             checked={thinkingTokens}
             onCheckedChange={(on) => change({ thinkingTokens: on })}
+          />
+        </Row>
+        <Row
+          title="Sounds"
+          detail="Plays a sound when an agent is done, needs you, fails, or finishes a board."
+        >
+          <Switch
+            aria-label="Play sounds"
+            checked={sounds}
+            onCheckedChange={(on) => {
+              change({ sounds: on })
+              // what they sound like, on being turned on
+              if (on) play("done")
+            }}
           />
         </Row>
       </Group>

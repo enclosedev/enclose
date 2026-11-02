@@ -1669,6 +1669,12 @@ export const compactedSaid = (tokens?: number) =>
 const lastAt = (conversation: Conversation) =>
   conversation.items.at(-1)?.at ?? 0
 
+/** The board last made in a conversation in the background, and how that went. */
+function lastJobOf(items: ThreadItem[]): ConversationSummary["lastJob"] {
+  const job = items.findLast((item) => item.kind === "job")
+  return job?.kind === "job" ? { id: job.id, state: job.state } : null
+}
+
 export class Threads {
   private readonly deps: ThreadsDeps
   private books = new Map<string, Book>()
@@ -2069,6 +2075,7 @@ export class Threads {
                   steps: [...job.following.gone],
                 }
               : null,
+          lastJob: lastJobOf(items),
         }
       })
   }

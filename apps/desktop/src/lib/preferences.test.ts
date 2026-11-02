@@ -40,6 +40,7 @@ describe("the preferences", () => {
       units: "mm",
       datedFiles: true,
       format: "step",
+      sounds: true,
     })
   })
 
@@ -57,6 +58,7 @@ describe("the preferences", () => {
       units: "in",
       datedFiles: false,
       format: "obj",
+      sounds: false,
     }
     expect((await started(chosen)).getState()).toMatchObject(chosen)
   })
@@ -75,6 +77,7 @@ describe("the preferences", () => {
         datedFiles: 0,
         thinkingTokens: "yes",
         format: "3mf",
+        sounds: 0,
       })
     ).getState()
     expect(preferences).toMatchObject({
@@ -88,6 +91,7 @@ describe("the preferences", () => {
       datedFiles: true,
       thinkingTokens: false,
       format: "step",
+      sounds: true,
     })
   })
 

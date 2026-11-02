@@ -29,6 +29,7 @@ const left = (
   queued: [],
   versioning: false,
   job: null,
+  lastJob: null,
 })
 
 /** A layout by its ids: the card, what is under it, and what the panel shows. */

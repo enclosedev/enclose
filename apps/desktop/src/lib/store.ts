@@ -18,6 +18,7 @@ import { connectInspiration } from "@/lib/inspiration"
 import { fitted } from "@/lib/pictures"
 import { keptAsWas } from "@/lib/same"
 import { usePreferences } from "@/lib/preferences"
+import { cueOf, play } from "@/lib/sounds"
 import {
   askedAgain,
   back,
@@ -2509,6 +2510,11 @@ function reconcile(listed: Project[]) {
     colours: coloursOf(colours, projects),
   })
   tally(before)
+  const cue = cueOf(
+    before.flatMap((p) => p.conversations),
+    projects.flatMap((p) => p.conversations)
+  )
+  if (cue) play(cue)
   if (activeId && projects.some((p) => p.id === activeId)) return
   const wanted = /^#project=(.+)$/.exec(location.hash)?.[1] ?? saved(ACTIVE_KEY)
   const next = projects.find((p) => p.id === wanted) ?? projects[0]

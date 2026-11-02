@@ -126,6 +126,14 @@ export type ConversationSummary = {
     since: number
     steps: StepsGone
   } | null
+  /**
+   * The board last made in it in the background, as that went: being made, or over (as
+   * a job item says it). Null in one no board has been made in.
+   */
+  lastJob: {
+    id: string
+    state: "working" | "done" | "stopped" | "failed"
+  } | null
 }
 
 /**
