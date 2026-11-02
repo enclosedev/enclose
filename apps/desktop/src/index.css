@@ -306,6 +306,12 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* A scrollbar that stays up (a mouse plugged in, or the Mac set to always show
+       them) is drawn in the window's colours: a grey handle on nothing of its own,
+       where it would be the system's light one. The Mac's own, that comes and goes
+       as the trackpad scrolls, is left as it is. */
+    scrollbar-color: color-mix(in oklab, var(--foreground) 22%, transparent)
+      transparent;
   }
   body {
     @apply bg-background text-foreground antialiased;
