@@ -28,7 +28,8 @@ pcb/
     main.parts.json     the makers' own 3D models of its parts, which read_board
     main.parts/         puts on the board (see Fitting it into the model)
     main.gerbers.zip    what a board house makes it from, which the user saves from
-                        PCB mode: Gerbers, drill files, a BOM and where each part goes
+                        PCB mode or the list of boards: Gerbers, drill files, a BOM and
+                        where each part goes
     main.preview.json   a quick look at it, unrouted, which the app makes by itself as
                         you write it, for the user to see it come together: leave it be
     main.pcb.png        pictures of it, for you to check it by

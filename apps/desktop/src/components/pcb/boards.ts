@@ -11,6 +11,7 @@ import {
   type Project,
 } from "@shared/api"
 import { builtOf } from "@shared/board-format"
+import { savedAs } from "@/lib/saved"
 import { useStore } from "@/lib/store"
 import type { BoardJob } from "./making"
 
@@ -230,6 +231,36 @@ export function sizeSaid(board: BoardSummary): string | null {
   if (!board.size) return null
   const round = (mm: number) => String(Math.round(mm * 10) / 10)
   return `${round(board.size[0])} × ${round(board.size[1])} mm`
+}
+
+/** A name as a file of it is called: "Clock board" is clock-board. */
+const fileNamed = (name: string) =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "") || "board"
+
+/**
+ * A board as files, to take elsewhere: its Gerbers' zip, or its STEP file, saved where
+ * the user picks, called as the board is. Gerbers saved are said so.
+ */
+export function saveBoard(
+  projectId: string,
+  board: BoardSummary,
+  what: "gerbers" | "step"
+): void {
+  const called = fileNamed(board.name)
+  void window.cad.boards
+    .save(
+      projectId,
+      board.id,
+      what,
+      savedAs(what === "gerbers" ? `${called}-gerbers.zip` : `${called}.step`)
+    )
+    .then((saved) => {
+      if (saved && what === "gerbers")
+        useStore.getState().say(`Saved the Gerbers of ${board.name}`)
+    })
 }
 
 /** The agent making a board in detail in the background: null while none is. */

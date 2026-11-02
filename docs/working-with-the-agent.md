@@ -269,7 +269,9 @@ The download button in PCB mode saves the board's **Gerbers**, the zip a board h
 it from, with its drill files, what goes on it and where each part goes; or the board in
 3D, as **STEP**. An unfinished board's Gerbers are for looking at, not for ordering.
 Where the board was changed after it was last built, its Gerbers are outdated, and
-**Refresh Gerbers** there asks the agent to build it again.
+**Refresh Gerbers** there asks the agent to build it again. A finished board's card in
+the list has a button of its own beside its name that saves the Gerbers; while they are
+outdated it refreshes them instead.
 
 The BOM and the placement file in the zip are written as JLCPCB reads them: each part
 named by its maker's number and its package, and turned the way JLCPCB's own footprint of

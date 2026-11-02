@@ -26,6 +26,7 @@ import {
 
 import { BoardIcon, ReferenceIcon, SectionIcon } from "@/components/icons"
 import { BoardAtWorkRing } from "@/components/pcb/at-work"
+import { saveBoard } from "@/components/pcb/boards"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -377,13 +378,6 @@ function Downloads({
   )
 }
 
-/** A name as a file of it is called: "Clock board" is clock-board. */
-const fileNamed = (name: string) =>
-  name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "") || "board"
-
 /**
  * In PCB mode, the board as files, to take elsewhere: what a board house makes it from,
  * its Gerbers, with the drill files, what goes on it and where each part goes, all in
@@ -398,16 +392,7 @@ function BoardDownloads({
   projectId: string
 }) {
   const [open, setOpen] = React.useState(false)
-  const say = useStore((state) => state.say)
   const rebuildBoard = useStore((state) => state.rebuildBoard)
-  const called = fileNamed(board.name)
-  const save = (what: "gerbers" | "step", name: string) =>
-    void window.cad.boards
-      .save(projectId, board.id, what, savedAs(name))
-      .then((saved) => {
-        if (saved && what === "gerbers")
-          say(`Saved the Gerbers of ${board.name}`)
-      })
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <Tooltip disableHoverablePopup>
@@ -428,14 +413,16 @@ function BoardDownloads({
           <DropdownMenuGroup>
             {board.gerbers && (
               <DropdownMenuItem
-                onClick={() => save("gerbers", `${called}-gerbers.zip`)}
+                onClick={() => saveBoard(projectId, board, "gerbers")}
               >
                 Manufacturing files
                 <Size kind="GERBERS" />
               </DropdownMenuItem>
             )}
             {board.step && (
-              <DropdownMenuItem onClick={() => save("step", `${called}.step`)}>
+              <DropdownMenuItem
+                onClick={() => saveBoard(projectId, board, "step")}
+              >
                 3D board
                 <Size kind="STEP" />
               </DropdownMenuItem>
