@@ -305,6 +305,14 @@ function byGroup(projects: Project[]): Listed[] {
 }
 
 /**
+ * What a heading over the view is drawn in, having no card of its own: white, set off
+ * against whatever is behind it (a difference blend), so that it is light over the dark
+ * of the view and dark over a light model. Not all the way: as quiet as the name of a
+ * card's conversation over the dark.
+ */
+const OVER_VIEW = "text-white opacity-70 mix-blend-difference"
+
+/**
  * Over the projects of a group, as wide as their cards: what the group goes by, which is
  * renamed by clicking it, a line out to what is done with the group: a new project in it,
  * and pinning all of it to the top of the list.
@@ -314,26 +322,29 @@ function GroupHeading({ group }: { group: Project["group"] }) {
   const [renaming, setRenaming] = React.useState(false)
   const name = group.name ?? NEW_GROUP
   return (
-    <div className={cn("flex w-49 items-center gap-1", FADES)}>
+    <div
+      data-group-heading
+      className={cn(OVER_VIEW, "flex w-49 items-center gap-1", FADES)}
+    >
       <button
         type="button"
         title="Rename"
         onClick={() => setRenaming(true)}
         className={cn(
           SMALL,
-          "pointer-events-auto min-w-0 shrink truncate rounded-md text-left text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          "pointer-events-auto min-w-0 shrink truncate rounded-md text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         )}
       >
         {name}
       </button>
-      <span className="mx-1 h-px min-w-4 flex-1 bg-foreground/10" />
+      <span aria-hidden className="mx-1 h-px min-w-4 flex-1 bg-white/30" />
       <Tooltip disableHoverablePopup>
         <TooltipTrigger
           render={
             <Button
               variant="ghost"
               size="icon-xs"
-              className="pointer-events-auto text-muted-foreground"
+              className="pointer-events-auto hover:bg-white/15 hover:text-white dark:hover:bg-white/15"
               onClick={() => void createProject(group.id)}
             />
           }
@@ -350,10 +361,7 @@ function GroupHeading({ group }: { group: Project["group"] }) {
               variant="ghost"
               size="icon-xs"
               aria-pressed={group.pinned}
-              className={cn(
-                "pointer-events-auto",
-                group.pinned ? "text-foreground" : "text-muted-foreground"
-              )}
+              className="pointer-events-auto hover:bg-white/15 hover:text-white dark:hover:bg-white/15"
               onClick={() => {
                 // (it goes to its new place from where it is, and the others make way)
                 notePlaces()
