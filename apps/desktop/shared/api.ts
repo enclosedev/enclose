@@ -1354,6 +1354,12 @@ export type CadApi = {
   }
   update: {
     get(): Promise<Update>
+    /**
+     * Look for a newer version now: whether the look got through, once it is over (what
+     * it found is heard of as ever); null where this copy of the app is not updated by
+     * the app, but by what installed it, or is not a release at all.
+     */
+    check(): Promise<boolean | null>
     /** fetch the newer version there is: how far along it is, is heard of as it comes */
     download(): Promise<void>
     /**
@@ -1456,6 +1462,7 @@ export const CHANNEL = {
   updateGet: "update:get",
   updateDownload: "update:download",
   updateRestart: "update:restart",
+  updateCheck: "update:check",
   updateChanged: "update:changed",
   githubGet: "github:get",
   githubConnect: "github:connect",

@@ -92,7 +92,12 @@ after. When there is one, a download button appears above the settings button, a
 bottom left of the window. Press it and the new version is downloaded, with a ring round
 the button that shows how far along it is. The button then turns orange: press it and
 Enclose starts again as the new version. Your projects and conversations are not in the
-app, and stay as they were. About, in the settings, says which version you have.
+app, and stay as they were.
+
+About, in the settings, says which version you have, with a button beside it that does
+the same: **Check for updates** looks for a newer version now, and says whether you are up
+to date; once there is one, it downloads it (**Update to** that version), and then starts
+Enclose again as it (**Restart to update**).
 
 On Linux only the AppImage updates itself this way, in place. A deb, pacman package or
 rpm is updated by downloading the newer one and installing it as before.

@@ -73,7 +73,7 @@ function setUp() {
 /** As far as a newer version having been found. */
 async function found(version = "0.0.2") {
   const made = setUp()
-  made.updates.look()
+  void made.updates.look()
   made.emit("update-available", { version })
   await made.done()
   return made
@@ -95,7 +95,7 @@ describe("Updates", () => {
 
   it("has nothing to show for a look that came to nothing", async () => {
     const { updates, done, told } = setUp()
-    updates.look()
+    void updates.look()
     await done(new Error("offline"))
     expect(updates.get()).toEqual({ state: "none" })
     expect(told).toEqual([])
@@ -103,7 +103,7 @@ describe("Updates", () => {
 
   it("keeps the version it found when a later look fails", async () => {
     const { updates, done } = await found()
-    updates.look()
+    void updates.look()
     await done(new Error("offline"))
     expect(updates.get()).toEqual({
       state: "available",
@@ -114,9 +114,28 @@ describe("Updates", () => {
 
   it("does not look twice at once", () => {
     const { updates, asked } = setUp()
-    updates.look()
-    updates.look()
+    void updates.look()
+    void updates.look()
     expect(asked).toEqual(["check"])
+  })
+
+  it("says, once a look is over, whether it got through", async () => {
+    const { updates, done, emit } = setUp()
+    const first = updates.look()
+    // asked again meanwhile, it is the same look
+    const again = updates.look()
+    await done()
+    expect(await first).toBe(true)
+    expect(await again).toBe(true)
+    const failing = updates.look()
+    await done(new Error("offline"))
+    expect(await failing).toBe(false)
+    // with a version on its way there is nothing to look for
+    void updates.look()
+    emit("update-available", { version: "0.0.2" })
+    await done()
+    updates.download()
+    expect(await updates.look()).toBe(true)
   })
 
   it("follows a download to its end, and never back", async () => {
@@ -160,7 +179,7 @@ describe("Updates", () => {
       failed: true,
     })
     // found again by a later look, it is still the one that did not come
-    updates.look()
+    void updates.look()
     emit("update-available", { version: "0.0.2" })
     await done()
     expect(updates.get()).toMatchObject({ failed: true })
@@ -173,9 +192,9 @@ describe("Updates", () => {
   it("does not look for another while one is on its way, or here", async () => {
     const { updates, emit, asked } = await found()
     updates.download()
-    updates.look()
+    void updates.look()
     emit("update-downloaded", { version: "0.0.2" })
-    updates.look()
+    void updates.look()
     expect(asked.filter((what) => what === "check")).toHaveLength(1)
   })
 

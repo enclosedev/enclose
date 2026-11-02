@@ -57,8 +57,9 @@ export default function Privacy() {
           once for a run of the app;
         </li>
         <li>
-          that an agent was switched on or off or updated, that an update was fetched, and
-          that GitHub was connected or disconnected, without which account.
+          that an agent was switched on or off or updated, that a newer version was looked
+          for from the settings or an update fetched, and that GitHub was connected or
+          disconnected, without which account.
         </li>
       </ul>
       <p>

@@ -34,6 +34,7 @@ Each thing counted is an event: its name, and a few words and numbers that say w
 | `feature used` | Which of these the view was put into: a section, the exploded view, parts shown alone, parts hidden, the blueprint, the assembly guides, a reference scene, a project's own tools, a circuit board in PCB mode, or the inspiration board; and in PCB mode, a board's technical view, its schematic, a layer of its copper under the top, or the hand it is shown on in 3D. Each is counted once for a run of the app |
 | `provider switched` | Which agent, and whether on or off |
 | `provider updated` | Which agent, and what came of it: updated, the same as it was, failed, or not answering after |
+| `update checked` | Of a look for a newer version asked for in the settings: whether one was found, and whether the look failed |
 | `update fetched` | The version |
 | `github connected` | |
 | `github disconnected` | |

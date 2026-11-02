@@ -53,8 +53,8 @@ export class Updates {
   private readonly updater: Updater
   private readonly onChange: (update: Update) => void
   private update: Update = { state: "none" }
-  /** a newer version is being looked for now */
-  private looking = false
+  /** a newer version is being looked for now: whether that gets through, once it has */
+  private looking: Promise<boolean> | null = null
   private again: ReturnType<typeof setInterval> | undefined
 
   constructor(deps: UpdatesDeps) {
@@ -94,26 +94,34 @@ export class Updates {
 
   /** Look for a newer version now, and go on looking every so often. */
   start() {
-    this.look()
-    this.again = setInterval(() => this.look(), EVERY)
+    void this.look()
+    this.again = setInterval(() => void this.look(), EVERY)
   }
 
   close() {
     clearInterval(this.again)
   }
 
-  /** Look for a newer version, unless one is already on its way or here. */
-  look() {
+  /**
+   * Look for a newer version, unless one is already on its way or here; looked for
+   * already, the look under way is the one. Resolves once it is over, to whether it got
+   * through (what it found is heard of as ever), and at once to true where there is no
+   * need to look.
+   */
+  look(): Promise<boolean> {
     const { state } = this.update
-    if (this.looking || (state !== "none" && state !== "available")) return
-    this.looking = true
-    void this.updater
-      .checkForUpdates()
-      // (the updater has said so itself, where it writes what it does)
-      .catch(() => {})
-      .finally(() => {
-        this.looking = false
-      })
+    if (state !== "none" && state !== "available") return Promise.resolve(true)
+    if (this.looking) return this.looking
+    const looking = this.updater.checkForUpdates().then(
+      () => true,
+      // (the updater has said why itself, where it writes what it does)
+      () => false
+    )
+    this.looking = looking
+    void looking.finally(() => {
+      if (this.looking === looking) this.looking = null
+    })
+    return looking
   }
 
   /** Fetch the newer version there is. */

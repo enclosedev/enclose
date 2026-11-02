@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Kbd } from "@/components/ui/kbd"
+import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
@@ -1098,10 +1099,85 @@ function Licenses() {
   )
 }
 
+/**
+ * The version the app is, and beside it the button that brings it up to date: one that
+ * looks for a newer version, where none is known of yet, and says what came of that;
+ * then one that fetches the newer version, how far along that is, and the one that
+ * starts the app again as it, as the button over the settings does.
+ */
+function Version() {
+  const update = useStore((state) => state.update)
+  // what the last look from here came to, until there is something newer to show
+  const [looked, setLooked] = React.useState<
+    "looking" | "current" | "failed" | "elsewhere" | null
+  >(null)
+  const look = () => {
+    setLooked("looking")
+    void window.cad.update
+      .check()
+      .then((through) =>
+        setLooked(
+          through === null ? "elsewhere" : through ? "current" : "failed"
+        )
+      )
+  }
+  const said =
+    update.state === "available"
+      ? `${update.version} is available`
+      : update.state === "none"
+        ? looked === "current"
+          ? "Up to date"
+          : looked === "failed"
+            ? "Could not check for updates"
+            : looked === "elsewhere"
+              ? "This copy does not update itself"
+              : null
+        : null
+  return (
+    <Row
+      title="Version"
+      detail={said ? `${__APP_VERSION__} · ${said}` : __APP_VERSION__}
+    >
+      {update.state === "none" ? (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={looked === "looking" || looked === "elsewhere"}
+          onClick={look}
+        >
+          {looked === "looking" && <Spinner data-icon="inline-start" />}
+          {looked === "looking" ? "Checking…" : "Check for updates"}
+        </Button>
+      ) : update.state === "available" ? (
+        <Button size="sm" onClick={() => void window.cad.update.download()}>
+          {update.failed ? "Try again" : `Update to ${update.version}`}
+        </Button>
+      ) : update.state === "downloading" ? (
+        <Button variant="outline" size="sm" disabled>
+          <Spinner data-icon="inline-start" />
+          Downloading {Math.round(update.fraction * 100)}%
+        </Button>
+      ) : (
+        <Button
+          size="sm"
+          disabled={update.state === "restarting"}
+          className="bg-attention text-background hover:bg-attention/85"
+          onClick={() => void window.cad.update.restart()}
+        >
+          {update.state === "restarting" && (
+            <Spinner data-icon="inline-start" />
+          )}
+          {update.state === "restarting" ? "Restarting…" : "Restart to update"}
+        </Button>
+      )}
+    </Row>
+  )
+}
+
 function About() {
   return (
     <Group title="Enclose">
-      <Row title="Version" detail={__APP_VERSION__} />
+      <Version />
       <Row title="Website">
         <a
           href="https://enclose.dev"

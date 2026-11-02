@@ -2301,6 +2301,15 @@ function wire() {
     CHANNEL.updateGet,
     (): Update => updates?.get() ?? { state: "none" }
   )
+  ipcMain.handle(CHANNEL.updateCheck, async () => {
+    if (!updates) return null
+    const through = await updates.look()
+    analytics?.record("update checked", {
+      found: updates.get().state !== "none",
+      ...(!through && { failed: true }),
+    })
+    return through
+  })
   ipcMain.handle(CHANNEL.updateDownload, () => {
     const found = updates?.get()
     if (found?.state === "available")

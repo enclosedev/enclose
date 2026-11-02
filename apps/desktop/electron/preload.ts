@@ -234,6 +234,7 @@ const api: CadApi = {
   },
   update: {
     get: () => ipcRenderer.invoke(CHANNEL.updateGet),
+    check: () => ipcRenderer.invoke(CHANNEL.updateCheck),
     download: () => ipcRenderer.invoke(CHANNEL.updateDownload),
     restart: () => ipcRenderer.invoke(CHANNEL.updateRestart),
     onChange: (listener) => on(CHANNEL.updateChanged, listener),
