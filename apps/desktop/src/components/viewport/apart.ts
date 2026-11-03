@@ -186,6 +186,18 @@ const UPRIGHT = 0.7
 const ROUNDS = 8
 /** More pieces than this are only sent straight out: every two of them cannot be gone through. */
 const MOST = 1500
+/**
+ * The least share of the way out a model is pulled to begin with, and how much more is
+ * tried each time something is still in something else there (see clearShare).
+ */
+const BEGUN = 0.5
+const BEGUN_STEP = 0.05
+/**
+ * How far into one another two parts have to be, at the least, mm, to be taken to be
+ * in one another there: not by how big the model is, as touching is, since a model as
+ * big as a room would then have a board a few mm through a floor.
+ */
+const THROUGH = 0.2
 
 /** `high` is to go this much further along an axis than `low` does. */
 type Need = { low: number; high: number; by: number }
@@ -386,4 +398,162 @@ export function waysOut(
     }
   }
   return ways
+}
+
+/**
+ * How far out a model is pulled to begin with, as a share of the way that has every
+ * piece clear of every other (`ways`, the way out of each part's piece): the least, from
+ * half of it, at which no part is in a part of another piece. Half way out the pieces
+ * are already seen to be what they are, and the model is not yet all over the view; but
+ * a board half way out of the shell it was in is still through the shell's floor, and
+ * goes on out until it is clear of it. All the way out, nothing is in anything.
+ *
+ * `boxes` is where each part is in the model, and `crosses` whether two parts, each
+ * moved that share of its way, are in one another: asked only of two of different
+ * pieces whose boxes are further into one another than THROUGH then.
+ */
+export function clearShare(
+  boxes: THREE.Box3[],
+  pieces: number[],
+  ways: THREE.Vector3[],
+  crosses: (a: number, b: number, share: number) => boolean
+): number {
+  const moved = boxes.map((box) => box.clone())
+  const by = new THREE.Vector3()
+  const shared = new THREE.Box3()
+  const size = new THREE.Vector3()
+  const into = (a: number, b: number, share: number) => {
+    if (pieces[a] === pieces[b]) return false
+    shared.copy(moved[a]).intersect(moved[b])
+    if (shared.isEmpty()) return false
+    shared.getSize(size)
+    return Math.min(size.x, size.y, size.z) > THROUGH && crosses(a, b, share)
+  }
+  // the two found in one another the last time are likely to be so the next
+  let last: [number, number] | null = null
+  const anyAt = (share: number) => {
+    boxes.forEach((box, index) =>
+      moved[index]
+        .copy(box)
+        .translate(by.copy(ways[index]).multiplyScalar(share))
+    )
+    const was = last
+    if (was && into(was[0], was[1], share)) return true
+    const pairs = nearPairs(moved)
+    for (let p = 0; p < pairs.length; p += 2) {
+      const [a, b] = [pairs[p], pairs[p + 1]]
+      // (those two have just been asked about)
+      if (was && was[0] === a && was[1] === b) continue
+      if (into(a, b, share)) {
+        last = [a, b]
+        return true
+      }
+    }
+    return false
+  }
+  for (let step = 0; ; step++) {
+    const share = BEGUN + step * BEGUN_STEP
+    if (share >= 1 - 1e-9) return 1
+    if (!anyAt(share)) return share
+  }
+}
+
+/** How many times over the parts are gone through, at the most, by unstuck. */
+const UNSTUCK_ROUNDS = 8
+/** How far one part is left from another it was moved clear of by unstuck, as a share of how far the model is across. */
+const UNSTUCK_CLEAR = 0.005
+
+/**
+ * Where the parts of a model that says where its own parts go are pulled apart to: where
+ * it says (`ways`), but for any that are still in one another there, which are moved
+ * clear. A model's numbers go out of date as it changes, and a part that has grown, or
+ * moved, can be left through another. Of two in one another, the one the model sends
+ * further out (by the axis they part most along) is moved on along that axis, until the
+ * boxes round them are clear; and with it every part that goes the same way as it, as
+ * the parts of a board do. Two that go the same way are as they were in the model, and
+ * are left so. All else stays where the model has it.
+ *
+ * `boxes` is where each part is in the model, `across` how far the model is from corner
+ * to corner, and `crosses` whether two parts, each moved by the way given, are in one
+ * another: asked only of two whose boxes are further into one another than THROUGH.
+ */
+export function unstuck(
+  boxes: THREE.Box3[],
+  ways: THREE.Vector3[],
+  across: number,
+  crosses: (a: number, b: number, at: THREE.Vector3[]) => boolean
+): THREE.Vector3[] {
+  const at = ways.map((way) => way.clone())
+  if (boxes.length < 2 || boxes.length > MOST) return at
+  const clear = across * UNSTUCK_CLEAR
+  // the parts that go the same way, which go on together: each part's lot, by number
+  const keys = new Map<string, number>()
+  const lots: number[][] = []
+  const lotOf = ways.map((way, index) => {
+    const key = way
+      .toArray()
+      .map((n) => n.toFixed(3))
+      .join(" ")
+    let lot = keys.get(key)
+    if (lot === undefined) {
+      keys.set(key, (lot = lots.length))
+      lots.push([])
+    }
+    lots[lot].push(index)
+    return lot
+  })
+  // (what stays put of each lot of them tied together: the one nearest the middle of
+  // the model as it says it comes apart)
+  const middle = boxes
+    .reduce(
+      (all, box, index) => all.union(box.clone().translate(ways[index])),
+      new THREE.Box3()
+    )
+    .getCenter(new THREE.Vector3())
+  const shared = new THREE.Box3()
+  const size = new THREE.Vector3()
+  const apart = new THREE.Vector3()
+  const centre = new THREE.Vector3()
+  for (let round = 0; round < UNSTUCK_ROUNDS; round++) {
+    const moved = boxes.map((box, index) => box.clone().translate(at[index]))
+    const needs: Record<Axis, Need[]> = { x: [], y: [], z: [] }
+    let any = false
+    const pairs = nearPairs(moved)
+    for (let p = 0; p < pairs.length; p += 2) {
+      const [a, b] = [pairs[p], pairs[p + 1]]
+      if (lotOf[a] === lotOf[b]) continue
+      shared.copy(moved[a]).intersect(moved[b])
+      if (shared.isEmpty()) continue
+      shared.getSize(size)
+      if (Math.min(size.x, size.y, size.z) <= THROUGH) continue
+      if (!crosses(a, b, at)) continue
+      // the axis the model parts them most along, and which it sends further along it
+      apart.subVectors(ways[b], ways[a])
+      const axis = AXES.reduce((best, one) =>
+        Math.abs(apart[one]) > Math.abs(apart[best]) ? one : best
+      )
+      const [low, high] = apart[axis] < 0 ? [b, a] : [a, b]
+      needs[axis].push({
+        low: lotOf[low],
+        high: lotOf[high],
+        by: moved[low].max[axis] - moved[high].min[axis] + clear,
+      })
+      any = true
+    }
+    if (!any) break
+    // Each axis by itself, every need on it at once: a part between two others, each
+    // of which it has to be clear of on the other side, is not sent back and forth.
+    for (const axis of AXES) {
+      if (needs[axis].length === 0) continue
+      const by = settle(
+        needs[axis],
+        lots.map((lot) => moved[lot[0]].getCenter(centre)[axis]),
+        middle[axis]
+      )
+      lots.forEach((lot, index) => {
+        if (by[index] !== 0) for (const part of lot) at[part][axis] += by[index]
+      })
+    }
+  }
+  return at
 }

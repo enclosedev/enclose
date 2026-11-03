@@ -2,10 +2,12 @@ import * as THREE from "three"
 import { describe, expect, it } from "vitest"
 
 import {
+  clearShare,
   nearPairs,
   objectsOf,
   piecesOf,
   pieceWith,
+  unstuck,
   waysOut,
   wholeOf,
 } from "./apart"
@@ -500,5 +502,91 @@ describe("nearPairs", () => {
         )
     )
     expect(nearPairs(boxes)).toEqual([])
+  })
+})
+
+describe("clearShare", () => {
+  const box = (low: number, high: number) =>
+    new THREE.Box3(
+      new THREE.Vector3(low, 0, 0),
+      new THREE.Vector3(high, 10, 10)
+    )
+  // a part going 10 mm along x, out of one it starts 8 mm into
+  const boxes = [box(0, 10), box(2, 12)]
+  const ways = [new THREE.Vector3(), new THREE.Vector3(10, 0, 0)]
+  const always = () => true
+
+  it("is half of the way out, where nothing is in anything there", () => {
+    expect(clearShare(boxes, [0, 1], ways, () => false)).toBe(0.5)
+    // (of one piece, the two go as one, and are never in one another)
+    expect(clearShare(boxes, [0, 0], ways, always)).toBe(0.5)
+  })
+
+  it("is as far as it takes for nothing to be in anything, and no further", () => {
+    // in one another while 8 - 10 × share is more than a touch: up to 0.78
+    expect(clearShare(boxes, [0, 1], ways, always)).toBeCloseTo(0.8)
+    // the surfaces, not the boxes, say where the two are in one another
+    const asked: number[] = []
+    expect(
+      clearShare(boxes, [0, 1], ways, (_a, _b, share) => {
+        asked.push(share)
+        return share < 0.6
+      })
+    ).toBeCloseTo(0.6)
+    expect(asked.map((share) => Math.round(share * 100))).toEqual([50, 55, 60])
+  })
+
+  it("is all of the way, where nothing short of it is clear", () => {
+    // (8 mm in, going 8: 0.4 mm in at 0.95 of the way)
+    const far = [new THREE.Vector3(), new THREE.Vector3(8, 0, 0)]
+    expect(clearShare(boxes, [0, 1], far, always)).toBe(1)
+  })
+})
+
+describe("unstuck", () => {
+  const cube = (x: number, y = 0) =>
+    new THREE.Box3(
+      new THREE.Vector3(x, y, 0),
+      new THREE.Vector3(x + 10, y + 10, 10)
+    )
+  const v = (x: number, y = 0, z = 0) => new THREE.Vector3(x, y, z)
+  const always = () => true
+  const moved = (boxes: THREE.Box3[], ways: THREE.Vector3[]) =>
+    boxes.map((box, index) => box.clone().translate(ways[index]))
+
+  it("leaves where the model says, where nothing is in anything there", () => {
+    const boxes = [cube(0), cube(5)]
+    const ways = [v(0), v(20)]
+    expect(unstuck(boxes, ways, 100, always)).toEqual(ways)
+    // (nor where the surfaces do not meet, however the boxes do)
+    expect(unstuck(boxes, [v(0), v(1)], 100, () => false)).toEqual([v(0), v(1)])
+  })
+
+  it("moves the one sent further on, along the way the two part most, with all that goes its way", () => {
+    // b is sent a little way out along x, and is still 4 mm into a; c goes as b does
+    const boxes = [cube(0), cube(5), cube(5, 30)]
+    const ways = unstuck(boxes, [v(0), v(1, 0.5), v(1, 0.5)], 100, always)
+    const [a, b, c] = moved(boxes, ways)
+    expect(b.min.x).toBeGreaterThanOrEqual(a.max.x)
+    expect(ways[2]).toEqual(ways[1])
+    // (and not along y, which it was sent less far along)
+    expect(ways[1].y).toBe(0.5)
+    expect(c.min.y).toBe(30.5)
+  })
+
+  it("does not send one between two others back and forth", () => {
+    // three in one another along y, the model sending each a little further than the last
+    const boxes = [cube(0, 0), cube(0, 2), cube(0, 4)]
+    const [a, b, c] = moved(
+      boxes,
+      unstuck(boxes, [v(0, 0), v(0, 1), v(0, 2)], 100, always)
+    )
+    expect(b.min.y).toBeGreaterThanOrEqual(a.max.y)
+    expect(c.min.y).toBeGreaterThanOrEqual(b.max.y)
+  })
+
+  it("leaves two that go the same way in one another, as they are in the model", () => {
+    const ways = [v(0, 0, 5), v(0, 0, 5)]
+    expect(unstuck([cube(0), cube(5)], ways, 100, always)).toEqual(ways)
   })
 })

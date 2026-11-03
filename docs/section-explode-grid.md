@@ -50,11 +50,22 @@ further to come apart into: it has no such button, and E a second time puts it t
 
 Pieces that would still be in one another are then moved clear, up and down where that
 is about as short a way as any. That is how far such a model can come apart, and to
-begin with it is pulled half of the way there: far enough to see what it is made of,
-and not yet all over the view. The slider takes it the rest of the way, and as far
-again. (A model that says where its own parts go is pulled apart to where it says.) What was plainly over something in the model stays over
+begin with it is pulled only as far as it takes for no part to be in a part of another
+piece: never less than half of the way there, and all of it where nothing is clear
+short of that. Far enough to see what it is made of, with nothing through anything,
+and not yet all over the view. The slider pulls it up to four times as far. (A model
+that says where its own parts go is pulled apart to where it says: see below.) What
+was plainly over something in the model stays over
 it: a face ends up above the works it covers, however far the works had to be lifted to
 come out of the case.
+
+A model that says where its own parts go (`explode` in the manifest) is pulled apart to
+where it says, but for parts left in one another there. Numbers written for a model go
+out of date as it changes, and a part that has grown or moved can end up through
+another. Of two such parts, the one the model sends further out is moved on, the way
+the model parts the two most, until they are clear, and with it whatever goes the same
+way as it, as the parts of a board do. The rest stays where the model has it, and the
+manifest is not changed: it is worked out again each time the model is loaded.
 
 It is what is on show that comes apart. With some of the model out of sight, by hand
 (H), by the project's own [tools](project-tools.md), or with the view cut down to a part

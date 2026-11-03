@@ -13,7 +13,7 @@ import {
 import { MeshBVH } from "three-mesh-bvh"
 
 import type { Group, Model, Part } from "@/lib/model"
-import { piecesOf, waysOut } from "./apart"
+import { clearShare, piecesOf, unstuck, waysOut } from "./apart"
 import { contoursOf, type Contours } from "./contours"
 import { ruledOf } from "./ruled"
 import { sharing } from "./shared"
@@ -491,16 +491,57 @@ export async function loadModel(
   return { model, parts, box, worked, further: alone !== null }
 }
 
+const [atA, atB, toA] = [
+  new THREE.Matrix4(),
+  new THREE.Matrix4(),
+  new THREE.Matrix4(),
+]
+
 /**
- * How far a model that does not say how it comes apart is pulled apart to begin with, as
- * a share of how far it takes for every piece to be clear of every other: half of that.
- * Half way out the pieces are already seen to be what they are, and the model is not
- * yet all over the view: the slider takes it the rest of the way, and as far again.
- * (A model that says where its parts go is pulled apart to where it says.)
+ * Whether the surfaces of two parts meet, each moved by the way given from where it is
+ * in the model. A part with no surfaces to go by is taken to be in whatever its box is.
  */
-const BEGUN = 0.5
-const begun = (ways: THREE.Vector3[]) =>
-  ways.map((way) => way.multiplyScalar(BEGUN))
+function meet(
+  a: LoadedPart,
+  wayA: THREE.Vector3,
+  b: LoadedPart,
+  wayB: THREE.Vector3
+): boolean {
+  atA.makeTranslation(wayA).multiply(a.home)
+  atB.makeTranslation(wayB).multiply(b.home)
+  toA.copy(atA).invert().multiply(atB)
+  for (const mine of a.skins)
+    for (const theirs of b.skins) {
+      // (each part's is a MeshBVH: see makePart)
+      const tree = mine.geometry.boundsTree as MeshBVH | undefined
+      if (!tree || tree.intersectsGeometry(theirs.geometry, toA)) return true
+    }
+  return false
+}
+
+/**
+ * Where each of some parts is when a model that does not say how it comes apart is
+ * pulled apart to begin with: the share of the way out (`ways`, which has every piece
+ * clear of every other) at which nothing is in anything of another piece, from half of
+ * it (see clearShare). The slider takes it the rest of the way, and further.
+ */
+function begun(
+  parts: LoadedPart[],
+  boxes: THREE.Box3[],
+  pieces: number[],
+  ways: THREE.Vector3[]
+): THREE.Vector3[] {
+  const [by, other] = [new THREE.Vector3(), new THREE.Vector3()]
+  const crosses = (a: number, b: number, share: number) =>
+    meet(
+      parts[a],
+      by.copy(ways[a]).multiplyScalar(share),
+      parts[b],
+      other.copy(ways[b]).multiplyScalar(share)
+    )
+  const share = clearShare(boxes, pieces, ways, crosses)
+  return ways.map((way) => way.clone().multiplyScalar(share))
+}
 
 /**
  * Which piece of the model each part is of, going by the groups the parts are in: and,
@@ -528,7 +569,16 @@ function pieced(
   )
   return worked
     ? { pieces, ...waysOf(parts, boxes, pieces, box) }
-    : { pieces, ways: null, alone: null }
+    : {
+        pieces,
+        ways: unstuck(
+          boxes,
+          parts.map((part) => part.away),
+          across,
+          (a, b, at) => meet(parts[a], at[a], parts[b], at[b])
+        ),
+        alone: null,
+      }
 }
 
 /**
@@ -569,11 +619,21 @@ function waysOf(
   for (const whole of wholes.values())
     if (whole.area > 0) whole.centre.divideScalar(whole.area)
     else whole.box.getCenter(whole.centre)
-  const ways = begun(waysOut([...wholes.values()], middle, across))
-  const way = new Map([...wholes.keys()].map((piece, n) => [piece, ways[n]]))
+  const out = waysOut([...wholes.values()], middle, across)
+  const way = new Map([...wholes.keys()].map((piece, n) => [piece, out[n]]))
+  const ways = begun(
+    parts,
+    boxes,
+    pieces,
+    pieces.map((piece) => way.get(piece)!)
+  )
+  const each = parts.map((_, index) => index)
   const alone =
     wholes.size < parts.length
       ? begun(
+          parts,
+          boxes,
+          each,
           waysOut(
             parts.map((part, index) => ({
               box: boxes[index],
@@ -584,10 +644,7 @@ function waysOf(
           )
         )
       : null
-  return {
-    ways: pieces.map((piece) => way.get(piece)!.clone()),
-    alone,
-  }
+  return { ways, alone }
 }
 
 /**
