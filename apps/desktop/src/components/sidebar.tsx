@@ -308,9 +308,10 @@ function byGroup(projects: Project[]): Listed[] {
  * What a heading over the view is drawn in, having no card of its own: white, set off
  * against whatever is behind it (a difference blend), so that it is light over the dark
  * of the view and dark over a light model. Not all the way: as quiet as the name of a
- * card's conversation over the dark.
+ * card's conversation over the dark, and all the way under the pointer. (In the colour,
+ * not the opacity of all of it, so that what is under the pointer can be.)
  */
-const OVER_VIEW = "text-white opacity-70 mix-blend-difference"
+const OVER_VIEW = "text-white/70 mix-blend-difference"
 
 /**
  * Over the projects of a group, as wide as their cards: what the group goes by, which is
@@ -332,12 +333,12 @@ function GroupHeading({ group }: { group: Project["group"] }) {
         onClick={() => setRenaming(true)}
         className={cn(
           SMALL,
-          "pointer-events-auto min-w-0 shrink truncate rounded-md text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          "pointer-events-auto min-w-0 shrink cursor-pointer truncate rounded-md text-left transition-colors outline-none hover:text-white focus-visible:ring-[3px] focus-visible:ring-ring/50"
         )}
       >
         {name}
       </button>
-      <span aria-hidden className="mx-1 h-px min-w-4 flex-1 bg-white/15" />
+      <span aria-hidden className="mx-1 h-px min-w-4 flex-1 bg-white/10" />
       <Tooltip disableHoverablePopup>
         <TooltipTrigger
           render={

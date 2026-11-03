@@ -36,8 +36,8 @@ export function RenameGroup({
               Rename the group
             </Dialog.Title>
             <Dialog.Description className="text-sm text-balance text-muted-foreground">
-              The projects in it are parts of one thing. The agent at work on
-              any of them knows of the others.
+              Agents working on projects in this group can see each other's
+              files.
             </Dialog.Description>
           </div>
           <form
