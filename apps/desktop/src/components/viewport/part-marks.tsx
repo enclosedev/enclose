@@ -9,8 +9,13 @@ import { cn } from "cn"
 import { DownloadIcon, MessageSquareIcon } from "lucide-react"
 
 import type { Vec3 } from "@shared/api"
-import { PALETTE, type PaletteName } from "@shared/palette"
+import { materialOf } from "@shared/materials"
 import { Button } from "@/components/ui/button"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import {
   Tooltip,
   TooltipContent,
@@ -20,9 +25,11 @@ import { Writing } from "@/components/writing"
 import type { Model } from "@/lib/model"
 import { usePreferences } from "@/lib/preferences"
 import { savingParts } from "@/lib/saved"
-import { currentPalette } from "@/lib/palette"
 import { goesBy, useStore, type Note, type Selection } from "@/lib/store"
 import type { LoadedPart } from "./load"
+import { LookPanel, MaterialBall } from "./look-panel"
+import { ownMaterial } from "./materials"
+import { skinColour } from "./paint"
 
 /** Over the view, under whatever of the window floats over it. */
 const OVER: [number, number] = [30, 0]
@@ -31,7 +38,6 @@ const ROOM = { left: 290, right: 76, top: 60, bottom: 90 }
 /** How far what is shown at a place on a part reaches from it, each way, about. */
 const BUTTONS = { left: 250, right: 70, up: 24, down: 24 }
 const WRITING = { left: 150, right: 150, up: 60, down: 130 }
-const RING = { left: 150, right: 108, up: 108, down: 108 }
 /** How far above the place the box that is written in starts, px. */
 const WRITING_ABOVE = 24
 /** What every button floating over the view is: a frosted circle of its own. */
@@ -69,101 +75,8 @@ function Does({
   )
 }
 
-/** How far out from the middle the colours stand when a part is given one, px. */
-const RING_OUT = 84
 /** How long a part stays in the colour it was just given before the selection's is back, ms. */
 const SEEN_FOR_MS = 1400
-/** How far apart the middles of two of the buttons are, side by side, px. */
-const STEP = 42
-
-/**
- * The colours a part can be given, for as long as one is being chosen: the app's own, in
- * a ring round the button that was pressed for them, which stays just where it was and
- * as it was. Choosing one puts them away, and choosing the one the part already has
- * takes it back; Esc, or the button in the middle, puts them away with nothing changed.
- * A piece is given its colour as one thing: every part of it, the same.
- */
-function Colours({
-  partIds,
-  shown,
-  onDone,
-}: {
-  /** the part, or all the parts of the piece */
-  partIds: string[]
-  /** the colour the part is drawn in, "#rrggbb" */
-  shown: string
-  /** the ring is done with: a colour was given or taken back, or nothing was */
-  onDone: (gave: boolean) => void
-}) {
-  const chosen = useStore((state) => {
-    const given = state.activeId ? state.colours[state.activeId] : undefined
-    const first = given?.[partIds[0]] ?? null
-    return partIds.every((id) => (given?.[id] ?? null) === first) ? first : null
-  })
-  const setColour = useStore((state) => state.setColour)
-  React.useEffect(() => {
-    const key = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return
-      // and it is not taken for leaving anything else, by whoever else listens for it
-      event.preventDefault()
-      event.stopImmediatePropagation()
-      onDone(false)
-    }
-    window.addEventListener("keydown", key, true)
-    return () => window.removeEventListener("keydown", key, true)
-  }, [onDone])
-
-  const names = Object.keys(PALETTE) as PaletteName[]
-  return (
-    <div onPointerDown={held} className="relative size-0">
-      <Button
-        variant="ghost"
-        size="icon"
-        title="Leave it as it is"
-        onClick={() => onDone(false)}
-        className={cn(ROUND, "absolute top-0 left-0 -translate-1/2")}
-      >
-        <span
-          className="size-4 rounded-full ring-1 ring-foreground/20"
-          style={{ background: shown }}
-        />
-      </Button>
-      {names.map((name, index) => {
-        // round from the top, the way the colours go round
-        const turn = (index / names.length) * 2 * Math.PI
-        // as it is said, where the name it goes by in a model runs two words together
-        const said = name === "lightgrey" ? "light grey" : name
-        const called = said[0].toUpperCase() + said.slice(1)
-        return (
-          <Button
-            key={name}
-            variant="ghost"
-            size="icon"
-            title={chosen === name ? `${called}: take it back` : called}
-            aria-pressed={chosen === name}
-            onClick={() => {
-              setColour(partIds, chosen === name ? null : name)
-              onDone(true)
-            }}
-            style={{
-              left: Math.sin(turn) * RING_OUT,
-              top: -Math.cos(turn) * RING_OUT,
-            }}
-            className={cn(
-              ROUND,
-              "absolute -translate-1/2 animate-in duration-150 zoom-in-50 fade-in aria-pressed:ring-2 aria-pressed:ring-foreground"
-            )}
-          >
-            <span
-              className="size-4 rounded-full"
-              style={{ background: currentPalette()[name] }}
-            />
-          </Button>
-        )
-      })}
-    </div>
-  )
-}
 
 /** A place on a part, kept where the part really sits, in the part's own frame. */
 const placeOn = (loaded: LoadedPart, point: Vec3 | null) =>
@@ -186,14 +99,11 @@ export function PartMarks({
   loaded,
   model,
   projectId,
-  shown,
   onPick,
 }: {
   loaded: LoadedPart
   model: Model
   projectId: string
-  /** the colour the part is drawn in, "#rrggbb" */
-  shown: string
   /** a click that fell on these was one on the part under them (see the view's own) */
   onPick: (selection: Selection | null, add: boolean, alone: boolean) => void
 }) {
@@ -215,13 +125,40 @@ export function PartMarks({
     : savingParts(projectId, model.downloads, format, [part], part.label)
   const written = writing !== null
   const at = React.useMemo(() => placeOn(loaded, point), [loaded, point])
-  // a colour is being chosen, here: clicking anywhere else on the part is done with that
+  // a colour or a material is being chosen, here: clicking anywhere else on the part is
+  // done with that
   const [choosingAt, setChoosingAt] = React.useState<THREE.Vector3 | null>(null)
   const choosing = !written && choosingAt === at
+  // what it is made of, as its ball shows it: as given, or as its model has it
+  const given = useStore((state) =>
+    state.activeId
+      ? (state.materials[state.activeId]?.[partIds[0]] ?? null)
+      : null
+  )
+  const made = materialOf(given?.material) ?? ownMaterial(part)
+  // and its own colour, whatever it is made of: the one given it, or its model's. That is
+  // what a material that takes a colour is in, where `shown` is a wood's own brown.
+  const colourGiven = useStore((state) =>
+    state.activeId
+      ? (state.colours[state.activeId]?.[partIds[0]] ?? null)
+      : null
+  )
+  const own = React.useMemo(
+    () =>
+      `#${skinColour(
+        loaded,
+        loaded.skins[0],
+        document.documentElement.classList.contains("dark"),
+        colourGiven
+      ).getHexString()}`,
+    [loaded, colourGiven]
+  )
   // While a colour is chosen for the part it is seen in its own, not the selection's;
   // and for a moment after one has been given, so that it is seen to have taken.
   const showPlain = useStore((state) => state.showPlain)
   const gave = React.useRef(false)
+  // the panel itself takes the focus as it opens, not its first tab, which would show lit
+  const panel = React.useRef<HTMLDivElement>(null)
   const chosen = React.useCallback((given: boolean) => {
     gave.current = given
     setChoosingAt(null)
@@ -240,10 +177,26 @@ export function PartMarks({
     return () => clearTimeout(timer)
   }, [choosing, showPlain])
   React.useEffect(() => () => showPlain(false), [showPlain])
+  // Esc puts the colours and materials away, and is not taken for leaving anything else
+  // by whoever else listens for it: the part stays picked out
+  React.useEffect(() => {
+    if (!choosing) return
+    const key = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return
+      // a field in the panel that is put away with Esc, while it is out
+      if ((event.target as Element | null)?.closest?.("[data-keeps-escape]"))
+        return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      chosen(gave.current)
+    }
+    window.addEventListener("keydown", key, true)
+    return () => window.removeEventListener("keydown", key, true)
+  }, [choosing, chosen])
 
   const kept = React.useMemo(() => {
     const seen = new THREE.Vector3()
-    const fits = written ? WRITING : choosing ? RING : BUTTONS
+    const fits = written ? WRITING : BUTTONS
     return (el: THREE.Object3D, camera: THREE.Camera, size: Size) => {
       seen.setFromMatrixPosition(el.matrixWorld).project(camera)
       return [
@@ -259,7 +212,7 @@ export function PartMarks({
         ),
       ]
     }
-  }, [written, choosing])
+  }, [written])
 
   return (
     <Html position={at} calculatePosition={kept} zIndexRange={OVER}>
@@ -286,14 +239,6 @@ export function PartMarks({
             onCancel={() => write(null)}
           />
         </div>
-      ) : choosing ? (
-        // round the first of the buttons, which is the one that was pressed
-        <div
-          className="absolute"
-          style={{ left: -((download ? 2 : 1) * STEP) / 2 }}
-        >
-          <Colours partIds={partIds} shown={shown} onDone={chosen} />
-        </div>
       ) : (
         <div
           onPointerDown={held}
@@ -317,12 +262,57 @@ export function PartMarks({
           <span className="pointer-events-none absolute top-1/2 right-full mr-1.5 flex h-9 max-w-44 -translate-y-1/2 items-center rounded-full bg-foreground px-3.5 text-xs font-medium text-background shadow-sm ring-1 ring-background/25">
             <span className="truncate">{label}</span>
           </span>
-          <Does label="Change color" onClick={() => setChoosingAt(at)}>
-            <span
-              className="size-4 rounded-full ring-1 ring-foreground/20"
-              style={{ background: shown }}
-            />
-          </Does>
+          <Popover
+            open={choosing}
+            onOpenChange={(open) => {
+              if (open) setChoosingAt(at)
+              else chosen(gave.current)
+            }}
+          >
+            <Tooltip disableHoverablePopup>
+              <TooltipTrigger
+                render={
+                  <PopoverTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn(ROUND, "overflow-hidden")}
+                      />
+                    }
+                  />
+                }
+              >
+                <MaterialBall
+                  material={made}
+                  chosen={given}
+                  colour={own}
+                  className="size-6"
+                />
+                <span className="sr-only">Color and material</span>
+              </TooltipTrigger>
+              <TooltipContent>Color and material</TooltipContent>
+            </Tooltip>
+            <PopoverContent
+              side="right"
+              align="start"
+              sideOffset={12}
+              collisionPadding={12}
+              // (a press here is not one on the view under it)
+              onPointerDown={held}
+              ref={panel}
+              initialFocus={panel}
+              className="w-72 gap-0 overflow-hidden p-0"
+            >
+              <LookPanel
+                partIds={partIds}
+                shown={own}
+                onGave={() => {
+                  gave.current = true
+                }}
+              />
+            </PopoverContent>
+          </Popover>
           {download && (
             <Does label="Download part" onClick={() => void download.save()}>
               <DownloadIcon />

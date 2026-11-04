@@ -6,14 +6,17 @@ import {
   briefly,
   coloured,
   forth,
+  goesOn,
   hiddenWith,
   hidingSaid,
   later,
+  materialled,
   NO_HISTORY,
   rearranged,
   record,
   recolour,
   rehidden,
+  rematerial,
   saidOf,
   type Colours,
 } from "./undo"
@@ -236,5 +239,61 @@ describe("what a first Cmd+Z says of a turn", () => {
     ).toBe("I want to work on a new idea. It’s a…")
     expect(briefly("Make it taller")).toBe("Make it taller")
     expect(briefly("Make it taller.")).toBe("Make it taller")
+  })
+})
+
+describe("materials given by hand", () => {
+  it("are what changed, and nothing where nothing does", () => {
+    const had = { lid: { material: "oak" } }
+    expect(rematerial(had, ["lid"], { material: "oak" }, 1)).toBeNull()
+    const change = rematerial(
+      had,
+      ["lid", "base"],
+      { material: "oak", scale: 2 },
+      5
+    )
+    expect(change).toEqual({
+      kind: "material",
+      at: 5,
+      undoneAt: null,
+      before: { lid: { material: "oak" }, base: null },
+      after: {
+        lid: { material: "oak", scale: 2 },
+        base: { material: "oak", scale: 2 },
+      },
+    })
+    // taken back, the base has none again and the lid is as it was
+    expect(
+      materialled(
+        { ...had, base: { material: "oak", scale: 2 } },
+        change!.before
+      )
+    ).toEqual(had)
+  })
+
+  it("go on from the last change, as a slider is dragged: of the same parts and material, and soon", () => {
+    const first = rematerial({}, ["lid"], { material: "oak" }, 1000)!
+    const more = rematerial(
+      { lid: { material: "oak" } },
+      ["lid"],
+      { material: "oak", scale: 1.2 },
+      1600
+    )!
+    expect(goesOn(first, more)).toBe(true)
+    // another material is another change, and so is one long after
+    expect(
+      goesOn(first, rematerial({}, ["lid"], { material: "walnut" }, 1600)!)
+    ).toBe(false)
+    expect(goesOn(first, { ...more, at: 9000 })).toBe(false)
+    // and so is a change to other parts, or to the colour
+    expect(
+      goesOn(first, rematerial({}, ["base"], { material: "oak" }, 1600)!)
+    ).toBe(false)
+    expect(goesOn(first, recolour({}, ["lid"], "#ff0000", 1600)!)).toBe(false)
+    // colours dragged across the picker go on from one another likewise
+    const red = recolour({}, ["lid"], "#ff0000", 1000)!
+    expect(
+      goesOn(red, recolour({ lid: "#ff0000" }, ["lid"], "#ee0000", 1100)!)
+    ).toBe(true)
   })
 })

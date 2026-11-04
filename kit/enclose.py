@@ -958,7 +958,7 @@ class Model:
         sits in the assembly. Leave `color` out and the app gives each group a colour of
         its own. Give one to have a part some other colour: by name, from the app's own
         (red, orange, yellow, lime, green, cyan, blue, indigo, violet, pink, white,
-        lightgrey, grey), or as "#rrggbb", which is drawn as the nearest of those unless
+        grey), or as "#rrggbb", which is drawn as the nearest of those unless
         it is a grey. A part with one of the project's circuit boards in it, as
         `read_board` gives it, is drawn in green, whatever its `color`: green is the
         boards' then, and what else would be drawn in it is drawn in indigo.

@@ -147,7 +147,7 @@ function seeing(
     ),
     appTool(
       "parts",
-      "Every part of the model on screen: id, label, the group it is listed under (its id, and groupLabel for what it goes by), bounding box in model coordinates (mm), and whether it is currently shown. byHand marks a part the user has put in another group than the manifest has it in, by hand in the app: that is the group given here.",
+      "Every part of the model on screen: id, label, the group it is listed under (its id, and groupLabel for what it goes by), bounding box in model coordinates (mm), whether it is currently shown, its colour (the user's, or the model's own) and the material the user gave it, as it is set (null if none). byHand marks a part the user has put in another group than the manifest has it in, by hand in the app: that is the group given here.",
       {},
       async () => ask("parts").then(told, failed)
     ),

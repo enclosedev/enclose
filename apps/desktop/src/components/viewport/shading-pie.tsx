@@ -1,4 +1,4 @@
-// How the model is drawn - solid, glass, pattern, wireframe or outline - chosen the way
+// How the model is drawn - solid, glass, render, wireframe or outline - chosen the way
 // Blender has it chosen. Z brings the choices up round the pointer. Held, a flick towards one and letting
 // go of the key takes it; tapped, they stay up to be clicked. A choice is pointed at by
 // direction, not by getting the pointer onto it.
@@ -8,7 +8,7 @@ import { cn } from "cn"
 import {
   GlassIcon,
   OutlineIcon,
-  PatternIcon,
+  RenderIcon,
   SolidIcon,
   WireframeIcon,
 } from "@/components/icons"
@@ -25,7 +25,7 @@ const CHOICES: {
 }[] = [
   { mode: "solid", label: "Solid", icon: <SolidIcon />, at: 90 },
   { mode: "glass", label: "Glass", icon: <GlassIcon />, at: 18 },
-  { mode: "pattern", label: "Pattern", icon: <PatternIcon />, at: -54 },
+  { mode: "render", label: "Render", icon: <RenderIcon />, at: -54 },
   { mode: "outline", label: "Outline", icon: <OutlineIcon />, at: 234 },
   { mode: "wireframe", label: "Wireframe", icon: <WireframeIcon />, at: 162 },
 ]

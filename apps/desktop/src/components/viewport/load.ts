@@ -15,7 +15,6 @@ import { MeshBVH } from "three-mesh-bvh"
 import type { Group, Model, Part } from "@/lib/model"
 import { clearShare, piecesOf, unstuck, waysOut } from "./apart"
 import { contoursOf, type Contours } from "./contours"
-import { ruledOf } from "./ruled"
 import { sharing } from "./shared"
 import { shellOf } from "./shell"
 import { sharpOf, thingsOf } from "./things"
@@ -327,24 +326,6 @@ function enclose(skins: Skin[]): boolean {
     )
   )
   return closed
-}
-
-/**
- * Has a part's faces ruled into squares (see ruled.ts): each corner is told where on its
- * face it is, and how many squares across that face is. It is done the first time the
- * part is drawn that way, and not before: most models never are.
- */
-export function rule({ skins }: LoadedPart) {
-  for (const { geometry, faceOf } of skins) {
-    if (geometry.attributes.ruledAt) continue
-    const { at, across } = ruledOf(
-      geometry.attributes.position.array,
-      geometry.index!.array,
-      faceOf
-    )
-    geometry.setAttribute("ruledAt", new THREE.BufferAttribute(at, 3))
-    geometry.setAttribute("ruledAcross", new THREE.BufferAttribute(across, 3))
-  }
 }
 
 /** Two triangles that meet at more than this, in degrees, have an edge between them. */

@@ -29,6 +29,10 @@ Some of what is here came from others, and stays under their terms:
   TheRobotStudio (Apache 2.0): its [README](examples/arm/source/README.md) says more.
 - The figure of a person that stands in the reference scenes is made from Blender
   Studio's Human Base Meshes (CC0): [`kit/figure`](kit/figure) says how.
+- The pictures of wood, cloth and carbon fibre that materials are drawn with are from
+  [ambientCG](https://ambientcg.com) (CC0):
+  [`apps/desktop/src/assets/materials/SOURCES.md`](apps/desktop/src/assets/materials/SOURCES.md)
+  says which.
 
 The packages the app is built with, React, three.js and tscircuit's among them, go out
 with it under their own licenses. Each build lists them, with their texts, in

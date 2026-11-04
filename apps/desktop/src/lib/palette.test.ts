@@ -8,12 +8,12 @@ describe("drawnIn", () => {
     expect(drawnIn("blue", 0)).toBe(PALETTE.blue)
     expect(drawnIn(" Grey ", 3)).toBe(PALETTE.grey)
     expect(drawnIn("white", 0)).toBe(PALETTE.white)
-    expect(drawnIn("lightgray", 0)).toBe(PALETTE.lightgrey)
+    expect(drawnIn("lightgray", 0)).toBe("#d4d4d4")
   })
 
   it("draws any other colour as the nearest of the palette's", () => {
     expect(drawnIn("#e0892f", 0)).toBe(PALETTE.orange)
-    expect(drawnIn("#4a7fb5", 0)).toBe(PALETTE.blue)
+    expect(drawnIn("#3a5fd5", 0)).toBe(PALETTE.blue)
     expect(drawnIn("#ff0000", 0)).toBe(PALETTE.red)
     expect(drawnIn("#00a040", 0)).toBe(PALETTE.green)
     expect(drawnIn("#7a1fd0", 0)).toBe(PALETTE.violet)
@@ -35,7 +35,7 @@ describe("drawnIn", () => {
   it("gives what has no colour the palette's colours in turn, never the grey", () => {
     const given = Array.from({ length: 10 }, (_, turn) => drawnIn(null, turn))
     expect(new Set(given).size).toBe(10)
-    for (const plain of [PALETTE.grey, PALETTE.lightgrey, PALETTE.white])
+    for (const plain of [PALETTE.grey, "#d4d4d4", PALETTE.white])
       expect(given).not.toContain(plain)
     expect(drawnIn(null, 10)).toBe(given[0])
   })
@@ -56,7 +56,7 @@ describe("drawnIn", () => {
     setPalettes(light, PALETTE)
     try {
       expect(drawnIn("blue", 0)).toBe("#336699")
-      expect(drawnIn("#4a7fb5", 0)).toBe("#336699")
+      expect(drawnIn("#3a5fd5", 0)).toBe("#336699")
       expect(drawnIn(null, 0)).toBe("#336699")
       expect(drawnIn("green", 0, true)).toBe("#5544aa")
       expect(drawnIn("#d9d9d4", 0)).toBe("#d9d9d4")

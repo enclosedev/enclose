@@ -1,5 +1,5 @@
 // Which of the app's colours a part is drawn in, given what its model says of its colour.
-import { PALETTE, type PaletteName } from "@shared/palette"
+import { FORMER_NAMES, PALETTE, type PaletteName } from "@shared/palette"
 
 /**
  * The colours given in turn to things that come with none of their own, such as the
@@ -115,6 +115,7 @@ function ofPalette(
   if (given === null) return { name: IN_TURN[turn % IN_TURN.length] }
   const named = given.trim().toLowerCase().replace("gray", "grey")
   if (named in PALETTE) return { name: named as PaletteName }
+  if (Object.hasOwn(FORMER_NAMES, named)) return FORMER_NAMES[named]
   const colour = parts(given)
   if (!colour) return given
   const hue = hueOf(colour)

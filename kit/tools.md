@@ -80,7 +80,7 @@ user reads these at a glance, so keep both short.
 - A `pad` with `springs: true` goes back to rest when it is let go of, as a joystick
   does. Up is more, as on a graph.
 - A `palette` offers the app's own colours and no others: red, orange, yellow, lime,
-  green, cyan, blue, indigo, violet, pink, white, lightgrey, grey.
+  green, cyan, blue, indigo, violet, pink, white, grey.
 - Any control with a value can have `change(value, tool)`, called when the user sets it
   by hand (not when the tool sets it itself).
 

@@ -18,12 +18,19 @@ Click a part and it is picked out: it turns white, with a heavier line round it,
 three buttons appear where you clicked, with the part's name beside them, and stay on
 that spot of the part as it is turned.
 
-- One gives it another of the app's colours, which is how the app draws it from then on
-  (the agent is told, when it asks what the parts are). While you choose a colour for it,
-  and for a moment after, the part is seen in its own colour instead. The colours you
-  give are kept in the project's folder, in `enclose.colors.json`, so they go wherever
-  the project goes: into its [history and backup](projects.md#history-and-backup), and
-  to another computer.
+- One, a small ball of what the part is made of, opens its **Color** and **Material**.
+  **Color** has a picker for any colour, with the app's own under it. **Material** takes
+  the view to Render, where materials show, and has the [materials](view.md#materials)
+  there are, by kind, with a search: pick one and it shows large, with sliders for its
+  roughness and, for one with a grain or a pattern, how big that is and which way it
+  runs. The arrow at its top goes back to all of them. Both are how the app draws the
+  part from then on (the agent is told, when it asks what the parts are), and Cmd+Z
+  takes back a slider dragged, or a colour dragged across the picker, as one. While you
+  choose, and for a moment after, the part is seen in its own colour instead of the
+  selection's. What you give is kept in the project's folder, in `enclose.colors.json`,
+  so it goes wherever the project goes: into its [history and
+  backup](projects.md#history-and-backup), and to another computer. The agent can give
+  parts colours and materials there too, when you ask it to.
 - One downloads the part as STEP, where the model hands that out.
 - One opens a box to say what should change at the place you clicked.
 

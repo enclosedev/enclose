@@ -33,8 +33,6 @@ export function shapeOf(name: PaletteName): THREE.BufferGeometry {
       return new THREE.CylinderGeometry(0.75, 0.75, 1, 6)
     case "white":
       return new THREE.BoxGeometry(1.5, 0.7, 1)
-    case "lightgrey":
-      return new THREE.CylinderGeometry(0.8, 0.8, 0.35, 48)
     case "grey":
       return new RoundedBoxGeometry(1.1, 1.1, 1.1, 4, 0.18)
   }
@@ -45,7 +43,7 @@ export const CORNER = 20
 
 /** How far apart the parts stand, and how many to a row. */
 const APART = 2.3
-const ACROSS = 5
+const ACROSS = 6
 
 /** Where each of the parts stands: in rows, each a little across from the one before. */
 export const PLACES: Record<PaletteName, [number, number, number]> = (() => {

@@ -3,7 +3,7 @@ import { REPOSITORY } from '../../shell/Header'
 
 export default function Privacy() {
   return (
-    <Legal page="privacy" title="Privacy Policy" updated="25 October 2026">
+    <Legal page="privacy" title="Privacy Policy" updated="3 November 2026">
       <p>
         Enclose is an open-source project maintained by Glauber. This page says what the
         Enclose app and this website send anywhere, and what they do not. In short: the app
@@ -54,7 +54,8 @@ export default function Privacy() {
           alone or hidden, the blueprint, the assembly guides, a reference scene, a project’s
           own tools, a circuit board, the inspiration board) and how a circuit board was
           looked at (its technical view, its schematic, a layer of its copper, on a hand),
-          once for a run of the app;
+          and that the model was drawn in Render or a part given a material, once for a
+          run of the app;
         </li>
         <li>
           that an agent was switched on or off or updated, that a newer version was looked

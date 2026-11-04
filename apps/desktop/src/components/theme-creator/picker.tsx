@@ -90,6 +90,7 @@ export function ColourPicker({
   onChange,
   label,
   alpha: showing = false,
+  hex: shape = "field",
   className,
 }: {
   /** "#rrggbb"; or, with `alpha`, "#rrggbbaa" */
@@ -99,6 +100,11 @@ export function ColourPicker({
   label: string
   /** how much of the colour shows is picked too */
   alpha?: boolean
+  /**
+   * How its "#rrggbb" is shown: a field to type it in, or a small button with it on, that
+   * opens out into that field when it is pressed
+   */
+  hex?: "field" | "button"
   className?: string
 }) {
   const pattern = showing ? HEXA : HEX
@@ -107,6 +113,13 @@ export function ColourPicker({
   const [hsv, setHsv] = React.useState(() => hsvOf(value))
   const [alpha, setAlpha] = React.useState(() => alphaOf(value))
   const [typed, setTyped] = React.useState<string | null>(null)
+  const [typing, setTyping] = React.useState(shape === "field")
+  const field = React.useRef<HTMLInputElement>(null)
+  const open = () => {
+    if (typing) return
+    setTyping(true)
+    requestAnimationFrame(() => field.current?.select())
+  }
   const given = (hsv: Hsv, alpha: number) =>
     showing ? withAlpha(hexOf(hsv), alpha) : hexOf(hsv)
   const said = (hex: string) =>
@@ -127,6 +140,12 @@ export function ColourPicker({
     setHsv(next)
     setAlpha(nextAlpha)
     onChange(given(next, nextAlpha))
+  }
+  const type = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const text = event.target.value
+    setTyped(text)
+    const found = pattern.exec(text.trim())
+    if (found) onChange(said(`#${found[0].replace("#", "").toLowerCase()}`))
   }
   const pure = hexOf({ h: hsv.h, s: 1, v: 1 })
   const solid = hexOf(hsv)
@@ -235,20 +254,52 @@ export function ColourPicker({
           />
         </div>
       )}
-      <Input
-        aria-label={`${label}, as ${showing ? "#rrggbbaa" : "#rrggbb"}`}
-        spellCheck={false}
-        value={typed ?? value}
-        onChange={(event) => {
-          const text = event.target.value
-          setTyped(text)
-          const found = pattern.exec(text.trim())
-          if (found)
-            onChange(said(`#${found[0].replace("#", "").toLowerCase()}`))
-        }}
-        onBlur={() => setTyped(null)}
-        className="h-7 font-mono text-xs uppercase select-text"
-      />
+      {shape === "field" ? (
+        <Input
+          aria-label={`${label}, as ${showing ? "#rrggbbaa" : "#rrggbb"}`}
+          spellCheck={false}
+          value={typed ?? value}
+          onChange={type}
+          onBlur={() => setTyped(null)}
+          className="h-7 font-mono text-xs uppercase select-text"
+        />
+      ) : (
+        <input
+          ref={field}
+          aria-label={`${label}, as ${showing ? "#rrggbbaa" : "#rrggbb"}`}
+          spellCheck={false}
+          readOnly={!typing}
+          // (Esc here puts the field away, and goes no further)
+          data-keeps-escape={typing || undefined}
+          value={typed ?? value}
+          onChange={type}
+          onClick={open}
+          onKeyDown={(event) => {
+            if (!typing && (event.key === "Enter" || event.key === " ")) {
+              event.preventDefault()
+              open()
+            } else if (
+              typing &&
+              (event.key === "Enter" || event.key === "Escape")
+            ) {
+              event.preventDefault()
+              field.current?.blur()
+            }
+          }}
+          onBlur={() => {
+            setTyped(null)
+            setTyping(false)
+          }}
+          // from a button just big enough for the colour to the whole width, the room
+          // in it growing as it goes
+          className={cn(
+            "h-7 self-start rounded-full font-mono text-xs uppercase transition-[width,padding,background-color,box-shadow] duration-200 ease-out outline-none",
+            typing
+              ? "w-full cursor-text bg-input/30 px-3 ring-1 ring-ring select-text"
+              : "w-[calc(7ch+1.25rem)] cursor-pointer bg-foreground/5 px-2.5 select-none hover:bg-foreground/10 focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          )}
+        />
+      )}
     </div>
   )
 }

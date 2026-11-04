@@ -26,9 +26,10 @@ import {
 import { TOOLS_FOLDER } from "../shared/tool-format"
 import {
   COLOURS_FILE,
-  coloursFile,
-  readColours,
-  type PartColours,
+  anyLooks,
+  looksFile,
+  readLooks,
+  type PartLooks,
 } from "../shared/colours-format"
 
 type Saved = {
@@ -438,7 +439,7 @@ export class Projects {
    * written, with what it said; how often they have been found changed by something
    * other than the window; and what watches for that. All by project.
    */
-  private colours = new Map<string, { parts: PartColours; file: string }>()
+  private colours = new Map<string, { looks: PartLooks; file: string }>()
   private colourRevisions = new Map<string, number>()
   private coloursWatched = new Map<string, string>()
   private colourWatchers = new Map<string, fs.FSWatcher>()
@@ -892,30 +893,30 @@ export class Projects {
       // none given, or none kept
     }
     if (this.colours.get(id)?.file === file) return false
-    let parts: PartColours = {}
+    let looks: PartLooks = { colours: {}, materials: {} }
     try {
-      parts = readColours(JSON.parse(file))
+      looks = readLooks(JSON.parse(file))
     } catch {
       // not a list of colours, or one being written: none, until it is whole
     }
-    this.colours.set(id, { parts, file })
+    this.colours.set(id, { looks, file })
     this.colourRevisions.set(id, (this.colourRevisions.get(id) ?? 0) + 1)
     return true
   }
 
   /**
-   * Write the colours given a project's parts by hand into its folder, or take their
+   * Write the colours and materials given a project's parts by hand into its folder, or take their
    * file away where there are none. It is no news to the window, which gave them, unless
    * it is to `announce` them. True if the file is not as it was.
    */
   saveColours(
     id: string,
-    parts: PartColours,
+    looks: PartLooks,
     { announce = false }: { announce?: boolean } = {}
   ): boolean {
     const project = this.saved.find((p) => p.id === id)
     if (!project) return false
-    const file = Object.keys(parts).length > 0 ? coloursFile(parts) : ""
+    const file = anyLooks(looks) ? looksFile(looks) : ""
     if (this.colours.get(id)?.file === file) return false
     const at = path.join(project.path, COLOURS_FILE)
     try {
@@ -924,7 +925,7 @@ export class Projects {
     } catch {
       return false
     }
-    this.colours.set(id, { parts, file })
+    this.colours.set(id, { looks, file })
     if (announce)
       this.colourRevisions.set(id, (this.colourRevisions.get(id) ?? 0) + 1)
     return true
@@ -962,7 +963,7 @@ export class Projects {
           tools: null,
           assembly: null,
           boards: null,
-          colours: { revision: 0, parts: {} },
+          colours: { revision: 0, parts: {}, materials: {} },
           assembling: false,
           undo: null,
           redo: null,
@@ -995,7 +996,8 @@ export class Projects {
           : null,
         colours: {
           revision: this.colourRevisions.get(p.id) ?? 0,
-          parts: this.colours.get(p.id)?.parts ?? {},
+          parts: this.colours.get(p.id)?.looks.colours ?? {},
+          materials: this.colours.get(p.id)?.looks.materials ?? {},
         },
         // whether one is being made is known to whoever has the conversations
         assembling: false,

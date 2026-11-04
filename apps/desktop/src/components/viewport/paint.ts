@@ -28,7 +28,11 @@ export function skinColour(
   /** the colour the user has given the part, if they have given it one */
   chosen: string | null = null
 ): THREE.Color {
-  if (chosen) return new THREE.Color(drawnIn(chosen, turn))
+  // (one picked by hand is drawn as it was picked; one of the palette's as the palette is)
+  if (chosen)
+    return new THREE.Color(
+      chosen.startsWith("#") ? chosen : drawnIn(chosen, turn)
+    )
   const ofFile =
     part.paint === "bare" && skin.color ? `#${skin.color.getHexString()}` : null
   // what the file colours on a board is what is on it, not the board

@@ -90,7 +90,7 @@ changed by it.
 
 ## Shading
 
-Shading is on Z, the way it is in Blender: the key brings solid, glass, pattern,
+Shading is on Z, the way it is in Blender: the key brings solid, glass, render,
 wireframe and outline up in a circle round the pointer. Hold it, flick towards one and
 let go; or tap it, and click one. A choice is pointed at by direction, so the pointer
 need not reach it. Esc, Z again or a right-click puts the menu away. While the model is
@@ -100,11 +100,10 @@ held.
 - **Solid** draws the model as it is.
 - **Glass** makes the whole model see-through, every part of it, so that what is inside
   anything shows.
-- **Pattern** is wireframe with every face ruled into squares, in three of the colours
-  parts are drawn in: one for the lines across each of the part's axes. Each face is
-  ruled into about as many squares as any other, so a small face is ruled finely and a
-  large one coarsely. Lines that would crowd one another on the screen are thinned out,
-  every other one at a time, so a model seen from far off is not a blur of them.
+- **Render** draws the model as it would look made, of what each part is made of (see
+  [Materials](#materials)), lit by a bright studio all round it, and standing on a floor
+  that takes its shadow, of a light from nearly straight above. Its lines are not drawn,
+  but for the part picked out or under the pointer.
 - **Wireframe** draws the model's lines and nothing of its surfaces, which still hide
   the lines behind them.
 - **Outline** draws every line, the hidden ones too.
@@ -121,8 +120,8 @@ wrote, which is what keeps large assemblies smooth (the benchmark behind that is
 ### Colours
 
 Parts are drawn in the app's own colours: ten light ones round the whole circle of
-colour (red, orange, yellow, lime, green, cyan, blue, indigo, violet, pink), and white,
-a light grey and a grey. A model can name one for a part; any other colour it gives, or
+colour (red, orange, yellow, lime, green, cyan, blue, indigo, violet, pink), and white
+and a grey. A model can name one for a part; any other colour it gives, or
 its files carry, is drawn as the nearest of them, except greys, white and black, which
 are drawn as they are, and bare metal. A part given no colour takes the one that falls
 to its group. Circuit boards are drawn in green, and in a model with one in it green is
@@ -130,13 +129,39 @@ theirs alone: any other part that would be green is drawn in indigo, unless you 
 green yourself. Nothing in the project's files is changed
 by this: it is only how the app draws them.
 
+### Materials
+
+What a part is made of, given it by hand (see [A click](selecting.md#a-click)) or by the
+agent: a few of each kind, not all there are.
+
+| Kind | Materials |
+|---|---|
+| Plastic | Glossy, Matte, Soft-touch, Translucent; Carbon Fiber |
+| Metal | Aluminium polished, brushed and anodised; Steel, satin and hammered; Brass; Copper |
+| Wood | Oak, Walnut, Maple, Cherry, Plywood |
+| Glass | Clear, Frosted |
+| Fabric | Woven, Felt |
+| Utility | Default (none), Light (gives off light), Transparent |
+
+Render draws them. A material that takes a colour (the plastics, anodised aluminium,
+glass, fabric, the utility ones) is in the part's own colour; the others have their
+own, and solid draws a part made of one in it: a part of oak is a light brown there,
+one of steel a grey. A part given none is drawn in render as its model has it: glass as
+clear glass, metal as metal, and the rest as a plastic of its own colour.
+
+A grain or a weave is laid on a part from three sides, along the part's own axes, the
+way a box is wrapped, since a part from CAD carries nothing that says how a picture
+goes on it; each side has the grain along its longer edge to begin with. The pictures of
+wood, fabric and carbon fibre are from [ambientCG](https://ambientcg.com) (CC0); brushed
+and hammered metal are made by the app.
+
 ### Glass
 
 A part that is made of something clear, a window or the glass over a dial, is drawn
 see-through in solid and in glass alike, with no colour unless it is given one: the
-model says so of the part (`finish="glass"`). In pattern, wireframe and outline it is
-drawn by its lines, as any other part is. A click on it picks what is behind it, and a
-blueprint draws what it covers.
+model says so of the part (`finish="glass"`). In wireframe and outline it is
+drawn by its lines, as any other part is, and in render it is clear glass. A click on it
+picks what is behind it, and a blueprint draws what it covers.
 
 ### Curves
 

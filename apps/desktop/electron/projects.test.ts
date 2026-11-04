@@ -187,7 +187,13 @@ describe("Projects", () => {
 
   it("keeps the colours given by hand in the folder, and takes up others written there", () => {
     write("thing/model.json", MANIFEST)
-    write("thing/enclose.colors.json", { a: "blue", b: "#123456" })
+    write("thing/enclose.colors.json", {
+      a: "blue",
+      b: "#123456",
+      d: "mauve",
+      e: { color: "pink", material: "oak", scale: 2 },
+      f: { material: "nothing-of-the-kind" },
+    })
     const projects = new Projects(
       path.join(root, "state/projects.json"),
       () => {}
@@ -195,20 +201,36 @@ describe("Projects", () => {
     const id = projects.add(path.join(root, "thing"))
     const colours = () => projects.list(idle)[0].colours
     const found = colours()
-    expect(found.parts).toEqual({ a: "blue" })
+    // a colour picked by hand, and a material, are kept; what is neither is not
+    expect(found.parts).toEqual({ a: "blue", b: "#123456", e: "pink" })
+    expect(found.materials).toEqual({ e: { material: "oak", scale: 2 } })
 
     // what the window gives is written, and is no news to it
-    expect(projects.saveColours(id, { a: "red", c: "grey" })).toBe(true)
+    const given = (parts: Record<string, string>, materials = {}) =>
+      projects.saveColours(id, {
+        colours: parts as never,
+        materials,
+      })
+    expect(given({ a: "red", c: "grey" })).toBe(true)
     expect(colours()).toEqual({
       revision: found.revision,
       parts: { a: "red", c: "grey" },
+      materials: {},
     })
     expect(
       fs.readFileSync(path.join(root, "thing/enclose.colors.json"), "utf8")
     ).toBe('{\n  "a": "red",\n  "c": "grey"\n}\n')
-    expect(projects.saveColours(id, { c: "grey", a: "red" })).toBe(false)
+    expect(given({ c: "grey", a: "red" })).toBe(false)
     projects.refresh(id)
     expect(colours().revision).toBe(found.revision)
+
+    // a part with a material as well is written with both
+    expect(given({ a: "red" }, { a: { material: "steel" } })).toBe(true)
+    expect(
+      JSON.parse(
+        fs.readFileSync(path.join(root, "thing/enclose.colors.json"), "utf8")
+      )
+    ).toEqual({ a: { color: "red", material: "steel" } })
 
     // written by something else, it is news
     write("thing/enclose.colors.json", { a: "green" })
@@ -216,9 +238,10 @@ describe("Projects", () => {
     expect(colours()).toEqual({
       revision: found.revision + 1,
       parts: { a: "green" },
+      materials: {},
     })
 
-    expect(projects.saveColours(id, {})).toBe(true)
+    expect(given({})).toBe(true)
     expect(fs.existsSync(path.join(root, "thing/enclose.colors.json"))).toBe(
       false
     )

@@ -2,7 +2,7 @@
 // change here is checked on both ends.
 
 import type { Building, StepsGone } from "./board-format"
-import type { PartColours } from "./colours-format"
+import type { PartColours, PartMaterials } from "./colours-format"
 import type {
   InspirationBoard,
   InspirationFrames,
@@ -233,12 +233,12 @@ export type Project = {
    */
   boards: number | null
   /**
-   * The colours given its parts by hand, as its folder has them (see
+   * The colours and materials given its parts by hand, as its folder has them (see
    * shared/colours-format.ts), and a number that goes up each time they are found
    * changed there by something other than the window giving them: the window takes them
    * up then, and only then.
    */
-  colours: { revision: number; parts: PartColours }
+  colours: { revision: number; parts: PartColours; materials: PartMaterials }
   /**
    * An assembly guide is being made for it, because the user asked for one from the
    * view: the turn Claude is on in it is that.
@@ -823,7 +823,8 @@ export type Settings = {
 /**
  * What the window tells the app was put to use, for that count: the things the view can
  * be put into, and in PCB mode how a board is looked at (its technical view, its
- * schematic, a layer of its copper under the top, and the hand it is shown on in 3D).
+ * schematic, a layer of its copper under the top, and the hand it is shown on in 3D);
+ * the Render look, and a material given to a part by hand.
  * The rest of what is counted happens in the app's own process.
  */
 export const FEATURES = [
@@ -841,6 +842,8 @@ export const FEATURES = [
   "schematic",
   "layers",
   "hand",
+  "render",
+  "material",
 ] as const
 export type Feature = (typeof FEATURES)[number]
 
@@ -1320,7 +1323,11 @@ export type CadApi = {
      * history has them a moment after the last, unless Claude is at work in it, whose
      * turn takes them in with the rest.
      */
-    save(projectId: string, parts: PartColours): Promise<void>
+    save(
+      projectId: string,
+      parts: PartColours,
+      materials: PartMaterials
+    ): Promise<void>
     /**
      * Those the window kept itself, before they were kept in the folders, each put where
      * it belongs where nothing is there already: by project, and, put aside for a

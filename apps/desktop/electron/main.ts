@@ -64,6 +64,7 @@ import {
   COLOURS_FILE,
   coloursFile,
   readColours,
+  readLooks,
 } from "../shared/colours-format"
 import {
   readTheme,
@@ -2211,10 +2212,14 @@ function wire() {
   })
   ipcMain.handle(
     CHANNEL.coloursSave,
-    (_, projectId: unknown, given: unknown): void => {
+    (_, projectId: unknown, given: unknown, materials: unknown): void => {
       if (typeof projectId !== "string") return
-      if (projects.saveColours(projectId, readColours(given)))
-        keepColours(projectId)
+      // (each part's material is read as the file would have it)
+      const looks = {
+        colours: readLooks(given).colours,
+        materials: readLooks(materials).materials,
+      }
+      if (projects.saveColours(projectId, looks)) keepColours(projectId)
     }
   )
   // (once: what the window kept itself, before the folders kept them)
@@ -2237,7 +2242,13 @@ function wire() {
             .catch(() => false)
           if (!put) left.push(key)
         } else if (projects.get(projectId) && !projects.hasColours(projectId)) {
-          if (projects.saveColours(projectId, parts, { announce: true })) {
+          if (
+            projects.saveColours(
+              projectId,
+              { colours: parts, materials: {} },
+              { announce: true }
+            )
+          ) {
             any = true
             keepColours(projectId)
           } else left.push(key)

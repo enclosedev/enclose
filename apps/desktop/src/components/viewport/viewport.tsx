@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 
 import { OWN_SCENE, type PartRef, type Project } from "@shared/api"
+import { solidColours, type PartMaterial } from "@shared/materials"
 import { AskForGuide, Assembly } from "@/components/assembly/assembly"
 import { ToolsPanel } from "@/components/custom-tools/panel"
 import { runTools, stopTools, useTools } from "@/lib/custom-tools/host"
@@ -92,6 +93,7 @@ import { cutOpenThrough, sectionAcross, SectionPlanes } from "./section-planes"
 /** Stable when a project has nothing said of its parts, or no colours given. */
 const NO_NOTES: Note[] = []
 const NO_COLOURS: Record<string, string> = {}
+const NO_MATERIALS: Record<string, PartMaterial> = {}
 const NO_PARTS: string[] = []
 const NOTHING_SHOWN: LoadedModel["parts"] = []
 const NO_CALLED: Called[] = []
@@ -732,7 +734,13 @@ function Model({ project }: { project: Project }) {
   const homeRequests = useStore((s) => s.homeRequests)
   const partsOpen = useStore((s) => s.partsOpen)
   const notes = useStore((s) => s.notes[project.id] ?? NO_NOTES)
-  const colours = useStore((s) => s.colours[project.id] ?? NO_COLOURS)
+  // the colours parts are drawn in by hand: those given, or of the material given
+  const given = useStore((s) => s.colours[project.id] ?? NO_COLOURS)
+  const materials = useStore((s) => s.materials[project.id] ?? NO_MATERIALS)
+  const colours = React.useMemo(
+    () => solidColours(given, materials),
+    [given, materials]
+  )
   const changing = useChanging(project)
   const lookOver = useStore((s) => s.lookOver)
   // (the pictures are of the parts, whatever groups they are in)
@@ -763,7 +771,11 @@ function Model({ project }: { project: Project }) {
   React.useEffect(() => {
     if (!wanted || !real) return
     let over = false
-    const given = useStore.getState().colours[project.id] ?? NO_COLOURS
+    const { colours: all, materials: made } = useStore.getState()
+    const given = solidColours(
+      all[project.id] ?? NO_COLOURS,
+      made[project.id] ?? NO_MATERIALS
+    )
     void picturesOf(real, given).then((seen) => {
       if (!over) void lookOver(project.id, seen)
     })
@@ -1799,6 +1811,9 @@ function Model({ project }: { project: Project }) {
           color:
             useStore.getState().colours[project.id]?.[part.part.id] ??
             part.part.color,
+          // and the material the user gave it, as it is set; none if they gave none
+          material:
+            useStore.getState().materials[project.id]?.[part.part.id] ?? null,
           shown: appearance(part, useStore.getState().view).shown,
         }
       })
@@ -1829,6 +1844,7 @@ function Model({ project }: { project: Project }) {
             projectId={project.id}
             notes={notes}
             colours={shownColours}
+            materials={materials}
             view={shownView}
             through={through ?? loaded.box}
             selectedId={selection?.part.id ?? null}

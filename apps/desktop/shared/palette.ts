@@ -1,5 +1,5 @@
 // The colours parts are drawn in: the whole round of colour, each of them light, and
-// three with no colour to them: white, a light grey and a grey. They are few and of a
+// two with no colour to them: white and a grey. They are few and of a
 // kind, so that whatever is on screen goes together, in the dark theme and the light. A
 // model names them; any other colour it gives is drawn as the nearest of them (see
 // src/lib/palette.ts).
@@ -16,10 +16,17 @@ export const PALETTE = {
   violet: "#d69af9",
   pink: "#f19cc9",
   white: "#fafafa",
-  lightgrey: "#d4d4d4",
   grey: "#4b4b4b",
 } as const
 
 export type PaletteName = keyof typeof PALETTE
 
 export const PALETTE_NAMES = Object.keys(PALETTE) as PaletteName[]
+
+/**
+ * Names the palette had once and has no more, and the colour each is now: a model or a
+ * project's file may still say one. A grey, which is drawn as it is.
+ */
+export const FORMER_NAMES: Record<string, `#${string}`> = {
+  lightgrey: "#d4d4d4",
+}

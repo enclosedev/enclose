@@ -8,7 +8,7 @@ import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js
 import { acceleratedRaycast } from "three-mesh-bvh"
 
 import type { PartRef, Vec3 } from "@shared/api"
-import { PALETTE, type PaletteName } from "@shared/palette"
+import { materialOf, type PartMaterial } from "@shared/materials"
 import { useThemeColors, type ThemeColors } from "@/lib/css-color"
 import type { Finds, Found } from "@/lib/find"
 import { onPosed, posed } from "@/lib/custom-tools/poses"
@@ -23,9 +23,17 @@ import { bridge } from "./bridge"
 import { FoundTags, namesOf, Place, type Named } from "./found-tags"
 import { Ground } from "./ground"
 import { UNDER_FROM, underlit } from "./light"
-import { rule, type LoadedModel, type LoadedPart } from "./load"
+import type { LoadedModel, LoadedPart } from "./load"
 import { DRAG_FROM, Marquee } from "./marquee"
 import { EDGE, finish, skinColour } from "./paint"
+import {
+  baseOf,
+  grainOf,
+  ownMaterial,
+  physicalOf,
+  studioFor,
+  type Grain,
+} from "./materials"
 import { NoteMark, PartMarks } from "./part-marks"
 import { passSize } from "./passes"
 import { groundOf, Reference, setIn, type LoadedReference } from "./reference"
@@ -42,6 +50,111 @@ const NO_CLIP = { normal: new THREE.Vector3(0, 1, 0), constant: 1e6 }
 const ONE = new THREE.Vector3(1, 1, 1)
 const WHITE = new THREE.Color("#ffffff")
 const NOT_PICKED = () => {}
+/** Stable, for a model none of whose parts have been given a material. */
+const NO_MATERIALS: Record<string, PartMaterial> = {}
+/** Where the light that casts the shadow on the floor in Render comes from: up, left, behind. */
+const SUN = new THREE.Vector3(-0.75, 1.3, -0.35).normalize()
+/** How strongly the studio lights the model in Render: under its own, so a white part keeps its shading. */
+const STUDIO = 0.55
+
+/**
+ * What a model stands on in Render: a floor that is not seen but for the shadow on it,
+ * of a light from nearly straight above, soft at its edges. `at` is how high it is,
+ * `middle` the middle of the model over it, model mm; `across` how far across the floor
+ * goes, and `reach` how far above it the model does.
+ */
+function Floor({
+  at,
+  middle,
+  across,
+  reach,
+}: {
+  at: number
+  middle: THREE.Vector3
+  across: number
+  reach: number
+}) {
+  const get = useThree((state) => state.get)
+  const invalidate = useThree((state) => state.invalidate)
+  // (in the world, where up is y: model x, z, -y)
+  const under = React.useMemo(
+    () => new THREE.Vector3(middle.x, at, -middle.y),
+    [middle, at]
+  )
+  const light = React.useMemo(() => {
+    const light = new THREE.DirectionalLight(0xffffff, 0)
+    light.castShadow = true
+    light.shadow.mapSize.set(2048, 2048)
+    light.shadow.radius = 10
+    light.shadow.blurSamples = 16
+    light.shadow.bias = -0.0005
+    return light
+  }, [])
+  React.useEffect(() => () => light.dispose(), [light])
+  // from up to the left and a little behind, as far off as the model is across, so that
+  // the shadow falls out to the right and toward the front, where it is seen
+  React.useLayoutEffect(() => {
+    const height = reach * 3 + across
+    light.position.copy(under).addScaledVector(SUN, height)
+    light.target.position.copy(under)
+    const camera = light.shadow.camera
+    Object.assign(camera, {
+      left: -across / 2,
+      right: across / 2,
+      top: across / 2,
+      bottom: -across / 2,
+      near: height * 0.5,
+      far: height * 1.5,
+    })
+    camera.updateProjectionMatrix()
+    invalidate()
+  }, [light, under, at, across, reach, invalidate])
+  React.useEffect(() => {
+    const { shadowMap } = get().gl
+    const had = { enabled: shadowMap.enabled, type: shadowMap.type }
+    shadowMap.enabled = true
+    shadowMap.type = THREE.VSMShadowMap
+    shadowMap.needsUpdate = true
+    invalidate()
+    return () => {
+      shadowMap.enabled = had.enabled
+      shadowMap.type = had.type
+      invalidate()
+    }
+  }, [get, invalidate])
+  return (
+    <>
+      <primitive object={light} />
+      <primitive object={light.target} />
+      <mesh
+        position={under}
+        rotation={[-Math.PI / 2, 0, 0]}
+        receiveShadow
+        raycast={NOT_PICKED}
+      >
+        <planeGeometry args={[across, across]} />
+        <shadowMaterial transparent opacity={0.5} depthWrite={false} />
+      </mesh>
+    </>
+  )
+}
+
+/** The studio Render lights the model with, and the model shows in what shines. */
+function Studio() {
+  const get = useThree((state) => state.get)
+  const invalidate = useThree((state) => state.invalidate)
+  React.useEffect(() => {
+    const { gl, scene } = get()
+    scene.environment = studioFor(gl)
+    scene.environmentIntensity = STUDIO
+    invalidate()
+    return () => {
+      scene.environment = null
+      invalidate()
+    }
+  }, [get, invalidate])
+  return null
+}
 const NOT_HINTED: string[] = []
 const NOT_NAMED: Named[] = []
 
@@ -60,8 +173,6 @@ const ORDER = {
   // the lines of a scene the model is set in: under the ground's, and the model's own
   scene: 0.8,
   ground: 0.9,
-  // the lines a face is ruled with: under its edges, which end them
-  ruled: 0.95,
   edges: 1,
   glass: 2,
   glassEdges: 3,
@@ -78,9 +189,9 @@ const ORDER = {
 /**
  * solid: opaque. glass: see-through. wire: its lines, and its surfaces not seen but
  * hiding what is behind them. outline: its lines and nothing else, so all of them show.
- * pattern: as wire, with its faces ruled into squares.
+ * render: as it would look made, of what it is made of, in a studio (see materials.ts).
  */
-type Look = "solid" | "glass" | "wire" | "outline" | "pattern"
+type Look = "solid" | "glass" | "wire" | "outline" | "render"
 
 // Glass is not drawn into the picture with everything else: its layers are added up on
 // their own and laid over the picture afterwards (see Glass). Each thing is drawn on the
@@ -411,121 +522,6 @@ function inTheLight(shader: {
       gl_FragColor.a = min(1.0, gl_FragColor.a * mix(1.0, mix(${LINE_LIT.away}, ${LINE_LIT.in}, pow(lightAt, 2.0)), lightOn));`
     )
 }
-/**
- * The colours the faces of a part are ruled in, in the pattern look: three of the
- * colours parts are drawn in, one to each of the part's axes, for the lines across it.
- */
-const RULED_IN: PaletteName[] = ["blue", "orange", "pink"]
-/**
- * A colour of the palette as it is drawn on a light ground, where as it is it would be
- * too pale to see: the same colour, deeper.
- */
-function deepened(name: PaletteName): THREE.Color {
-  const colour = new THREE.Color(PALETTE[name])
-  const { h, s } = colour.getHSL({ h: 0, s: 0, l: 0 }, THREE.SRGBColorSpace)
-  return colour.setHSL(h, Math.min(s, 0.7), 0.5, THREE.SRGBColorSpace)
-}
-/**
- * The lines a face is ruled with: their colours on a dark ground, and on a light.
- * `width` is how wide a line is, in pixels, and `room` how near two may come: nearer
- * than that, every other one is left out. `plain` is how strongly they are drawn, and
- * `hovered` with the pointer on the part.
- */
-const RULING = {
-  dark: RULED_IN.map((name) => new THREE.Color(PALETTE[name])),
-  light: RULED_IN.map(deepened),
-  width: 1,
-  room: 7,
-  plain: 0.85,
-  hovered: 1,
-}
-
-/**
- * What rules a part's faces into squares: drawn over its surfaces, which are there
- * already as far as hiding what is behind them goes. Where on its face each corner is,
- * and how many squares across that face is, the part has been told (see ruled.ts).
- */
-function ruling(plane: THREE.Plane) {
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      inks: { value: RULING.dark },
-      opacity: { value: RULING.plain },
-      // how many of the screen's own pixels there are to one of ours
-      ratio: { value: 1 },
-    },
-    vertexShader: `
-      attribute vec3 ruledAt;
-      attribute vec3 ruledAcross;
-      varying vec3 at;
-      varying vec3 across;
-      varying vec3 facing;
-      #include <clipping_planes_pars_vertex>
-      void main() {
-        at = ruledAt;
-        across = ruledAcross;
-        facing = normal;
-        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        gl_Position = projectionMatrix * mvPosition;
-        #include <clipping_planes_vertex>
-      }`,
-    fragmentShader: `
-      uniform vec3 inks[3];
-      uniform float opacity;
-      uniform float ratio;
-      varying vec3 at;
-      varying vec3 across;
-      varying vec3 facing;
-      #include <clipping_planes_pars_fragment>
-
-      // How much of a line there is here, of those across one axis. 'per' is how many
-      // squares there are to a pixel of the screen.
-      float ruled(float at, float across, float per) {
-        // Lines that would come too near one another are thinned: every other one is
-        // left out, and every other one of those, as often as it takes. Between one
-        // such step and the next the ones about to go fade, so none goes at a stroke.
-        float thinned = max(0.0, log2(per * ratio * ${RULING.room.toFixed(1)}));
-        float steps = floor(thinned);
-        float apart = exp2(steps);
-        float nearest = floor(at / apart + 0.5);
-        float reach = 0.5 * ratio * ${RULING.width.toFixed(1)};
-        float line = 1.0 - smoothstep(reach - 0.5, reach + 0.5, abs(at - nearest * apart) / per);
-        line *= 1.0 - (thinned - steps) * mod(nearest, 2.0);
-        // none at either end of the face: its edges are there
-        float which = nearest * apart;
-        return line * step(0.5, which) * step(which, across - 0.5);
-      }
-
-      void main() {
-        #include <clipping_planes_fragment>
-        vec3 per = max(fwidth(at), 1e-6);
-        vec3 lines = vec3(
-          ruled(at.x, across.x, per.x),
-          ruled(at.y, across.y, per.y),
-          ruled(at.z, across.z, per.z)
-        );
-        // a face that lies along the planes across an axis is not cut by them
-        lines *= 1.0 - smoothstep(0.8, 0.95, abs(normalize(facing)));
-        float most = max(lines.x, max(lines.y, lines.z));
-        if (most < 0.004) discard;
-        vec3 ink = (inks[0] * lines.x + inks[1] * lines.y + inks[2] * lines.z)
-          / (lines.x + lines.y + lines.z);
-        gl_FragColor = vec4(ink, most * opacity);
-        #include <colorspace_fragment>
-      }`,
-    transparent: true,
-    depthWrite: false,
-    // the colours are seen as they are: the view's lens would grey them
-    toneMapped: false,
-    side: THREE.DoubleSide,
-    clipping: true,
-    clippingPlanes: [plane],
-    // a hair nearer than the surfaces they are on, and still behind the edges
-    polygonOffset: true,
-    polygonOffsetFactor: 1,
-    polygonOffsetUnits: 1,
-  })
-}
-
 /** Both, for the lines that are drawn only where a surface turns from the eye. */
 function turningInTheLight(
   shader: Parameters<typeof inTheLight>[0] & {
@@ -567,7 +563,8 @@ export function appearance(
 ): { shown: boolean; look: Look } {
   const shown = onShow(loaded, view)
   if (view.mode === "wireframe") return { shown, look: "wire" }
-  if (view.mode === "pattern") return { shown, look: "pattern" }
+  // (in Render, glass is glass of its own, drawn as everything else is)
+  if (view.mode === "render") return { shown, look: "render" }
   if (view.mode === "outline") return { shown, look: "outline" }
   // (a part that is made of something clear is seen through, drawn solid or not)
   if (loaded.part.clear) return { shown, look: "glass" }
@@ -577,6 +574,43 @@ export function appearance(
 /** Where a part moved by a tool is worked out, and what is left over of working it out. */
 const MOVED = new THREE.Matrix4()
 const NO_SCALE = new THREE.Vector3()
+
+/**
+ * The grain of a material, once it is there to be drawn: null until then, and for a
+ * material with none (see materials.ts). Each is loaded once, for every part that has it.
+ */
+function useGrain(
+  material: ReturnType<typeof ownMaterial> | null
+): Grain | null {
+  const found = React.useMemo(
+    () => (material ? grainOf(material) : null),
+    [material]
+  )
+  const [had, setHad] = React.useState<{ of: unknown; grain: Grain } | null>(
+    null
+  )
+  const invalidate = useThree((state) => state.invalidate)
+  React.useEffect(() => {
+    if (!(found instanceof Promise)) return
+    let over = false
+    void found.then(
+      (grain) => {
+        if (over) return
+        setHad({ of: found, grain })
+        invalidate()
+      },
+      () => {
+        // a picture that would not load: the material is drawn without its grain
+      }
+    )
+    return () => {
+      over = true
+    }
+  }, [found, invalidate])
+  if (!found) return null
+  if (!(found instanceof Promise)) return found
+  return had?.of === found ? had.grain : null
+}
 
 const PartModel = React.memo(function PartModel({
   loaded,
@@ -594,12 +628,15 @@ const PartModel = React.memo(function PartModel({
   plane,
   colors,
   colour,
+  material,
   children,
 }: {
   loaded: LoadedPart
   look: Look
   /** the colour the user has given it, if they have */
   colour: string | null
+  /** the material the user has given it, as it is set, if they have: how Render draws it */
+  material: PartMaterial | null
   /** what is shown with the part, and goes where it goes */
   children?: React.ReactNode
   /** there is glass about, which this part hides whatever of it is behind */
@@ -629,11 +666,10 @@ const PartModel = React.memo(function PartModel({
   const { part } = loaded
   const group = React.useRef<THREE.Group>(null)
   const invalidate = useThree((state) => state.invalidate)
-  const ratio = useThree((state) => state.viewport.dpr)
   const glass = look === "glass"
-  const patterned = look === "pattern"
+  const rendered = look === "render"
   // its surfaces are not seen, but hide what is behind them
-  const wire = look === "wire" || patterned
+  const wire = look === "wire"
   // drawn by its lines alone, which then have to show against the background
   const lined = wire || look === "outline"
 
@@ -686,12 +722,38 @@ const PartModel = React.memo(function PartModel({
     [lines]
   )
 
-  const ruled = React.useMemo(() => {
-    if (!patterned) return null
-    rule(loaded)
-    return ruling(plane)
-  }, [patterned, loaded, plane])
-  React.useEffect(() => () => ruled?.dispose(), [ruled])
+  // In Render, what it is made of: the material given, or what its model says it is.
+  const made = React.useMemo(
+    () => materialOf(material?.material) ?? ownMaterial(part),
+    [material?.material, part]
+  )
+  const grain = useGrain(rendered ? made : null)
+  const size = React.useMemo(
+    () => loaded.box.getSize(new THREE.Vector3()),
+    [loaded.box]
+  )
+  // (one for each of its skins, which may each be in a colour of its own)
+  const physicals = React.useMemo(() => {
+    if (!rendered) return null
+    return loaded.skins.map(() => {
+      const physical = physicalOf(made, material, size, grain)
+      physical.side = THREE.DoubleSide
+      physical.clippingPlanes = [plane]
+      Object.assign(physical, BEHIND_EDGES)
+      return physical
+    })
+  }, [rendered, loaded.skins, made, material, size, grain, plane])
+  React.useEffect(
+    () => () => {
+      for (const physical of physicals ?? []) physical.dispose()
+    },
+    [physicals]
+  )
+  // the colour each skin is drawn in, in Render, under its grain (see baseOf)
+  const bases = React.useMemo(
+    () => skinColors.map((colour) => baseOf(made, colour)),
+    [made, skinColors]
+  )
 
   // what it is drawn with to be counted, as it is and drawn in a little
   const counted = cut !== null
@@ -753,7 +815,9 @@ const PartModel = React.memo(function PartModel({
   const tint = React.useRef(filled ? 1 : 0)
   const surfaces = React.useRef<(THREE.MeshStandardMaterial | null)[]>([])
   const paint = (material: THREE.MeshStandardMaterial, index: number) =>
-    material.color.copy(skinColors[index]).lerp(colors.picked, tint.current)
+    material.color
+      .copy((rendered ? bases : skinColors)[index])
+      .lerp(colors.picked, tint.current)
 
   const current = React.useRef(explode)
   // Where it is on its way to, pulled apart. That is another place when the model comes
@@ -837,6 +901,8 @@ const PartModel = React.memo(function PartModel({
           <mesh
             geometry={skin.geometry}
             raycast={acceleratedRaycast}
+            // in Render, it casts its shadow on the floor
+            castShadow={rendered}
             layers={glass ? GLASS : SEEN}
             userData={{ partId: part.id, skin: index, glass }}
           >
@@ -845,52 +911,60 @@ const PartModel = React.memo(function PartModel({
                 them without being seen themselves: either way they are still what a
                 click lands on. Each look is a material of its own, since they differ
                 in more than a material can change once it is in use. */}
-            <meshStandardMaterial
-              key={look}
-              // its colour is set here, and each frame that it is changing
-              ref={(material) => {
-                surfaces.current[index] = material
-                if (material) paint(material, index)
-              }}
-              visible={look !== "outline"}
-              colorWrite={!wire || filled}
-              // the selection's colour is seen as it is: the view's lens would grey it
-              toneMapped={!filled}
-              {...finish(loaded)}
-              side={THREE.DoubleSide}
-              clippingPlanes={planes}
-              {...BEHIND_EDGES}
-              {...(glass ? ADDED_UP : null)}
-              opacity={
-                glass
-                  ? weight(opacity) *
-                    (1 +
-                      COLOUR_COUNTS *
-                        chroma(filled ? colors.picked : skinColors[index]))
-                  : 1
-              }
-              emissive={WHITE}
-              emissiveIntensity={
-                filled ? GLOW.picked : hovered && !selected ? GLOW.hovered : 0
-              }
-            />
+            {physicals ? (
+              <primitive
+                object={physicals[index]}
+                attach="material"
+                ref={(material: THREE.MeshPhysicalMaterial | null) => {
+                  surfaces.current[index] = material
+                  if (material) paint(material, index)
+                }}
+                // the selection's colour is seen as it is: the view's lens would grey it
+                toneMapped={!filled}
+                {...(made.glow
+                  ? // what gives off light gives off its own colour
+                    { emissive: bases[index] }
+                  : {
+                      emissive: WHITE,
+                      emissiveIntensity: filled
+                        ? GLOW.picked
+                        : hovered && !selected
+                          ? GLOW.hovered
+                          : 0,
+                    })}
+              />
+            ) : (
+              <meshStandardMaterial
+                key={look}
+                // its colour is set here, and each frame that it is changing
+                ref={(material) => {
+                  surfaces.current[index] = material
+                  if (material) paint(material, index)
+                }}
+                visible={look !== "outline"}
+                colorWrite={!wire || filled}
+                // the selection's colour is seen as it is: the view's lens would grey it
+                toneMapped={!filled}
+                {...finish(loaded)}
+                side={THREE.DoubleSide}
+                clippingPlanes={planes}
+                {...BEHIND_EDGES}
+                {...(glass ? ADDED_UP : null)}
+                opacity={
+                  glass
+                    ? weight(opacity) *
+                      (1 +
+                        COLOUR_COUNTS *
+                          chroma(filled ? colors.picked : skinColors[index]))
+                    : 1
+                }
+                emissive={WHITE}
+                emissiveIntensity={
+                  filled ? GLOW.picked : hovered && !selected ? GLOW.hovered : 0
+                }
+              />
+            )}
           </mesh>
-          {ruled && (
-            <mesh
-              geometry={skin.geometry}
-              material={ruled}
-              // picked out, its surfaces are seen, and are light
-              material-uniforms-inks-value={
-                colors.dark && !filled ? RULING.dark : RULING.light
-              }
-              material-uniforms-opacity-value={
-                hovered || selected ? RULING.hovered : RULING.plain
-              }
-              material-uniforms-ratio-value={ratio}
-              renderOrder={ORDER.ruled}
-              raycast={NOT_PICKED}
-            />
-          )}
           {cut !== null &&
             counts.map(({ step, material }, count) => (
               <mesh
@@ -942,12 +1016,16 @@ const PartModel = React.memo(function PartModel({
           ))}
         </React.Fragment>
       ))}
-      <primitive object={lines} renderOrder={lineOrder}>
-        <primitive object={lines.material} attach="material" {...line} />
-      </primitive>
+      {/* In Render a part is as it would be made, with no lines drawn on it: but for
+          the one picked out, or under the pointer, which is shown so. */}
+      {(!rendered || selected || hovered) && (
+        <primitive object={lines} renderOrder={lineOrder}>
+          <primitive object={lines.material} attach="material" {...line} />
+        </primitive>
+      )}
       {/* A solid part shows where it curves by how the light falls on it: unless it is
           picked out, when it is all of a colour. */}
-      {turns && (look !== "solid" || filled) && (
+      {turns && (look !== "solid" || filled) && (!rendered || filled) && (
         <primitive object={turns} renderOrder={lineOrder}>
           <primitive object={turns.material} attach="material" {...line} />
         </primitive>
@@ -1998,6 +2076,7 @@ export function Scene({
   plain,
   notes,
   colours,
+  materials = NO_MATERIALS,
   homeKey,
   refit,
   onPick,
@@ -2024,6 +2103,8 @@ export function Scene({
   notes: Note[]
   /** the colours the user has given parts, by part */
   colours: Record<string, string>
+  /** the materials the user has given parts, by part: how Render draws them */
+  materials?: Record<string, PartMaterial>
   selectedId: string | null
   /**
    * The part picked out with the rest of its piece, where it is the piece that is
@@ -2222,6 +2303,31 @@ export function Scene({
     [onPick]
   )
 
+  // In Render the model stands on a floor, which takes its shadow: as low as the lowest
+  // of what is on show, as it is pulled apart.
+  const rendering = view.mode === "render"
+  const floor = React.useMemo(() => {
+    if (!rendering) return null
+    const box = new THREE.Box3()
+    const one = new THREE.Box3()
+    for (const part of loaded.parts) {
+      if (!isOnShow(part, { hidden, only })) continue
+      one.copy(part.box).applyMatrix4(part.home)
+      one.translate(part.away.clone().multiplyScalar(explode))
+      box.union(one)
+    }
+    if (box.isEmpty()) return null
+    const size = box.getSize(new THREE.Vector3())
+    const across = Math.max(size.x, size.y, size.z)
+    return {
+      // a hair under the lowest of it, so that what stands on the floor is not cut by it
+      at: box.min.z - across * 0.002,
+      middle: box.getCenter(new THREE.Vector3()),
+      across: across * 3,
+      reach: Math.max(size.z, across * 0.25),
+    }
+  }, [rendering, loaded, hidden, only, explode])
+
   return (
     <Canvas
       className={hoveredId && !sweeping ? "cursor-pointer" : undefined}
@@ -2246,18 +2352,25 @@ export function Scene({
         gl.localClippingEnabled = true
       }}
     >
-      <ambientLight layers={EVERY} intensity={0.55} />
-      <hemisphereLight layers={EVERY} args={["#ffffff", "#7d828c", 0.7]} />
+      {/* In Render the studio lights it, all round, with less of the lights of the
+          other looks: enough of them still for a model's shape to read. */}
+      <ambientLight layers={EVERY} intensity={rendering ? 0 : 0.55} />
+      <hemisphereLight
+        layers={EVERY}
+        args={["#ffffff", "#7d828c", rendering ? 0.15 : 0.7]}
+      />
       <directionalLight
         layers={EVERY}
         position={[180, 320, 220]}
-        intensity={1.7}
+        intensity={rendering ? 0.8 : 1.7}
       />
       <directionalLight
         layers={EVERY}
         position={[-240, 160, -180]}
-        intensity={0.55}
+        intensity={rendering ? 0.15 : 0.55}
       />
+      {rendering && <Studio />}
+      {rendering && !reference && floor && <Floor {...floor} />}
       {anyGlass && <Glass layers={glassLayers} />}
       {hinted.length > 0 && (
         <Hint colors={colors} occasion={HINT} order={ORDER.hint} how={HINTED} />
@@ -2363,6 +2476,7 @@ export function Scene({
               plane={plane}
               colors={colors}
               colour={colours[id] ?? null}
+              material={materials[id] ?? null}
             >
               {marked || notesOn || names ? (
                 <>
@@ -2372,7 +2486,6 @@ export function Scene({
                       model={loaded.model}
                       projectId={projectId}
                       onPick={onPick}
-                      shown={`#${skinColour(part, part.skins[0], colors.dark, colours[id]).getHexString()}`}
                     />
                   )}
                   {notesOn?.map((note) => (

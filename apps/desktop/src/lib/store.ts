@@ -24,20 +24,27 @@ import {
   back,
   coloured,
   forth,
+  goesOn,
   hiddenWith,
   hidingSaid,
   later,
+  materialled,
   NO_HISTORY,
   rearranged,
   record,
   recolour,
   rehidden,
+  rematerial,
   saidOf,
   type Change,
   type History,
+  type Recolour,
+  type Rematerial,
 } from "@/lib/undo"
 import { MAC } from "@/lib/platform"
 import { PALETTE, type PaletteName } from "@shared/palette"
+import type { PartColour } from "@shared/colours-format"
+import type { PartMaterial } from "@shared/materials"
 import { MOST_AT_ONCE, PICTURE_TYPES, withoutMark } from "@shared/pictures"
 
 import {
@@ -70,10 +77,10 @@ import type { Turn } from "@/lib/orient"
 /**
  * solid: as built. glass: all of it is seen through. wireframe: lines only, as far as
  * the model itself does not hide them. outline: every line, the hidden ones too.
- * pattern: as wireframe, with every face ruled into squares.
+ * render: as it would look made, of what each part is made of, in a studio, standing
+ * on a floor that takes its shadow.
  */
-export type DisplayMode =
-  "solid" | "glass" | "wireframe" | "outline" | "pattern"
+export type DisplayMode = "solid" | "glass" | "wireframe" | "outline" | "render"
 
 /** A flat cut through the model, with one side of it hidden. */
 export type Section = {
@@ -298,10 +305,12 @@ const saved = (key: string) => localStorage.getItem(key)
 
 const savedMode = (): DisplayMode => {
   const mode = saved(MODE_KEY)
+  // (Pattern, which Render took the place of, is Render)
+  if (mode === "pattern") return "render"
   return mode === "glass" ||
     mode === "wireframe" ||
     mode === "outline" ||
-    mode === "pattern"
+    mode === "render"
     ? mode
     : "solid"
 }
@@ -584,7 +593,7 @@ function enteredNow(view: View, before: Entered[]): Entered[] {
 }
 
 /** How a board is looked at in PCB mode, where that is counted (FEATURES). */
-type BoardWay = Exclude<Feature, Entered>
+type BoardWay = Exclude<Feature, Entered | "render" | "material">
 
 /**
  * What of the view is counted as put to use (FEATURES): what it was put into, and in PCB
@@ -784,11 +793,18 @@ type State = {
   pictureTrouble: string | null
   /**
    * The colour the user has given a part, by project and part: one of the app's own, by
-   * name. It is how the app draws the part, whatever the model says of its colour. Kept
-   * in the project's folder (see shared/colours-format.ts), and taken up from there
-   * where it is found changed (see coloursOf).
+   * name, or one picked by hand, "#rrggbb". It is how the app draws the part, whatever
+   * the model says of its colour. Kept in the project's folder (see
+   * shared/colours-format.ts), and taken up from there where it is found changed (see
+   * coloursOf).
    */
-  colours: Record<string, Record<string, PaletteName>>
+  colours: Record<string, Record<string, PartColour>>
+  /**
+   * The material the user has given a part, by project and part, as it is set: how
+   * Render draws it, and in Solid the colour it is drawn in where the material has one
+   * of its own. Kept with the colours.
+   */
+  materials: Record<string, Record<string, PartMaterial>>
   /**
    * Whether the model on screen has parts made of a mesh (an STL or OBJ file), by
    * project, as the view last loaded it: what is offered to be built again as code.
@@ -908,8 +924,17 @@ type State = {
   attach(files: Blob[], bringUp?: boolean): Promise<Attached[]>
   /** Take a picture back off the message, and out of what is written in it. */
   dropPicture(id: string): void
-  /** Give parts of the open project a colour of the app's, or (null) the model's own back. */
-  setColour(partIds: string[], colour: PaletteName | null): void
+  /**
+   * Give parts of the open project a colour: one of the app's, by name, or one picked by
+   * hand, "#rrggbb"; or (null) the model's own back.
+   */
+  setColour(partIds: string[], colour: PartColour | null): void
+  /**
+   * Give parts of the open project a material, as it is set; or (null) none. Changes
+   * made one after another to the same material, as a slider is dragged, are taken
+   * back by Cmd+Z as one.
+   */
+  setMaterial(partIds: string[], material: PartMaterial | null): void
   /**
    * Put the open project's parts into groups another way, as worked out from how they
    * are arranged now (see lib/arrange). `said` is what was done, as Cmd+Z will say it:
@@ -1054,7 +1079,7 @@ const SEEN_FOR_MS = 1400
  */
 function repaint(
   projectId: string,
-  had: Record<string, PaletteName | null>,
+  had: Record<string, PartColour | null>,
   history: History,
   shown = false
 ) {
@@ -1063,7 +1088,11 @@ function repaint(
     ...state.colours,
     [projectId]: coloured(state.colours[projectId] ?? {}, had),
   }
-  void window.cad.colours.save(projectId, colours[projectId])
+  void window.cad.colours.save(
+    projectId,
+    colours[projectId],
+    state.materials[projectId] ?? {}
+  )
   useStore.setState({
     colours,
     history: { ...state.history, [projectId]: history },
@@ -1106,6 +1135,48 @@ async function turnBack(projectId: string, way: "undo" | "redo") {
 }
 
 /**
+ * What has been done to a project with a colour or a material given as well: taken into
+ * the last thing done where it goes on from that, as a drag does (see goesOn).
+ */
+function keptWith(
+  history: History | undefined,
+  change: Recolour | Rematerial
+): History {
+  const had = history ?? NO_HISTORY
+  const last = had.done.at(-1)
+  if (!goesOn(last, change)) return record(had, change)
+  return {
+    done: [
+      ...had.done.slice(0, -1),
+      { ...last, at: change.at, after: change.after } as Change,
+    ],
+    undone: [],
+  }
+}
+
+/** Put some of a project's parts to the materials a change has for them, and keep that. */
+function rematerialise(
+  projectId: string,
+  had: Record<string, PartMaterial | null>,
+  history: History
+) {
+  const state = useStore.getState()
+  const materials = {
+    ...state.materials,
+    [projectId]: materialled(state.materials[projectId] ?? {}, had),
+  }
+  void window.cad.colours.save(
+    projectId,
+    state.colours[projectId] ?? {},
+    materials[projectId]
+  )
+  useStore.setState({
+    materials,
+    history: { ...state.history, [projectId]: history },
+  })
+}
+
+/**
  * Put a project's model as it was on one side of something done to it by hand, which
  * has been taken back (`undo`) or put back, and say so.
  */
@@ -1125,6 +1196,13 @@ function byHand(
       true
     )
     state.say(`${did} a colour`)
+  } else if (change.kind === "material") {
+    rematerialise(
+      projectId,
+      way === "undo" ? change.before : change.after,
+      history
+    )
+    state.say(`${did} a material`)
   } else if (change.kind === "arrangement") {
     regroup(projectId, way === "undo" ? change.before : change.after, history)
     state.say(`${did} ${change.said}`)
@@ -1289,6 +1367,7 @@ export const useStore = create<State>()((set, get) => ({
   pictureTrouble: null,
   // (from the projects' folders, as the projects come: see coloursOf)
   colours: {},
+  materials: {},
   meshes: {},
   keptMeshes: savedKeptMeshes(),
   ...savedArranged(),
@@ -1382,6 +1461,9 @@ export const useStore = create<State>()((set, get) => ({
 
   setView(patch) {
     if (patch.mode) localStorage.setItem(MODE_KEY, patch.mode)
+    // (Render is counted as put to use as it is gone into: see FEATURES)
+    if (patch.mode === "render" && get().view.mode !== "render")
+      window.cad.analytics.used("render")
     if (patch.grid !== undefined)
       localStorage.setItem(GRID_KEY, patch.grid ? "on" : "off")
     if (patch.dimensions !== undefined)
@@ -1764,11 +1846,21 @@ export const useStore = create<State>()((set, get) => ({
       Date.now()
     )
     if (!change) return
-    repaint(
-      activeId,
-      change.after,
-      record(history[activeId] ?? NO_HISTORY, change)
+    repaint(activeId, change.after, keptWith(history[activeId], change))
+  },
+
+  setMaterial(partIds, material) {
+    const { activeId, materials, history } = get()
+    if (!activeId) return
+    const change = rematerial(
+      materials[activeId] ?? {},
+      partIds,
+      material,
+      Date.now()
     )
+    if (!change) return
+    if (material) window.cad.analytics.used("material")
+    rematerialise(activeId, change.after, keptWith(history[activeId], change))
   },
 
   rearrange(next, said) {
@@ -2474,14 +2566,18 @@ const coloursTaken = new Map<string, number>()
  * are found changed there (see Project["colours"]): the window's own giving is no news.
  */
 function coloursOf(
-  colours: Record<string, Record<string, PaletteName>>,
+  colours: Record<string, Record<string, PartColour>>,
+  materials: Record<string, Record<string, PartMaterial>>,
   projects: Project[]
 ) {
-  let next = colours
+  let next = { colours, materials }
   for (const { id, colours: kept } of projects) {
     if (coloursTaken.get(id) === kept.revision) continue
     coloursTaken.set(id, kept.revision)
-    next = { ...next, [id]: kept.parts }
+    next = {
+      colours: { ...next.colours, [id]: kept.parts },
+      materials: { ...next.materials, [id]: kept.materials },
+    }
   }
   return next
 }
@@ -2492,6 +2588,7 @@ function reconcile(listed: Project[]) {
     activate,
     cuts,
     colours,
+    materials,
     projects: before,
   } = useStore.getState()
   // (one whose folder is not there keeps what was kept of it, for when it is back)
@@ -2507,7 +2604,7 @@ function reconcile(listed: Project[]) {
     projects,
     missing: listed.filter((p) => p.missing),
     cuts: kept,
-    colours: coloursOf(colours, projects),
+    ...coloursOf(colours, materials, projects),
   })
   tally(before)
   const cue = cueOf(

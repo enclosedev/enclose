@@ -5,15 +5,22 @@
 // and a turn only at a second press.)
 
 import type { Undoable, Undone } from "@shared/api"
-import type { PaletteName } from "@shared/palette"
+import type { PartColour } from "@shared/colours-format"
+import type { PartMaterial } from "@shared/materials"
 import type { Arrangement } from "./arrange"
 import { elapsed } from "./time"
 
 /** The colours parts have been given, by part: those that have been given one. */
-export type Colours = Record<string, PaletteName>
+export type Colours = Record<string, PartColour>
+
+/** The materials parts have been given, by part: those that have been given one. */
+export type Materials = Record<string, PartMaterial>
 
 /** What some parts have for a colour, by part: null where one has the model's own. */
-type Had = Record<string, PaletteName | null>
+type Had = Record<string, PartColour | null>
+
+/** What some parts have for a material, by part: null where one has none. */
+type HadMaterial = Record<string, PartMaterial | null>
 
 /** Parts given a colour, or their own back: what they had, what they have, and when. */
 export type Recolour = {
@@ -51,8 +58,17 @@ export type Rehidden = {
   shown: string[]
 }
 
+/** Parts given a material, or none: what they had, what they have, and when. */
+export type Rematerial = {
+  kind: "material"
+  at: number
+  undoneAt: number | null
+  before: HadMaterial
+  after: HadMaterial
+}
+
 /** One thing done by hand. */
-export type Change = Recolour | Rearranged | Rehidden
+export type Change = Recolour | Rematerial | Rearranged | Rehidden
 
 /** What has been done, the latest last; and what of it is taken back, the latest last. */
 export type History = { done: Change[]; undone: Change[] }
@@ -70,7 +86,7 @@ const KEPT = 200
 export function recolour(
   colours: Colours,
   partIds: string[],
-  colour: PaletteName | null,
+  colour: PartColour | null,
   at: number
 ): Recolour | null {
   const changed = partIds.filter((id) => (colours[id] ?? null) !== colour)
@@ -91,6 +107,74 @@ export function coloured(colours: Colours, had: Had): Colours {
   )
   for (const [id, colour] of Object.entries(had)) if (colour) next[id] = colour
   return next
+}
+
+const same = (a: PartMaterial | null, b: PartMaterial | null) =>
+  a === b ||
+  (a !== null &&
+    b !== null &&
+    a.material === b.material &&
+    a.roughness === b.roughness &&
+    a.scale === b.scale &&
+    a.rotation === b.rotation)
+
+/**
+ * What giving some parts a material, as it is set (or, with none, taking theirs away)
+ * changes: nothing, and so null, where each of them has it already.
+ */
+export function rematerial(
+  materials: Materials,
+  partIds: string[],
+  material: PartMaterial | null,
+  at: number
+): Rematerial | null {
+  const changed = partIds.filter((id) => !same(materials[id] ?? null, material))
+  if (changed.length === 0) return null
+  return {
+    kind: "material",
+    at,
+    undoneAt: null,
+    before: Object.fromEntries(
+      changed.map((id) => [id, materials[id] ?? null])
+    ),
+    after: Object.fromEntries(changed.map((id) => [id, material])),
+  }
+}
+
+/** The materials with some parts put to what they had on one side of a change. */
+export function materialled(materials: Materials, had: HadMaterial): Materials {
+  const next = Object.fromEntries(
+    Object.entries(materials).filter(([id]) => !(id in had))
+  )
+  for (const [id, material] of Object.entries(had))
+    if (material) next[id] = material
+  return next
+}
+
+/**
+ * Whether a change is one more of the same as the one before it, made while something
+ * was being dragged, a slider or a colour across the picker: of the same parts, soon
+ * after, and for a material to the same material. Such a change is taken into the one
+ * before, so that Cmd+Z takes back the whole drag.
+ */
+export function goesOn<Next extends Recolour | Rematerial>(
+  last: Change | undefined,
+  next: Next
+): last is Next {
+  if (!last || last.kind !== next.kind || last.undoneAt !== null) return false
+  if (next.at - last.at > 1500) return false
+  const was = last as Next
+  const ids = Object.keys(next.after)
+  return (
+    ids.length === Object.keys(was.after).length &&
+    ids.every(
+      (id) =>
+        id in was.after &&
+        (next.kind === "colour" ||
+          (was.after[id] as PartMaterial | null)?.material ===
+            (next.after[id] as PartMaterial | null)?.material)
+    )
+  )
 }
 
 /** The parts arranged another way: how they were, how they are, and what was done. */

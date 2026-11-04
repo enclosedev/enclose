@@ -132,7 +132,7 @@ describe("readTheme", () => {
         viewer: "blue",
         sidebar: "#ffffff",
         chat: "#12345",
-        parts: { teal: "#00ffff", red: 3, pink: "#ff00aa" },
+        parts: { mauve: "#00ffff", red: 3, pink: "#ff00aa" },
       },
       dark: "#000000",
     })
