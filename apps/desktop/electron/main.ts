@@ -1528,7 +1528,14 @@ function wire() {
   })
   ipcMain.handle(
     CHANNEL.boardsSave,
-    async (_, id: string, boardId: string, what: string, name: string) => {
+    async (
+      _,
+      id: string,
+      boardId: string,
+      what: string,
+      name: string,
+      from: unknown
+    ) => {
       const project = projects.get(String(id))
       const board =
         project && boardsIn(project.path).find((one) => one.id === boardId)
@@ -1546,7 +1553,10 @@ function wire() {
       if (picked.canceled || !picked.filePath) return false
       await fs.promises.copyFile(source, picked.filePath)
       saving.savedIn(path.dirname(picked.filePath))
-      analytics?.record("board saved", { as: what })
+      analytics?.record("board saved", {
+        as: what,
+        from: from === "card" ? "card" : "menu",
+      })
       return true
     }
   )

@@ -174,7 +174,7 @@ function BoardCard({
           onClick={() =>
             doing === "refresh"
               ? rebuildBoard(projectId, board.id)
-              : saveBoard(projectId, board, "gerbers")
+              : saveBoard(projectId, board, "gerbers", "card")
           }
           // its arrow as far in from the right as the name is from the left, and halfway
           // up the name's two lines

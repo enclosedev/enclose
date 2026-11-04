@@ -844,6 +844,7 @@ export const FEATURES = [
   "hand",
   "render",
   "material",
+  "silent",
 ] as const
 export type Feature = (typeof FEATURES)[number]
 
@@ -1068,7 +1069,9 @@ export type CadApi = {
       boardId: string,
       what: "gerbers" | "step",
       /** what the copy is called, to begin with */
-      name: string
+      name: string,
+      /** where it was asked for: the board's card, or PCB mode's download menu */
+      from: "card" | "menu"
     ): Promise<boolean>
     /**
      * A part as JLCPCB lists it now, by its number ("C25804"): null where it lists none

@@ -37,7 +37,8 @@ export default function Privacy() {
         </li>
         <li>
           that a model was looked over, a new version of a project begun, a change turned
-          back, or a model or a circuit board saved;
+          back, or a model or a circuit board saved, and whether a board was saved from
+          its card or from PCB mode;
         </li>
         <li>
           that a circuit board made in detail in the background was done, stopped or failed:
@@ -54,8 +55,8 @@ export default function Privacy() {
           alone or hidden, the blueprint, the assembly guides, a reference scene, a project’s
           own tools, a circuit board, the inspiration board) and how a circuit board was
           looked at (its technical view, its schematic, a layer of its copper, on a hand),
-          and that the model was drawn in Render or a part given a material, once for a
-          run of the app;
+          and that the model was drawn in Render, a part given a material, or the sounds
+          turned off, once for a run of the app;
         </li>
         <li>
           that an agent was switched on or off or updated, that a newer version was looked

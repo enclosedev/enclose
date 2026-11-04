@@ -247,7 +247,8 @@ const fileNamed = (name: string) =>
 export function saveBoard(
   projectId: string,
   board: BoardSummary,
-  what: "gerbers" | "step"
+  what: "gerbers" | "step",
+  from: "card" | "menu"
 ): void {
   const called = fileNamed(board.name)
   void window.cad.boards
@@ -255,7 +256,8 @@ export function saveBoard(
       projectId,
       board.id,
       what,
-      savedAs(what === "gerbers" ? `${called}-gerbers.zip` : `${called}.step`)
+      savedAs(what === "gerbers" ? `${called}-gerbers.zip` : `${called}.step`),
+      from
     )
     .then((saved) => {
       if (saved && what === "gerbers")

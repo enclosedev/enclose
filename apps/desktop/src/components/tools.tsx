@@ -413,7 +413,7 @@ function BoardDownloads({
           <DropdownMenuGroup>
             {board.gerbers && (
               <DropdownMenuItem
-                onClick={() => saveBoard(projectId, board, "gerbers")}
+                onClick={() => saveBoard(projectId, board, "gerbers", "menu")}
               >
                 Manufacturing files
                 <Size kind="GERBERS" />
@@ -421,7 +421,7 @@ function BoardDownloads({
             )}
             {board.step && (
               <DropdownMenuItem
-                onClick={() => saveBoard(projectId, board, "step")}
+                onClick={() => saveBoard(projectId, board, "step", "menu")}
               >
                 3D board
                 <Size kind="STEP" />

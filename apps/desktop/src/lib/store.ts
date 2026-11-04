@@ -593,7 +593,7 @@ function enteredNow(view: View, before: Entered[]): Entered[] {
 }
 
 /** How a board is looked at in PCB mode, where that is counted (FEATURES). */
-type BoardWay = Exclude<Feature, Entered | "render" | "material">
+type BoardWay = Exclude<Feature, Entered | "render" | "material" | "silent">
 
 /**
  * What of the view is counted as put to use (FEATURES): what it was put into, and in PCB
@@ -2789,6 +2789,11 @@ export function connect() {
   connectInspiration(() => useStore.getState().model.codex ?? null)
   window.addEventListener("pagehide", cutsSettled)
   adoptColours()
+  // sounds off, as the app starts or once they are turned off: counted, once a run
+  if (!usePreferences.getState().sounds) cad.analytics.used("silent")
+  usePreferences.subscribe((now, was) => {
+    if (was.sounds && !now.sounds) cad.analytics.used("silent")
+  })
   // what is waiting to be sent is kept as it changes, so that the window can be loaded
   // again without losing it
   useStore.subscribe((state, was) => {
