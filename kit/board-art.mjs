@@ -104,7 +104,6 @@ for (const bin of (process.env.PATH ?? "").split(p.delimiter)) {
   const found = execFileSync("npx", ["--yes", "-p", version, "node", "-e", find], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
-    env: { ...process.env, npm_config_allow_git: "all" },
     shell: process.platform === "win32",
   }).trim()
   if (!found) throw new Error(`${version} could not be found, or fetched.`)

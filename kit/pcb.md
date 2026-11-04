@@ -138,7 +138,7 @@ export default () => (
 - What is printed on the board, its names and dots, is in Lettering, below.
 - A footprint is named as tscircuit names them (`0402`, `0603`, `soic8`, `sot23`,
   `qfn32`, `pinrow4`, `pushbutton`), or comes with a real part. To find one with its
-  stock: `npm_config_allow_git=all npx --yes -p tscircuit tsci search --jlcpcb "ESP32-C3"`.
+  stock: `npx --yes -p tscircuit tsci search --jlcpcb "ESP32-C3"`.
 - The rest of what tscircuit has, and how each element is used, is in its documentation
   at https://docs.tscircuit.com. Where you have a skill for tscircuit, use it. What each
   element takes, as the tscircuit the app builds with has it, is in its own files, which

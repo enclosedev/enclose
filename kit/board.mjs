@@ -54,21 +54,16 @@ import { checkBoard, mendOrder, passedAll, said } from "./board-check.mjs"
 import { letteringOf } from "./board-lettering.mjs"
 
 /** The tscircuit it builds with: the one the app is known to work with. */
-const TSCIRCUIT = "tscircuit@0.0.2892"
+const TSCIRCUIT = "tscircuit@0.0.3068"
 
 /**
- * What tscircuit is run with. npm 12 fetches nothing from git unless it is let:
- * tscircuit has a part that is (@tscircuit/pcb-trace-linter, which it has from GitHub),
- * and so it is let, as an environment variable, which an older npm passes over. Its
+ * What tscircuit is run with. All of it comes from npm's registry, none from git, so
+ * npm 12, which fetches nothing from git unless it is let, needs letting in nothing. Its
  * install scripts are left to run: sharp, which a build reaches, gets its binary so.
  * And tscircuit counts how its command line is used unless it is told not to: it is
  * told, as the privacy policy says.
  */
-const TSCI_ENV = {
-  ...process.env,
-  npm_config_allow_git: "all",
-  TSCI_TELEMETRY_DISABLED: "1",
-}
+const TSCI_ENV = { ...process.env, TSCI_TELEMETRY_DISABLED: "1" }
 
 /** What a board's file is called: its name, as the app knows the board by it, and this. */
 const ENDING = ".circuit.tsx"
