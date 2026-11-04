@@ -3848,7 +3848,14 @@ export class Threads {
             append: turn.guide,
           },
           mcpServers: servers,
-          allowedTools: ours,
+          // and the folders of the other projects of the group, to be read: Read's leave
+          // is Grep's and Glob's too. Only that: they are not made the agent's working
+          // folders as well, where a mode that lets edits through unasked would let the
+          // commands that move or remove files through with them
+          allowedTools: [
+            ...ours,
+            ...(turn.siblings ?? []).map((dir) => `Read(/${dir}/**)`),
+          ],
           // left unsaid, Claude Code runs the model it is set to, as hard as it is set to
           ...(manner.model ? { model: manner.model } : {}),
           ...(manner.effort ? { effort: manner.effort } : {}),
@@ -3867,12 +3874,8 @@ export class Threads {
                 }
               : { permissionMode: ASKING[manner.access] }),
           canUseTool,
-          // the folders of the other projects of the group are there to be read, and
-          // nothing in them is written from here
-          ...(turn.siblings?.length
-            ? { additionalDirectories: turn.siblings }
-            : {}),
-          // while a board is made in the background, nothing here writes a file
+          // while a board is made in the background, nothing here writes a file; nor,
+          // ever, in the other projects of the group, even with leave to do anything
           ...(turn.readOnly || turn.siblings?.length
             ? {
                 disallowedTools: [
