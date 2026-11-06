@@ -131,8 +131,9 @@ function Earlier({ first, children }: { first?: boolean; children: ReactNode }) 
 
 // ── A version for each conversation ───────────────────────────────────────
 // The arm's project, with its two earlier conversations spread out under it, each
-// on a branch of its own. Turned to, each has the model as it left it: white all
-// over, then standing raised, then back to where the project is now.
+// on a branch of its own: turned to, one after another, and then back to where the
+// project is now. Only the list, bigger, in the middle of the card: what is turned to
+// is the point, and not the model.
 
 type Version = 'main' | 'white' | 'raised'
 type VersionsState = { open: Version }
@@ -161,9 +162,6 @@ function Versions() {
     >
       {(s) => (
         <>
-          <Model src="arm" className="fx-versions__arm" shown={s.open === 'main'} />
-          <Model src="arm-white" className="fx-versions__arm" shown={s.open === 'white'} />
-          <Model src="arm-raised" className="fx-versions__raised" shown={s.open === 'raised'} />
           <div className="fx-versions__sidebar">
             <GroupHeading name="Robot arm" pinned />
             <ProjectCard
@@ -195,9 +193,6 @@ function Versions() {
               />
             </Earlier>
           </div>
-          <Round on style={{ position: 'absolute', top: CORNER, right: CORNER }}>
-            <MessageSquareIcon />
-          </Round>
         </>
       )}
     </Scene>

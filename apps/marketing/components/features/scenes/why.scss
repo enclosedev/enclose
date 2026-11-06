@@ -101,42 +101,21 @@
 
 // ── A version for each conversation ────────────────────────────────────────
 .fx-versions {
+  // the list by itself, in the middle, bigger than the app has it
   &__sidebar {
     position: absolute;
-    top: 18px;
-    left: 18px;
+    top: 50%;
+    left: 50%;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 6px;
-  }
-
-  &__arm {
-    left: 262px;
-    top: 220px;
-    width: 330px;
-  }
-
-  // (reaching up and out, it is wider than it is tall)
-  &__raised {
-    left: 252px;
-    top: 266px;
-    width: 340px;
+    transform: translate(-50%, -50%) scale(1.55);
   }
 }
 
 [data-layout='compact'] {
-  .fx-versions__arm {
-    left: 150px;
-    top: 232px;
-    width: 230px;
-  }
-
-  .fx-versions__raised {
-    left: 96px;
-    top: 260px;
-    width: 250px;
-  }
+  .fx-versions__sidebar { transform: translate(-50%, -50%) scale(0.98); }
 }
 
 // ── Projects that go together ──────────────────────────────────────────────

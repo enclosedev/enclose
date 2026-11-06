@@ -39,8 +39,11 @@ type SceneProps<S> = Omit<StageProps<S>, 'width' | 'height' | 'theme' | 'compact
   compact?: boolean
 }
 
-/** A card's stage: the app's dark view, at the cards' size, with the app's pointer. */
-export function Scene<S extends object>({ className, compact = true, ...props }: SceneProps<S>) {
+/**
+ * A card's stage: the app's dark view, at the cards' size, with its pointer a glass
+ * circle, translucent white, as a touch screen's is (fx.scss).
+ */
+export function Scene<S extends object>({ className, compact = true, cursor, ...props }: SceneProps<S>) {
   return (
     <Stage<S>
       {...WIDE}
@@ -49,6 +52,7 @@ export function Scene<S extends object>({ className, compact = true, ...props }:
       tokens={TOKENS}
       fill
       className={`fx${className ? ` ${className}` : ''}`}
+      cursor={cursor && { style: 'circle', ...cursor }}
       {...props}
     />
   )
