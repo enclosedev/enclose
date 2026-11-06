@@ -273,33 +273,42 @@ $popover: #1f1f1f;
 
 // ── A note on every part ───────────────────────────────────────────────────
 .cad-notes {
-  &__thread { width: 236px; }
-
-  &__composer { padding: 0 10px 10px; }
-
-  .fx-composer__chips { flex-direction: column; align-items: flex-start; }
-
-  .cad-sent {
+  // the chips of what is kept, at the foot of the card, stacking up
+  &__kept {
+    position: absolute;
+    bottom: 18px;
+    left: 18px;
+    z-index: 3;
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
-  }
+    align-items: flex-start;
+    gap: 6px;
 
-  .cad-sent .cad-notechip svg { display: none; }
-  .cad-sent .cad-notechip { padding-right: 8px; }
+    .cad-notechip {
+      height: 30px;
+      max-width: 320px;
+      padding: 0 8px 0 12px;
+      background: rgb(38 38 38 / 0.9);
+      box-shadow:
+        0 0 0 1px rgb(250 250 250 / 0.08),
+        0 8px 16px -6px rgb(0 0 0 / 0.5);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      @include type.style('ui-text');
+      animation: cad-kept 0.45s cubic-bezier(0.32, 0.72, 0, 1);
+
+      svg {
+        width: 14px;
+        height: 14px;
+      }
+    }
+  }
 }
 
-[data-layout='compact'] {
-  // no room for the conversation: its message box floats at the foot of the view,
-  // and what is sent goes up over it
-  .cad-notes__thread {
-    inset: auto 0 0 0;
-    width: auto;
-    border-left: 0;
-    background: linear-gradient(to bottom, rgb(23 23 23 / 0), var(--app-view) 36px);
-
-    .fx-messages { padding: 0 14px 10px; }
+@keyframes cad-kept {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
   }
 }
 

@@ -1,9 +1,8 @@
 import { DownloadIcon, MessageSquareIcon, XIcon, ArrowUpIcon, BoxesIcon, SearchIcon } from 'lucide-react'
 import type { ComponentType, CSSProperties, ReactNode } from 'react'
-import { Collapse } from '../../stageshow/motion/Collapse'
 import type { Act } from '../../stageshow/act'
 import type { Layout } from '../../stageshow/looks'
-import { Composer, Model, Round, Scene } from '../fx'
+import { Model, Round, Scene } from '../fx'
 import './cad.scss'
 
 // Agentic CAD: the model, and what is done to it by pointing. A part picked out and
@@ -55,6 +54,7 @@ export function PartButtons({
   colour,
   metal,
   ballOn,
+  say = 'say',
 }: {
   name: string
   at: { x: number; y: number }
@@ -62,6 +62,8 @@ export function PartButtons({
   colour: string
   metal?: boolean
   ballOn?: boolean
+  /** what the pointer aims at for its say button (one of its own, where there are several) */
+  say?: string
 }) {
   return (
     <div className="cad-buttons" data-on={shown || undefined} style={{ left: at.x, top: at.y }}>
@@ -72,7 +74,7 @@ export function PartButtons({
       <span className="cad-buttons__round">
         <DownloadIcon />
       </span>
-      <span className="cad-buttons__round" data-target="say" data-cursor="pointer">
+      <span className="cad-buttons__round" data-target={say} data-cursor="pointer">
         <MessageSquareIcon />
       </span>
     </div>
@@ -126,15 +128,6 @@ export function NoteMark({ at, shown }: { at: { x: number; y: number }; shown: b
   )
 }
 
-/** Something said earlier in the conversation. */
-function Bubbled({ children }: { children: ReactNode }) {
-  return (
-    <div className="fx-turn">
-      <div className="fx-bubble">{children}</div>
-    </div>
-  )
-}
-
 /** A note on the message box: which part, and what was said of it. */
 function NoteChip({ part, said }: { part: string; said: string }) {
   return (
@@ -147,48 +140,61 @@ function NoteChip({ part, said }: { part: string; said: string }) {
 }
 
 // ── A note on every part ───────────────────────────────────────────────────
-// The wrist is clicked, and what should change is said of it, and kept: a mark on the
-// wrist and a chip on the message box. Then the base. The two are sent together, and
-// the agent is at work on both.
+// The counter stool, big, its seat and backrest in the view and its legs going out of
+// it at the foot. The backrest is clicked, and what should change is said of it, and
+// kept: a mark on it, and a chip at the foot of the card, as the message box would
+// have it. Then the seat, its chip stacked on the first.
 
+/** Where on the stool each is clicked, in the card's design px, wide and on a phone. */
 const NOTES = {
-  wrist: { name: 'Wrist', said: 'Make it 5 mm shorter', x: 690, y: 470 },
-  base: { name: 'Base', said: 'Leave room for a USB-C port', x: 1010, y: 850 },
+  backrest: {
+    name: 'Backrest',
+    said: 'Make it 2 cm taller',
+    at: { wide: { x: 405, y: 140 }, compact: { x: 243, y: 75 } },
+  },
+  seat: {
+    name: 'Seat',
+    said: 'Thicker cushion, softer edge',
+    at: { wide: { x: 262, y: 386 }, compact: { x: 157, y: 223 } },
+  },
 } as const
 type Noted = keyof typeof NOTES
 
 type NotesState = {
   picked: Noted | null
   writing: Noted | null
-  wrist: string
-  base: string
+  backrest: string
+  seat: string
   kept: Noted[]
-  sent: boolean
   veil: boolean
 }
 
 const notesStart: NotesState = {
   picked: null,
   writing: null,
-  wrist: '',
-  base: '',
+  backrest: '',
+  seat: '',
   kept: [],
-  sent: false,
   veil: false,
 }
 
+/**
+ * The stool's still (public/renders/example-stool, 2400 px a side, the stool from 358
+ * down and about 1189 across), big: its top near the top of the card, its middle in
+ * the middle, and its legs going on past the foot.
+ */
 const NOTES_STILL: Record<Layout, Placed> = {
-  wide: { left: 6, top: 174, width: 350 },
-  compact: { left: 2, top: 30, width: 350 },
+  wide: { left: -270, top: -82, width: 1150 },
+  compact: { left: -162, top: -58, width: 690 },
 }
 
 async function notesScript(a: Act<NotesState>) {
-  for (const part of ['wrist', 'base'] as Noted[]) {
-    await a.wait(part === 'wrist' ? 700 : 500)
+  for (const part of ['backrest', 'seat'] as Noted[]) {
+    await a.wait(part === 'backrest' ? 700 : 600)
     await a.click(`hit-${part}`)
     await a.set({ picked: part })
     await a.wait(450)
-    await a.click('say')
+    await a.click(`say-${part}`)
     await a.set({ writing: part })
     await a.wait(300)
     await a.type(part, NOTES[part].said, { interval: 42 })
@@ -196,10 +202,7 @@ async function notesScript(a: Act<NotesState>) {
     await a.key('enter')
     await a.set((s) => ({ writing: null, picked: null, kept: [...s.kept, part] }))
   }
-  await a.wait(1100)
-  await a.click('send')
-  await a.set({ sent: true })
-  await a.wait(3200)
+  await a.wait(2600)
   await a.set({ veil: true })
   await a.wait(450)
   await a.snap({ ...notesStart, veil: true })
@@ -211,32 +214,29 @@ function Notes() {
     <Scene<NotesState>
       className="cad-notes"
       initial={notesStart}
-      poster={{ ...notesStart, wrist: NOTES.wrist.said, base: NOTES.base.said, kept: ['wrist', 'base'] }}
+      poster={{ ...notesStart, backrest: NOTES.backrest.said, seat: NOTES.seat.said, kept: ['backrest', 'seat'] }}
       script={notesScript}
       keys={{ wide: 'top', compact: 'top' }}
-      cursor={{ at: { wide: { x: 300, y: 70 }, compact: { x: 300, y: 60 } } }}
+      cursor={{ at: { wide: { x: 470, y: 470 }, compact: { x: 290, y: 300 } } }}
     >
       {(s, _rect, layout) => {
-        const still = NOTES_STILL[layout]
-        const place = (part: Noted) => on(still, NOTES[part].x, NOTES[part].y)
-        // the box is kept inside the view, clear of the conversation
+        const place = (part: Noted) => NOTES[part].at[layout]
+        // the box is kept inside the card
+        const wide = layout === 'wide' ? 600 : 360
         const writingAt = (part: Noted) => {
           const at = place(part)
-          const right = layout === 'wide' ? 350 : 348
-          return { x: Math.min(Math.max(at.x, 132), right - 120), y: at.y }
+          // (and clear of the chips at the foot)
+          return { x: Math.min(Math.max(at.x, 128), wide - 128), y: Math.min(at.y, wide - 210) }
         }
-        const chips = s.kept.map((part) => (
-          <NoteChip key={part} part={NOTES[part].name} said={NOTES[part].said} />
-        ))
         return (
           <>
-            <Model src="arm" className="cad-notes__arm" style={box(still)} />
+            <Model src="example-stool" className="cad-notes__stool" style={box(NOTES_STILL[layout])} />
             {(Object.keys(NOTES) as Noted[]).map((part) => {
               const at = place(part)
               return (
                 <span key={part}>
                   <Hit name={`hit-${part}`} x={at.x} y={at.y} />
-                  <NoteMark at={at} shown={s.kept.includes(part) && !s.sent} />
+                  <NoteMark at={at} shown={s.kept.includes(part)} />
                 </span>
               )
             })}
@@ -246,7 +246,8 @@ function Notes() {
                 name={NOTES[part].name}
                 at={place(part)}
                 shown={s.picked === part && s.writing !== part}
-                colour={part === 'wrist' ? '#7bfafd' : '#7fa2fe'}
+                colour="#fafafa"
+                say={`say-${part}`}
               />
             ))}
             {(Object.keys(NOTES) as Noted[]).map((part) => (
@@ -258,32 +259,12 @@ function Notes() {
                 at={writingAt(part)}
               />
             ))}
-            <aside className="fx-thread cad-notes__thread">
-              {layout === 'wide' && <header>Robot arm</header>}
-              <div className="fx-messages">
-                {layout === 'wide' && (
-                  <>
-                    <Bubbled>Let the jaw open wider, as far as it can go.</Bubbled>
-                    <div className="fx-quiet">Worked for 48s</div>
-                    <p className="fx-reply">Opened the jaw to 105°, and moved its horn to match.</p>
-                  </>
-                )}
-                <Collapse open={s.sent} reveal="drop" from="below">
-                  <div className="cad-sent">
-                    <NoteChip part={NOTES.wrist.name} said={NOTES.wrist.said} />
-                    <NoteChip part={NOTES.base.name} said={NOTES.base.said} />
-                  </div>
-                </Collapse>
-                <Collapse open={s.sent}>
-                  <div className="fx-quiet fx-quiet--working">
-                    <span>Working</span>
-                  </div>
-                </Collapse>
-              </div>
-              <div className="cad-notes__composer">
-                <Composer chips={s.sent || !chips.length ? undefined : chips} ready={chips.length > 0 && !s.sent} />
-              </div>
-            </aside>
+            {/* what is kept, as chips at the foot of the card, the newest under the rest */}
+            <div className="cad-notes__kept">
+              {s.kept.map((part) => (
+                <NoteChip key={part} part={NOTES[part].name} said={NOTES[part].said} />
+              ))}
+            </div>
             <Veil on={s.veil} />
           </>
         )
