@@ -5,7 +5,7 @@
 // there is more of it. Each card's picture is a crop of the app's dark view.
 
 .showcase {
-  padding: 120px 0 0;
+  padding: 240px 0 0;
 
   // in the middle, over the row of cards
   &__head {
@@ -124,7 +124,7 @@
   }
 
   @media (max-width: 767px) {
-    padding-top: 88px;
+    padding-top: 176px;
 
     &__track {
       --card: calc(100vw - 2 * var(--edge) - 28px);

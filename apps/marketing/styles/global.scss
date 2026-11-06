@@ -12,11 +12,24 @@
 
 html, body { margin: 0; padding: 0; }
 
+// Inter, the whole of it as its maker publishes it (public/fonts, under the SIL Open
+// Font License: Inter-LICENSE.txt): the cut of it on npm leaves its stylistic sets out,
+// and this site sets its quotes and commas round (ss03, below).
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/InterVariable.woff2') format('woff2');
+}
+
 // Inter Display is Inter's variable font held at the top of its optical-size
 // axis. Left alone the browser moves that axis with the font size, and text
 // under 32px would be set in the text cut.
 html {
   font-variation-settings: 'opsz' 32;
+  // its quotes, apostrophes and commas round, not wedges
+  font-feature-settings: 'ss03';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

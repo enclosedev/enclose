@@ -27,8 +27,7 @@ pages/home/        the page: what it says first, over the app's window, then wha
                    window put together round it as the page is scrolled
   Tinker.tsx       someone at work on that arm, picking parts out, colouring them
                    and leaving notes on them
-  cards.ts         the rows of cards coming in as they are scrolled to
-  motion.ts        how the model and the cards come in (tokens, editable in ✦ Tweak)
+  motion.ts        how the model comes in (tokens, editable in ✦ Tweak)
 pages/about/       what Enclose is and who makes it
 pages/contact/     where to ask
 pages/terms/       the terms

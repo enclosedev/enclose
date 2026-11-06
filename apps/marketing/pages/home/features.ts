@@ -55,7 +55,7 @@ export const GROUPS: Group[] = [
   {
     id: 'cad',
     heading: 'Point at the part. Say what should change.',
-    lede: "The agent writes the model's code.",
+    lede: 'The agent writes the model’s code.',
     features: [
       {
         scene: 'notes',
@@ -120,7 +120,7 @@ export const GROUPS: Group[] = [
   {
     id: 'more',
     heading: 'Made to be made yours.',
-    lede: "Collect ideas before there's a model, and let the agent build the tools you need.",
+    lede: 'Collect ideas before there’s a model, and let the agent build the tools you need.',
     features: [
       {
         scene: 'inspiration',

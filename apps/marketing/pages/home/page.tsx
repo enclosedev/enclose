@@ -10,7 +10,6 @@ import { Download } from '../../components/Download'
 import { Showcase } from '../../components/features/Showcase'
 import { Footer } from '../../shell/Footer'
 import { GROUPS } from './features'
-import { revealCards } from './cards'
 import { runIntro } from './intro'
 import { Tinker } from './Tinker'
 
@@ -31,9 +30,7 @@ export default function Home({ headline, description }: { headline: string; desc
       resize: (width: number, height: number) => view.current?.resize(width, height),
     })
     intro.current = running
-    const unreveal = revealCards({ gsap, root })
     return () => {
-      unreveal()
       running.stop()
       intro.current = null
     }
@@ -128,8 +125,10 @@ export default function Home({ headline, description }: { headline: string; desc
       ))}
 
       <section className="home__end">
-        <h2 className="home__last">Make something.</h2>
-        <p className="home__lede">Enclose is free and open source, for macOS and Linux.</p>
+        {/* one paragraph, as each group's heading is (components/features/showcase.scss) */}
+        <h2 className="home__last showcase__heading">
+          Make something. <span>Enclose is free and open source, for macOS and Linux.</span>
+        </h2>
         <Download />
       </section>
       <Footer />
