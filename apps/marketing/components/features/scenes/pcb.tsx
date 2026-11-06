@@ -4,7 +4,7 @@ import {
   Rotate3dIcon,
   WorkflowIcon,
 } from 'lucide-react'
-import type { ComponentType, CSSProperties, ReactNode } from 'react'
+import { useEffect, useRef, type ComponentType, type CSSProperties, type ReactNode } from 'react'
 import type { Act } from '../../stageshow/act'
 import type { Layout } from '../../stageshow/looks'
 import { Round, Scene } from '../fx'
@@ -144,7 +144,8 @@ function Technical() {
 // its name and what it is, and a button to say something of it. Let go, it is turned on
 // round to its top again.
 
-type ThreeState = { frame: number; picked: 'SW1' | 'U1' | null; held: boolean }
+/** `turn`: how far round it is, a whole turn being 1 (a half, its bottom up) */
+type ThreeState = { turn: number; picked: 'SW1' | 'U1' | null; held: boolean }
 
 /** What is said of each part that is picked. */
 const CLOQUE_PARTS = { SW1: 'Rotary encoder', U1: 'ATtiny1614' } as const
@@ -153,17 +154,17 @@ const CLOQUE_AT: Record<Layout, { x: number; y: number; wide: number }> = {
   wide: { x: 50, y: 40, wide: 500 },
   compact: { x: 30, y: 24, wide: 300 },
 }
-/** How many frames a px of a drag turns it. */
-const PER_PX = 24 / 300
+/** How far round a px of a drag turns it: a half turn, to a drag of 300 px. */
+const PER_PX = 0.5 / 300
 
 async function threeScript(a: Act<ThreeState>) {
   await a.wait(800)
   // a drag across turns it over, its bottom up
   await a.move('ground', { duration: 800 })
-  await a.drag('ground-to', (at, from) => a.put({ frame: Math.min(24, Math.max(0, (at.x - from.x) * PER_PX)), held: true }), {
+  await a.drag('ground-to', (at, from) => a.put({ turn: Math.min(0.5, Math.max(0, (at.x - from.x) * PER_PX)), held: true }), {
     duration: 1600,
   })
-  await a.set({ frame: 24, held: false })
+  await a.set({ turn: 0.5, held: false })
   await a.wait(500)
   // and a click on the encoder picks it out
   await a.click('part-SW1')
@@ -174,10 +175,10 @@ async function threeScript(a: Act<ThreeState>) {
   await a.wait(500)
   // turned on round, to its top again
   await a.move('ground', { duration: 700 })
-  await a.drag('ground-to', (at, from) => a.put({ frame: Math.min(48, 24 + Math.max(0, (at.x - from.x) * PER_PX)), held: true }), {
+  await a.drag('ground-to', (at, from) => a.put({ turn: Math.min(1, 0.5 + Math.max(0, (at.x - from.x) * PER_PX)), held: true }), {
     duration: 1600,
   })
-  await a.snap({ frame: 0, held: false })
+  await a.snap({ turn: 0, held: false })
   await a.wait(500)
   await a.click('part-U1')
   await a.set({ picked: 'U1' })
@@ -187,18 +188,41 @@ async function threeScript(a: Act<ThreeState>) {
   await a.wait(600)
 }
 
+/**
+ * The board as far round as `turn` says: the film of it turning (cloque.mp4) gone to that
+ * frame, as a drag goes, each frame there to be gone to at once. Its first frame, or half
+ * way round, is under it until the film is there.
+ */
+function Turning({ turn }: { turn: number }) {
+  const film = useRef<HTMLVideoElement>(null)
+  useEffect(() => {
+    const at = film.current
+    if (!at) return
+    const frame = Math.round(turn * CLOQUE.frames) % CLOQUE.frames
+    // (the middle of the frame, for no rounding to land on the one before it)
+    const time = (frame + 0.5) / CLOQUE.rate
+    if (Math.abs(at.currentTime - time) > 0.001) at.currentTime = time
+  }, [turn])
+  return (
+    <>
+      <img src={turn >= 0.25 && turn < 0.75 ? '/renders/cloque-under.webp' : '/renders/cloque.webp'} alt="" draggable={false} />
+      <video ref={film} src="/renders/cloque.mp4" muted playsInline preload="auto" aria-hidden />
+    </>
+  )
+}
+
 function ThreeD() {
   return (
     <Scene<ThreeState>
       className="pcb-3d"
-      initial={{ frame: 0, picked: null, held: false }}
-      poster={{ frame: 24, picked: 'SW1', held: false }}
+      initial={{ turn: 0, picked: null, held: false }}
+      poster={{ turn: 0.5, picked: 'SW1', held: false }}
       script={threeScript}
       cursor={{ at: { wide: { x: 300, y: 480 }, compact: { x: 180, y: 300 } } }}
     >
       {(s, _rect, layout) => {
         const place = CLOQUE_AT[layout]
-        const shown = Math.round(s.frame) % CLOQUE.frames
+        const shown = Math.round(s.turn * CLOQUE.frames) % CLOQUE.frames
         const at = (part: 'SW1' | 'U1') => {
           const [x, y] = CLOQUE.marks[part][shown]
           return { x: place.x + x * place.wide, y: place.y + y * place.wide }
@@ -210,15 +234,7 @@ function ThreeD() {
               data-held={s.held || undefined}
               style={{ left: place.x, top: place.y, width: place.wide, height: place.wide }}
             >
-              {Array.from({ length: CLOQUE.frames }, (_, index) => (
-                <img
-                  key={index}
-                  src={`/renders/cloque/${String(index).padStart(2, '0')}.webp`}
-                  alt=""
-                  draggable={false}
-                  data-shown={index === shown || undefined}
-                />
-              ))}
+              <Turning turn={s.turn} />
             </div>
             {(['SW1', 'U1'] as const).map((part) => (
               <span

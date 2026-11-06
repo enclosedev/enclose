@@ -152,15 +152,15 @@ $finished: #22c55e;
   &__board {
     position: absolute;
 
-    img {
+    // the film over a still of it, for until it is there
+    img,
+    video {
       position: absolute;
       inset: 0;
       display: block;
       width: 100%;
       height: 100%;
-      visibility: hidden;
-
-      &[data-shown] { visibility: visible; }
+      object-fit: cover;
     }
   }
 

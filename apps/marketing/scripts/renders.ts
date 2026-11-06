@@ -67,7 +67,11 @@ const CLOCKWORK_MOST = 1.6
 const CLOQUE = process.env.CLOQUE_GLB
 /** (and its circuit beside it, for where its keep-outs are) */
 const CLOQUE_CIRCUIT = CLOQUE?.replace(/\.glb$/, '.circuit.json')
-const CLOQUE_FRAMES = 48
+const CLOQUE_FRAMES = 144
+/** (as a film the card goes through by its time, at so many frames a second, a key frame every so many, for it to be gone to anywhere at once) */
+const CLOQUE_RATE = 30
+const CLOQUE_KEYS = 8
+const CLOQUE_GROUND = '151515'
 const CLOQUE_SIZE = 900
 const CLOQUE_MARKED = ['U1', 'SW1']
 /** And the colours card's simple solids, each this many px a side. */
@@ -405,16 +409,30 @@ export const HANDS = ${round(hands)} as const
       theme,
       circuit,
     )
-    const out = path.join(OUT, 'cloque')
-    await mkdir(out, { recursive: true })
-    for (const [index, url] of (drawn.pictures as string[]).entries())
-      await writeFile(path.join(out, `${String(index).padStart(2, '0')}.webp`), Buffer.from(url.split(',')[1], 'base64'))
+    const pictures = drawn.pictures as string[]
+    const frames = await mkdtemp(path.join(tmpdir(), 'cloque-'))
+    for (const [index, url] of pictures.entries())
+      await writeFile(path.join(frames, `${String(index).padStart(3, '0')}.webp`), Buffer.from(url.split(',')[1], 'base64'))
+    // its first frame, and half way round, as stills: for before the film is there
+    await writeFile(path.join(OUT, 'cloque.webp'), Buffer.from(pictures[0].split(',')[1], 'base64'))
+    await writeFile(path.join(OUT, 'cloque-under.webp'), Buffer.from(pictures[CLOQUE_FRAMES / 2].split(',')[1], 'base64'))
+    execFileSync('ffmpeg', [
+      '-y', '-loglevel', 'error',
+      '-framerate', String(CLOQUE_RATE),
+      '-i', path.join(frames, '%03d.webp'),
+      '-filter_complex', `color=c=0x${CLOQUE_GROUND}:s=${CLOQUE_SIZE}x${CLOQUE_SIZE}:r=${CLOQUE_RATE}[ground];[ground][0:v]overlay=shortest=1,format=yuv420p`,
+      '-c:v', 'libx264', '-preset', 'slow', '-crf', '27', '-g', String(CLOQUE_KEYS), '-bf', '0',
+      '-movflags', '+faststart', '-an',
+      path.join(OUT, 'cloque.mp4'),
+    ])
+    await rm(frames, { recursive: true, force: true })
+    await rm(path.join(OUT, 'cloque'), { recursive: true, force: true })
     await writeFile(
       path.join(here, '../components/features/scenes/cloque.ts'),
-      `// Made by scripts/renders.ts: the Cloque's board turned over and back, a picture a frame
-// (public/renders/cloque), and where the middle of each of some of its parts is on each, as
-// shares of it.
-export const CLOQUE = ${JSON.stringify({ frames: CLOQUE_FRAMES, marks: drawn.marks })} as const
+      `// Made by scripts/renders.ts: the Cloque's board turned over and back, as a film
+// (public/renders/cloque.mp4) of so many frames at so many a second, and where the
+// middle of each of some of its parts is on each frame, as shares of it.
+export const CLOQUE = ${JSON.stringify({ frames: CLOQUE_FRAMES, rate: CLOQUE_RATE, marks: drawn.marks })} as const
 `,
     )
     console.log('cloque', CLOQUE_FRAMES, 'frames')
