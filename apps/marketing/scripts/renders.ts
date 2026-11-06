@@ -45,6 +45,18 @@ const CLOCKWORK = [
 ]
 const CLOCKWORK_SIZE = 3400
 const CLOCKWORK_MOST = 1.6
+/**
+ * And a board of the user's (Cloque, a clock), as tscircuit makes it in 3D, turned over
+ * and back, for the 3D card: where its .glb is (CLOQUE_GLB: it is not in this repo;
+ * without it, what was made of it is left as it is), how many frames, how big, and the
+ * parts whose places the card needs.
+ */
+const CLOQUE = process.env.CLOQUE_GLB
+/** (and its circuit beside it, for where its keep-outs are) */
+const CLOQUE_CIRCUIT = CLOQUE?.replace(/\.glb$/, '.circuit.json')
+const CLOQUE_FRAMES = 48
+const CLOQUE_SIZE = 900
+const CLOQUE_MARKED = ['U1', 'SW1']
 /** And the colours card's simple solids, each this many px a side. */
 const SHAPE_SIZE = 1000
 /** The metals its Material tab shows, in the app's order, and the cube's colour by then, which a tinted one takes. */
@@ -117,8 +129,9 @@ const theApp: Plugin = {
 const bundled = await build({
   stdin: {
     contents: `export { openView } from './components/app/view'
-export { drawBox, drawExample, drawLayers, drawShape } from './scripts/example-view'
+export { drawBox, drawExample, drawLayers, drawShape, drawTurning } from './scripts/example-view'
 export { grainOf, physicalOf, pictureOf, studioFor } from '../desktop/src/components/viewport/materials'
+export { boardPaint, inOurColours, inShade, keepOutsOf, shadedOf } from '../desktop/src/components/pcb/colours'
 export { materialOf } from '../desktop/shared/materials'`,
     resolveDir: path.resolve(here, '..'),
     loader: 'ts',
@@ -143,7 +156,9 @@ const server = http.createServer(async (request, response) => {
       await readFile(
         file.startsWith('/examples/')
           ? path.join(EXAMPLES, file.slice('/examples/'.length))
-          : path.join(PUBLIC, file),
+          : file === '/cloque.glb' && CLOQUE
+            ? CLOQUE
+            : path.join(PUBLIC, file),
       ),
     )
   } catch {
@@ -164,6 +179,9 @@ try {
   page.on('console', (message) => console.log('page:', message.text()))
   await page.goto(`http://localhost:${port}/`)
   await page.addScriptTag({ content: script })
+  // (what tsx makes of a function handed to the page names its own functions with a
+  // helper of its, which the page has not got)
+  await page.addScriptTag({ content: 'window.__name = (f) => f' })
   await mkdir(OUT, { recursive: true })
 
   /** Cut a picture to what is drawn in it, and make it a WebP. (In the page.) */
@@ -310,6 +328,67 @@ export const CLOCKWORK = ${round({ most: CLOCKWORK_MOST, tall: drawn.tall, middl
 `,
     )
     console.log('clockwork')
+  }
+  if (CLOQUE) {
+    const theme = (JSON.parse(await readFile(path.resolve(here, '../../../themes/default.json'), 'utf8')) as {
+      dark: Record<string, unknown>
+    }).dark
+    const circuit = CLOQUE_CIRCUIT ? JSON.parse(await readFile(CLOQUE_CIRCUIT, 'utf8')) : null
+    const drawn = await page.evaluate(
+      async (frames, size, marked, theme, circuit) => {
+        const app = (window as any).renders
+        // the theme's colours for a board, as PCB mode has them, under the default
+        // theme's dark look (boards.ts has the same)
+        const colours = {
+          'board-mask': '#005413',
+          'board-traces': '#006116',
+          'board-pour': '#006116',
+          'board-pads': '#e1cf4d',
+          'board-print': '#ffffff',
+          'components-light': '#e7e7e7',
+          'components-mid': '#9c9c9c',
+          'components-dark': '#737373',
+          ...Object.fromEntries(Object.entries(theme).filter(([, value]) => typeof value === 'string')),
+        }
+        const paint = app.boardPaint(colours)
+        if (circuit) app.keepOutsOf(paint, circuit)
+        // each thing's faces in the app's colours: the board's own, and the greys of
+        // what is on it in the theme's shades for greys (board-mode.tsx's `standing`)
+        const painted = (board: any) =>
+          board.traverse((thing: any) => {
+            if (!thing.isMesh) return
+            const own = [thing.material].flat().map((material: any) => {
+              const copy = material.clone()
+              const ours = app.inOurColours(copy, paint)
+              if (ours === null && copy.isMeshStandardMaterial) {
+                const shaded = app.shadedOf(copy.color)
+                if (shaded) app.inShade(shaded, colours, copy.color)
+              }
+              return copy
+            })
+            thing.material = Array.isArray(thing.material) ? own : own[0]
+          })
+        return app.drawTurning('/cloque.glb', frames, size, marked, painted)
+      },
+      CLOQUE_FRAMES,
+      CLOQUE_SIZE,
+      CLOQUE_MARKED,
+      theme,
+      circuit,
+    )
+    const out = path.join(OUT, 'cloque')
+    await mkdir(out, { recursive: true })
+    for (const [index, url] of (drawn.pictures as string[]).entries())
+      await writeFile(path.join(out, `${String(index).padStart(2, '0')}.webp`), Buffer.from(url.split(',')[1], 'base64'))
+    await writeFile(
+      path.join(here, '../components/features/scenes/cloque.ts'),
+      `// Made by scripts/renders.ts: the Cloque's board turned over and back, a picture a frame
+// (public/renders/cloque), and where the middle of each of some of its parts is on each, as
+// shares of it.
+export const CLOQUE = ${JSON.stringify({ frames: CLOQUE_FRAMES, marks: drawn.marks })} as const
+`,
+    )
+    console.log('cloque', CLOQUE_FRAMES, 'frames')
   }
   if (onlyOthers) process.exit(0)
 

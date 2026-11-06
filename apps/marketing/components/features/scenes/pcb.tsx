@@ -1,92 +1,24 @@
 import {
-  BoxesIcon,
-  CheckIcon,
-  ChevronDownIcon,
-  EyeIcon,
-  HandIcon,
   LayersIcon,
   MessageSquareIcon,
   Rotate3dIcon,
-  SearchIcon,
-  SquareIcon,
   WorkflowIcon,
-  XIcon,
 } from 'lucide-react'
 import type { ComponentType, CSSProperties, ReactNode } from 'react'
-import { Collapse } from '../../stageshow/motion/Collapse'
 import type { Act } from '../../stageshow/act'
 import type { Layout } from '../../stageshow/looks'
-import { BoardIcon } from '../../app/icons'
-import { Bubble, Composer, Round, Scene } from '../fx'
+import { Round, Scene } from '../fx'
+import { AREA, ROUTES } from './clock-routes'
+import { CLOQUE } from './cloque'
 import './pcb.scss'
 
-// Circuit boards: the Table clock example's board in PCB mode, as the app draws it.
-// What is drawn of the board is the app's own drawing of it (public/board, made by
-// scripts/boards.ts from examples/clock): where anything is pointed at on it, it is
-// at the place that drawing has it. A drawing is 1600 px wide, and 13.84 of its px
-// are a millimetre of the board.
-
-// ── PCB mode's buttons ─────────────────────────────────────────────────────
-// Down the right of the view, in place of the model's: the three ways of looking at
-// the board (and under the one that is up, what it has: the technical view's layers,
-// the 3D view's hand), the parts on it, search, and the red way out.
-
-type As = 'pcb' | '3d' | 'schematic'
-
-function BoardButtons({
-  as,
-  layer = 1,
-  tip,
-  className,
-}: {
-  as: As
-  layer?: 1 | 2
-  /** the button whose tip is up, by its target name */
-  tip?: string | null
-  className?: string
-}) {
-  return (
-    <div className={`pcb-buttons${className ? ` ${className}` : ''}`}>
-      <Round on={as === 'pcb'} tip="Technical view" keys="T">
-        <LayersIcon />
-      </Round>
-      {as === 'pcb' &&
-        ([1, 2] as const).map((one) => (
-          <span key={one} className="pcb-under">
-            <Round on={layer === one} target={`layer-${one}`} tip={`Layer ${one}`} keys={String(one)} showTip={tip === `layer-${one}`}>
-              <span className="pcb-number">{one}</span>
-            </Round>
-          </span>
-        ))}
-      <Round on={as === '3d'} tip="3D view" keys="B">
-        <Rotate3dIcon />
-      </Round>
-      {as === '3d' && (
-        <span className="pcb-under">
-          <Round tip="Hand" keys="H">
-            <HandIcon />
-          </Round>
-        </span>
-      )}
-      <Round on={as === 'schematic'} tip="Schematic" keys="S">
-        <WorkflowIcon />
-      </Round>
-      <Round tip="Parts" keys="P">
-        <BoxesIcon />
-      </Round>
-      {as !== 'schematic' && (
-        <Round tip="Search" keys="⌘F">
-          <SearchIcon />
-        </Round>
-      )}
-      <span className="pcb-exit">
-        <Round tip="Exit PCB mode" keys="Esc">
-          <XIcon />
-        </Round>
-      </span>
-    </div>
-  )
-}
+// Circuit boards, in PCB mode, as the app draws them: the Table clock example's (its
+// technical drawing, its schematic, its routing), and two of the user's own, MEEDEE's
+// four layers and the Cloque's in 3D. What is drawn of a board is the app's own
+// drawing of it (public/board, made by scripts/boards.ts; public/renders/cloque, by
+// scripts/renders.ts): where anything is pointed at on it, it is at the place that
+// drawing has it. The clock's drawings are 1600 px wide, 13.84 of their px to a
+// millimetre of the board.
 
 /** What is said of what the pointer is over, as the technical view says it: a light label. */
 function Label({ children, style, on }: { children: ReactNode; style?: CSSProperties; on: boolean }) {
@@ -205,156 +137,123 @@ function Technical() {
 }
 
 // ── In 3D ──────────────────────────────────────────────────────────────────
-// The board as it will be made, its parts standing on it: the board is the app's own
-// drawing of it in the 3D view's colours (made.svg), laid down in perspective with
-// its edge under it, and each part a block of its size and height. It is turned round
-// by a drag, and a part is clicked: it is picked out, with its name and what it is,
-// and a button to say something of it. Esc lets it go, and it is turned back.
+// A small board of the user's (the Cloque, a clock), as tscircuit makes it in 3D, with
+// parts on both of its sides: a picture of it a frame, turned over about its long way
+// (public/renders/cloque, cloque.ts, made by scripts/renders.ts). A drag turns it over,
+// and its bottom is up, the rotary encoder on it; that is clicked, and picked out, with
+// its name and what it is, and a button to say something of it. Let go, it is turned on
+// round to its top again.
 
-/** A part on the board: where its body is in made.svg's px, how tall, and its look. */
-type Part = { id: string; x: number; y: number; w: number; d: number; h: number; look: 'chip' | 'metal' | 'plastic' | 'cream' | 'tan' | 'button' }
+type ThreeState = { frame: number; picked: 'SW1' | 'U1' | null; held: boolean }
 
-const PARTS: Part[] = [
-  { id: 'u1', x: 287, y: 324, w: 176, d: 94, h: 24, look: 'chip' },
-  { id: 'u2', x: 545, y: 202, w: 46, d: 142, h: 24, look: 'chip' },
-  { id: 'sw1', x: 727, y: 120, w: 98, d: 86, h: 42, look: 'metal' },
-  { id: 'sw1-cap', x: 755, y: 145, w: 42, d: 36, h: 64, look: 'button' },
-  { id: 'j3', x: 441, y: 126, w: 115, d: 34, h: 34, look: 'plastic' },
-  { id: 'j2', x: 684, y: 338, w: 184, d: 70, h: 88, look: 'cream' },
-  { id: 'y1', x: 404, y: 492, w: 46, d: 22, h: 14, look: 'metal' },
-  { id: 'c3', x: 356, y: 485, w: 16, d: 30, h: 10, look: 'tan' },
-  { id: 'c4', x: 481, y: 485, w: 16, d: 30, h: 10, look: 'tan' },
-  { id: 'c2', x: 242, y: 354, w: 16, d: 32, h: 10, look: 'tan' },
-  { id: 'c5', x: 627, y: 368, w: 20, d: 38, h: 14, look: 'tan' },
-  { id: 'c1', x: 1336, y: 1112, w: 30, d: 40, h: 16, look: 'tan' },
-]
-
-/** How the view's px go to the drawing's, and how far the board is tipped back. */
-const SCALE_3D: Record<Layout, number> = { wide: 0.27, compact: 0.18 }
-
-/** A part, as layers of its outline one above another: a solid block, at any angle. */
-function Block({ part, scale, picked }: { part: Part; scale: number; picked?: boolean }) {
-  const high = Math.max(2, Math.round(part.h * scale))
-  return (
-    <div
-      className={`pcb-block pcb-block--${part.look}`}
-      data-picked={picked || undefined}
-      style={{ left: part.x * scale, top: part.y * scale, width: part.w * scale, height: part.d * scale }}
-    >
-      {Array.from({ length: high + 1 }, (_, at) => (
-        <i
-          key={at}
-          data-top={at === high || undefined}
-          data-target={at === high ? part.id : undefined}
-          data-cursor={at === high ? 'pointer' : undefined}
-          style={{ transform: `translateZ(${at}px)` }}
-        />
-      ))}
-    </div>
-  )
+/** What is said of each part that is picked. */
+const CLOQUE_PARTS = { SW1: 'Rotary encoder', U1: 'ATtiny1614' } as const
+/** Where the board's pictures are drawn, and how big, wide and on a phone: all of it in sight. */
+const CLOQUE_AT: Record<Layout, { x: number; y: number; wide: number }> = {
+  wide: { x: 50, y: 40, wide: 500 },
+  compact: { x: 30, y: 24, wide: 300 },
 }
-
-/** The USB-C socket, which sits at the board's edge turned with it. */
-const USB = { x: 1428, y: 1150, w: 112, d: 86, h: 44, turn: -45 }
-
-type ThreeState = { turn: number; picked: boolean; held: boolean }
-const TURNED = -24
+/** How many frames a px of a drag turns it. */
+const PER_PX = 24 / 300
 
 async function threeScript(a: Act<ThreeState>) {
   await a.wait(800)
-  // a drag across the board turns it round
+  // a drag across turns it over, its bottom up
   await a.move('ground', { duration: 800 })
-  await a.drag(
-    'ground-to',
-    (at, from) => a.put({ turn: TURNED + (at.x - from.x) * 0.38, held: true }),
-    { duration: 1500 },
-  )
-  await a.set({ held: false })
+  await a.drag('ground-to', (at, from) => a.put({ frame: Math.min(24, Math.max(0, (at.x - from.x) * PER_PX)), held: true }), {
+    duration: 1600,
+  })
+  await a.set({ frame: 24, held: false })
   await a.wait(500)
-  // and a click on a part picks it out
-  await a.click('u2')
-  await a.set({ picked: true })
+  // and a click on the encoder picks it out
+  await a.click('part-SW1')
+  await a.set({ picked: 'SW1' })
   await a.wait(2600)
   await a.key('esc')
-  await a.set({ picked: false })
+  await a.set({ picked: null })
   await a.wait(500)
-  // turned back, for another look
-  await a.move('ground-to', { duration: 700 })
-  await a.drag(
-    'ground',
-    (at, from) => a.put({ turn: TURNED + 0.38 * 170 + (at.x - from.x) * 0.38, held: true }),
-    { duration: 1400 },
-  )
-  await a.snap({ turn: TURNED, held: false })
+  // turned on round, to its top again
+  await a.move('ground', { duration: 700 })
+  await a.drag('ground-to', (at, from) => a.put({ frame: Math.min(48, 24 + Math.max(0, (at.x - from.x) * PER_PX)), held: true }), {
+    duration: 1600,
+  })
+  await a.snap({ frame: 0, held: false })
   await a.wait(500)
+  await a.click('part-U1')
+  await a.set({ picked: 'U1' })
+  await a.wait(2200)
+  await a.key('esc')
+  await a.set({ picked: null })
+  await a.wait(600)
 }
 
 function ThreeD() {
   return (
     <Scene<ThreeState>
       className="pcb-3d"
-      initial={{ turn: TURNED, picked: false, held: false }}
-      poster={{ turn: TURNED + 64, picked: true, held: false }}
+      initial={{ frame: 0, picked: null, held: false }}
+      poster={{ frame: 24, picked: 'SW1', held: false }}
       script={threeScript}
-      cursor={{ at: { wide: { x: 300, y: 420 }, compact: { x: 180, y: 390 } } }}
+      cursor={{ at: { wide: { x: 300, y: 480 }, compact: { x: 180, y: 300 } } }}
     >
-      {(s, rect, layout) => {
-        const scale = SCALE_3D[layout]
-        const u2 = rect('u2')
+      {(s, _rect, layout) => {
+        const place = CLOQUE_AT[layout]
+        const shown = Math.round(s.frame) % CLOQUE.frames
+        const at = (part: 'SW1' | 'U1') => {
+          const [x, y] = CLOQUE.marks[part][shown]
+          return { x: place.x + x * place.wide, y: place.y + y * place.wide }
+        }
         return (
           <>
-            <div className="pcb-3d__name">
-              <BoardIcon />
-              Clock board
+            <div
+              className="pcb-3d__board"
+              data-held={s.held || undefined}
+              style={{ left: place.x, top: place.y, width: place.wide, height: place.wide }}
+            >
+              {Array.from({ length: CLOQUE.frames }, (_, index) => (
+                <img
+                  key={index}
+                  src={`/renders/cloque/${String(index).padStart(2, '0')}.webp`}
+                  alt=""
+                  draggable={false}
+                  data-shown={index === shown || undefined}
+                />
+              ))}
             </div>
-            <div className="pcb-3d__space">
-              <div
-                className="pcb-3d__board"
-                data-held={s.held || undefined}
-                style={{ width: 1600 * scale, height: 1600 * scale, transform: `rotateX(56deg) rotateZ(${s.turn}deg)` }}
-              >
-                {[6, 5, 4, 3, 2, 1].map((down) => (
-                  <i key={down} className="pcb-3d__edge" style={{ transform: `translateZ(${-down}px)` }} />
-                ))}
-                <img className="pcb-3d__top" src="/board/made.svg" alt="" draggable={false} />
-                <div className="pcb-3d__parts" data-picking={s.picked || undefined}>
-                  {PARTS.map((part) => (
-                    <Block key={part.id} part={part} scale={scale} picked={s.picked && part.id === 'u2'} />
-                  ))}
-                  <div
-                    className="pcb-3d__usb"
-                    style={{
-                      left: USB.x * scale,
-                      top: USB.y * scale,
-                      transform: `rotateZ(${USB.turn}deg)`,
-                    }}
-                  >
-                    <Block part={{ id: 'j1', x: 0, y: 0, w: USB.w, d: USB.d, h: USB.h, look: 'metal' }} scale={scale} />
-                  </div>
-                </div>
-              </div>
-            </div>
-            {/* where a drag across the board starts and ends: on its ground, clear of its parts */}
+            {(['SW1', 'U1'] as const).map((part) => (
+              <span
+                key={part}
+                className="pcb-3d__part"
+                data-target={`part-${part}`}
+                data-cursor="pointer"
+                data-on={s.picked === part || undefined}
+                style={{ left: at(part).x, top: at(part).y }}
+              />
+            ))}
+            {/* where a drag across the board starts and ends */}
             <span className="pcb-3d__grab" data-target="ground" data-cursor="open" />
             <span className="pcb-3d__grab pcb-3d__grab--to" data-target="ground-to" data-cursor="open" />
-            <div
-              className="pcb-picked"
-              data-on={s.picked || undefined}
-              style={
-                layout === 'wide'
-                  ? { left: u2.x + u2.width + 14, top: u2.y + u2.height / 2 }
-                  : { left: u2.x + u2.width / 2 - 60, top: u2.y - 30 }
-              }
-            >
-              <span className="pcb-picked__said">
-                <b>U2</b>
-                <span>ULN2003ADR</span>
-              </span>
-              <span className="pcb-picked__say">
-                <MessageSquareIcon />
-              </span>
-            </div>
-            <BoardButtons as="3d" />
+            {(['SW1', 'U1'] as const).map((part) => (
+              <div
+                key={part}
+                className="pcb-picked"
+                data-on={s.picked === part || undefined}
+                style={{ left: at(part).x + 26, top: at(part).y }}
+              >
+                <span className="pcb-picked__said">
+                  <b>{part}</b>
+                  <span>{CLOQUE_PARTS[part]}</span>
+                </span>
+                <span className="pcb-picked__say">
+                  <MessageSquareIcon />
+                </span>
+              </div>
+            ))}
+            <span className="pcb-3d__corner">
+              <Round on>
+                <Rotate3dIcon />
+              </Round>
+            </span>
           </>
         )
       }}
@@ -364,9 +263,9 @@ function ThreeD() {
 
 // ── The schematic ──────────────────────────────────────────────────────────
 // How the board is wired, as tscircuit draws it. The pointer goes over the
-// microcontroller, which is ringed, and clicks it: beside it, what it is, its maker's
-// number and JLCPCB's, how many JLCPCB has and what one costs, and where it sits on
-// the board. A click on the sheet puts it away.
+// microcontroller, big in the middle of the card, which is ringed, and clicks it: over
+// it, in the middle, what it is, its maker's number and JLCPCB's, how many JLCPCB has
+// and what one costs, and where it sits on the board. A click on the sheet puts it away.
 
 type SchemState = { ring: boolean; open: boolean }
 
@@ -392,7 +291,7 @@ function Schematic() {
       script={schemScript}
       cursor={{ at: { wide: { x: 120, y: 420 }, compact: { x: 60, y: 390 } } }}
     >
-      {(s, rect, layout) => {
+      {(s, rect) => {
         const u1 = rect('u1')
         return (
           <>
@@ -409,15 +308,7 @@ function Schematic() {
               data-on={s.ring || undefined}
               style={{ left: u1.x - 6, top: u1.y - 6, width: u1.width + 12, height: u1.height + 12 }}
             />
-            <div
-              className="pcb-said"
-              data-on={s.open || undefined}
-              style={
-                layout === 'wide'
-                  ? { left: u1.x + u1.width + 16, top: u1.y - 38 }
-                  : { left: u1.x - 6, top: u1.y + u1.height + 14 }
-              }
-            >
+            <div className="pcb-said pcb-schem__said" data-on={s.open || undefined}>
               <div className="pcb-said__head">
                 <div>
                   <div>U1</div>
@@ -451,7 +342,11 @@ function Schematic() {
                 <img src="/board/top.svg" alt="" draggable={false} />
               </div>
             </div>
-            <BoardButtons as="schematic" />
+            <span className="pcb-schem__corner">
+              <Round on>
+                <WorkflowIcon />
+              </Round>
+            </span>
           </>
         )
       }}
@@ -460,69 +355,40 @@ function Schematic() {
 }
 
 // ── Made while you talk ────────────────────────────────────────────────────
-// A board made in detail in the background, by an agent of its own: its card in the
-// conversation says the step it is on, and PCB mode beside it draws the board as each
-// build of it comes in, its traces filling in as it is routed. Meanwhile you say
-// something of it, which is passed on to the board's agent. Then it is checked, and
-// ready to order.
+// The clock's board, round its microcontroller, being routed in the background: its
+// parts placed and what is to be joined drawn straight across, and then trace after
+// trace, each tried one way and another before it settles where it goes (its runs as
+// the board has them: clock-routes.ts, made by scripts/boards.ts), and the step's
+// progress at the foot. Routed, it is the board as it is made; and again.
 
-type Step = 'placing' | 'connecting' | 'routing' | 'checking' | 'done'
-const STEPS: { step: Exclude<Step, 'done'>; name: string }[] = [
-  { step: 'placing', name: 'Placing parts' },
-  { step: 'connecting', name: 'Connecting' },
-  { step: 'routing', name: 'Routing' },
-  { step: 'checking', name: 'Checking' },
-]
-const SAID: Record<Step, string> = {
-  placing: 'Placing the parts round the motor’s socket.',
-  connecting: 'Joining the ATtiny to the motor driver.',
-  routing: 'Routing the motor’s lines round the crystal.',
-  checking: 'Checking it as JLCPCB would make it.',
-  done: 'Routed and checked: it is ready to order.',
-}
-const ASKED = 'Keep the USB-C at the edge, for the plug.'
+/** How far apart the traces start, of how long one takes to be tried and settle. */
+const GAP = 0.34
+/** How long the whole routing takes, in those. */
+const ROUTING = (ROUTES.length - 1) * GAP + 1
+/** How the drawing is drawn on the card: its traces (about 600 of its px across) as wide as the card leaves them. */
+const AGENT_SCALE: Record<Layout, number> = { wide: 564 / 600, compact: 340 / 600 }
 
 type AgentState = {
-  step: Step
-  /** how far the routing is, 0 to 1 */
-  routed: number
-  typed: string
-  sent: boolean
-  passed: boolean
+  /** how far the routing is, in traces' starts (see GAP) */
+  at: number
+  done: boolean
   /** the whole of it, while the loop starts again */
   shown: boolean
 }
 
-const agentStart: AgentState = { step: 'connecting', routed: 0, typed: '', sent: false, passed: false, shown: true }
+const agentStart: AgentState = { at: 0, done: false, shown: true }
 
 async function agentScript(a: Act<AgentState>) {
-  await a.wait(1400)
-  await a.set({ step: 'routing' })
-  // the routing goes on by itself, while you write
-  let routed = 0
-  const routing = (async () => {
-    while (routed < 1) {
-      await a.wait(120)
-      routed = Math.min(1, routed + 0.022)
-      a.put({ routed })
-    }
-  })()
-  // (stopped, as the card goes out of sight, it is the script's to say so, not this)
-  routing.catch(() => {})
-  await a.wait(600)
-  await a.move('write', { duration: 700 })
-  await a.click()
-  await a.type('typed', ASKED, { interval: 32 })
-  await a.wait(250)
-  await a.click('send')
-  await a.set({ typed: '', sent: true })
-  await a.wait(1000)
-  await a.set({ passed: true })
-  await routing
-  await a.set({ step: 'checking' })
-  await a.wait(1500)
-  await a.set({ step: 'done' })
-  await a.wait(2800)
+  await a.wait(900)
+  let at = 0
+  while (at < ROUTING) {
+    await a.wait(45)
+    at = Math.min(ROUTING, at + 0.05)
+    a.put({ at })
+  }
+  await a.wait(500)
+  await a.set({ done: true })
+  await a.wait(2600)
   // and again, from the start: the card is put away and comes back as it began
   await a.set({ shown: false })
   await a.wait(500)
@@ -531,83 +397,77 @@ async function agentScript(a: Act<AgentState>) {
   await a.wait(300)
 }
 
-function StepsInLine({ step }: { step: Step }) {
-  const at = step === 'done' ? STEPS.length : STEPS.findIndex((one) => one.step === step)
-  return (
-    <ol className="pcb-steps">
-      {STEPS.map((one, index) => (
-        <li key={one.step} data-state={index < at ? 'done' : index === at ? 'now' : 'later'}>
-          {index < at ? <CheckIcon /> : index === at ? <i className="pcb-spin" /> : <i className="pcb-dot" />}
-          <span>{one.name}</span>
-        </li>
-      ))}
-    </ol>
-  )
-}
+/** A run's places as an SVG polyline's. */
+const pointsOf = (points: number[][]) => points.map(([x, y]) => `${x},${y}`).join(' ')
 
-function JobCard({ step }: { step: Step }) {
-  const working = step !== 'done'
-  return (
-    <div className="pcb-job">
-      <div className="pcb-job__head">
-        <BoardIcon />
-        <span className="pcb-job__name">Clock board</span>
-        {working && (
-          <span className="pcb-job__badge">
-            <span>Working</span>
-          </span>
-        )}
-        <span className="pcb-job__does">
-          <span className="pcb-job__show" data-target="show">
-            <EyeIcon />
-          </span>
-          {working ? (
-            <span className="pcb-job__stop">
-              <SquareIcon />
-            </span>
-          ) : (
-            <span className="pcb-job__made">
-              <CheckIcon />
-            </span>
-          )}
-        </span>
-      </div>
-      {working && <StepsInLine step={step} />}
-      <p className="pcb-job__said" key={step}>
-        {SAID[step]}
-      </p>
-      <span className="pcb-job__more">
-        See all
-        <ChevronDownIcon />
-      </span>
-    </div>
-  )
+/**
+ * The ways a trace is tried before it settles: from its first place to its last,
+ * bowed out to one side and then the other, as a router's first tries are, by as much
+ * as the trace is long, and no more than so far.
+ */
+function triesOf(runs: (typeof ROUTES)[number], index: number) {
+  const [x1, y1] = runs[0].points[0]
+  const [x2, y2] = runs.at(-1)!.points.at(-1)!
+  const long = Math.hypot(x2 - x1, y2 - y1) || 1
+  const [nx, ny] = [-(y2 - y1) / long, (x2 - x1) / long]
+  return [1, -1].map((side, which) => {
+    const out = side * Math.min(60, 18 + long * 0.28) * (index % 2 ? 1 : -1) * (which ? 0.7 : 1)
+    const at = (share: number) => [x1 + (x2 - x1) * share + nx * out, y1 + (y2 - y1) * share + ny * out]
+    return pointsOf([[x1, y1], at(0.3), at(0.7), [x2, y2]])
+  })
 }
+const TRIES = ROUTES.map(triesOf)
 
 function Agent() {
   return (
     <Scene<AgentState>
       className="pcb-agent"
       initial={agentStart}
-      poster={{ step: 'routing', routed: 0.64, typed: '', sent: true, passed: true, shown: true }}
+      poster={{ at: ROUTING, done: true, shown: true }}
       script={agentScript}
-      cursor={{ at: { wide: { x: 430, y: 330 }, compact: { x: 200, y: 300 } } }}
+      cursor={{ at: { wide: { x: 470, y: 470 }, compact: { x: 280, y: 300 } } }}
     >
-      {(s) => (
-        <div className="pcb-agent__all" data-shown={s.shown || undefined}>
-          <div className="pcb-agent__view">
-            <div className="pcb-sheet">
-              <img src="/board/placed.svg" alt="" draggable={false} />
-              <img
-                className="pcb-agent__routed"
-                src="/board/top.svg"
-                alt=""
-                draggable={false}
-                style={{ '--routed': s.step === 'routing' ? s.routed : s.step === 'connecting' ? 0 : 1 } as CSSProperties}
-              />
+      {(s, _rect, layout) => {
+        const by = AGENT_SCALE[layout]
+        const half = (layout === 'wide' ? 600 : 360) / 2
+        const middle = { x: (AREA.left + AREA.right) / 2, y: (AREA.top + AREA.bottom) / 2 }
+        const settled = ROUTES.filter((_, index) => s.at - index * GAP >= 1).length
+        return (
+          <div className="pcb-agent__all" data-shown={s.shown || undefined} data-done={s.done || undefined}>
+            <div className="pcb-agent__view">
+              <div
+                className="pcb-sheet"
+                style={{ '--s': by, '--x0': middle.x - half / by, '--y0': middle.y - half / by } as CSSProperties}
+              >
+                <img src="/board/placed.svg" alt="" draggable={false} />
+                <svg viewBox="0 0 1600 1550" className="pcb-routes">
+                  {ROUTES.map((runs, index) => {
+                    const into = s.at - index * GAP
+                    const state = into >= 1 ? 'settled' : into >= 0 ? 'trying' : 'waiting'
+                    return (
+                      <g key={index} data-state={state}>
+                        {TRIES[index].map((points, which) => (
+                          <polyline key={which} className="pcb-routes__try" points={points} pathLength={1} />
+                        ))}
+                        {runs.map((run, which) => (
+                          <polyline
+                            key={`run-${which}`}
+                            className="pcb-routes__run"
+                            data-layer={run.layer}
+                            points={pointsOf(run.points)}
+                            strokeWidth={run.width}
+                            pathLength={1}
+                          />
+                        ))}
+                      </g>
+                    )
+                  })}
+                </svg>
+                <img className="pcb-agent__made" src="/board/top.svg" alt="" draggable={false} />
+              </div>
             </div>
-            <div className="pcb-agent__foot" data-on={s.step === 'routing' || undefined}>
-              <span className="pcb-agent__ring" style={{ '--share': s.routed } as CSSProperties}>
+            <div className="pcb-agent__foot" data-on={(s.at > 0 && !s.done) || undefined}>
+              <span className="pcb-agent__ring" style={{ '--share': settled / ROUTES.length } as CSSProperties}>
                 <svg viewBox="0 0 16 16">
                   <circle cx="8" cy="8" r="6" />
                   <circle cx="8" cy="8" r="6" pathLength="1" />
@@ -615,28 +475,12 @@ function Agent() {
               </span>
               <span className="pcb-agent__stage">
                 <b>Routing</b>
-                <span>{Math.round(s.routed * 100)}%</span>
+                <span>{Math.round((settled / ROUTES.length) * 100)}%</span>
               </span>
             </div>
           </div>
-          <aside className="fx-thread pcb-agent__thread">
-            <header>Clock board</header>
-            <div className="fx-messages">
-              <Bubble>Make the board in detail now.</Bubble>
-              <JobCard step={s.step} />
-              <Collapse open={s.sent} reveal="drop" from="below">
-                <Bubble>{ASKED}</Bubble>
-              </Collapse>
-              <Collapse open={s.passed} reveal="drop" from="below">
-                <p className="fx-reply pcb-agent__reply">I’ve passed that on to the board’s agent.</p>
-              </Collapse>
-            </div>
-            <div className="pcb-agent__composer">
-              <Composer typed={s.typed} target="write" placeholder="Say something of the board…" />
-            </div>
-          </aside>
-        </div>
-      )}
+        )
+      }}
     </Scene>
   )
 }

@@ -412,3 +412,97 @@ export async function drawLayers(
   }
   return { layers, middle: middleOf(together), middleApart: middleOf(apart), tall: tall / wide }
 }
+
+/**
+ * A board as tscircuit makes it in 3D (its .glb: the board, Y up, in mm, with its parts
+ * on it), turned over and back as it is drawn frame after frame: from where the app's
+ * Home looks down at it, the board turned about its long way through a whole turn, so
+ * that half way round its bottom is up. Drawn as PCB mode's 3D draws it: `paint` gives it
+ * the app's colours (pcb/colours.ts, handed in), and its creases are inked over it, lit
+ * as the view lights it. For each frame, a picture, and where on it the middle of each of
+ * `marked` (parts, by their name in the .glb) is, as shares of it.
+ */
+export async function drawTurning(
+  url: string,
+  frames: number,
+  size: number,
+  marked: readonly string[],
+  paint: (board: THREE.Object3D) => void,
+): Promise<{ pictures: string[]; marks: Record<string, [number, number][]> }> {
+  const gltf = await new GLTFLoader().loadAsync(url)
+  const canvas = document.createElement('canvas')
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true })
+  renderer.toneMapping = THREE.ACESFilmicToneMapping
+  renderer.outputColorSpace = THREE.SRGBColorSpace
+  renderer.setPixelRatio(1)
+  renderer.setSize(size, size, false)
+  const scene = new THREE.Scene()
+  // the board view's lights (board-mode.tsx), which go round with the eye
+  scene.add(new THREE.AmbientLight('#ffffff', 0.55), new THREE.HemisphereLight('#ffffff', '#7d828c', 0.7))
+  const key = new THREE.DirectionalLight('#ffffff', 1.7)
+  const fill = new THREE.DirectionalLight('#ffffff', 0.55)
+  scene.add(key, fill)
+  paint(gltf.scene)
+  // its creases inked, as the app's are: wherever two of its triangles meet at an edge
+  const ink = new LineMaterial({
+    color: EDGE,
+    linewidth: size / 700,
+    transparent: true,
+    opacity: 0.85,
+    depthWrite: false,
+    resolution: new THREE.Vector2(size, size),
+  })
+  const meshes: THREE.Mesh[] = []
+  gltf.scene.traverse((thing) => {
+    if ((thing as THREE.Mesh).isMesh) meshes.push(thing as THREE.Mesh)
+  })
+  for (const mesh of meshes) {
+    for (const material of [mesh.material].flat())
+      Object.assign(material, { polygonOffset: true, polygonOffsetFactor: 1.5, polygonOffsetUnits: 1.5 })
+    const creases = new THREE.EdgesGeometry(mesh.geometry, 20)
+    const drawn = new LineSegments2(new LineSegmentsGeometry().setPositions(creases.attributes.position.array as Float32Array), ink)
+    drawn.renderOrder = 1
+    mesh.add(drawn)
+  }
+
+  // the board turns about its middle, in a holder of its own
+  const board = gltf.scene
+  const room = new THREE.Box3().setFromObject(board)
+  const middle = room.getCenter(new THREE.Vector3())
+  board.position.sub(middle)
+  const holder = new THREE.Group()
+  holder.add(board)
+  scene.add(holder)
+  const radius = room.getSize(new THREE.Vector3()).length() / 2
+
+  const camera = new THREE.PerspectiveCamera(FOV, 1, radius * 0.1, radius * 20)
+  // Y up: from in front and above, a little to the side
+  const above = 38 * RADIANS
+  const around = -24 * RADIANS
+  const eye = new THREE.Vector3(Math.sin(around) * Math.cos(above), Math.sin(above), Math.cos(around) * Math.cos(above))
+  camera.position.copy(eye).multiplyScalar(radius / 1.15 / Math.sin((FOV / 2) * RADIANS))
+  camera.lookAt(0, 0, 0)
+  key.position.set(180, 320, 220)
+  fill.position.set(-240, 160, -180)
+
+  const named = Object.fromEntries(marked.map((name) => [name, board.getObjectByName(name)]))
+  const pictures: string[] = []
+  const marks: Record<string, [number, number][]> = Object.fromEntries(marked.map((name) => [name, []]))
+  const at = new THREE.Vector3()
+  for (let frame = 0; frame < frames; frame++) {
+    const turn = (frame / frames) * Math.PI * 2
+    // over about its long way, and a little round as it goes, for its depth to be seen
+    holder.rotation.set(turn, Math.sin(turn) * 0.35, 0)
+    holder.updateMatrixWorld(true)
+    renderer.render(scene, camera)
+    pictures.push(canvas.toDataURL('image/webp', 0.78))
+    for (const name of marked) {
+      const part = named[name]
+      if (!part) continue
+      new THREE.Box3().setFromObject(part).getCenter(at).project(camera)
+      marks[name].push([Math.round(((at.x + 1) / 2) * 1e4) / 1e4, Math.round(((1 - at.y) / 2) * 1e4) / 1e4])
+    }
+  }
+  renderer.dispose()
+  return { pictures, marks }
+}

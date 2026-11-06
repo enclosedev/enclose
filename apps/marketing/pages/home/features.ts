@@ -98,7 +98,7 @@ export const GROUPS: Group[] = [
       {
         scene: 'board-3d',
         title: 'In 3D.',
-        says: 'See the board as it will be made, look round it as you do the model, and click a part to say something of it.',
+        says: 'See the board in high definition, every part on both sides, and leave a comment on any part for the agent.',
       },
       {
         scene: 'board-technical',
@@ -108,12 +108,12 @@ export const GROUPS: Group[] = [
       {
         scene: 'board-schematic',
         title: 'The schematic.',
-        says: 'How it is wired, drawn as tscircuit draws it. Click a part for its maker’s number, JLCPCB’s, and what is in stock.',
+        says: 'Every part is sourced from JLCPCB, with live stock and its price per piece. Know what your board costs before you order it.',
       },
       {
         scene: 'board-agent',
-        title: 'Made while you talk.',
-        says: 'A board in detail is made in the background: placed, connected, routed. The conversation goes on meanwhile.',
+        title: 'Routed in real time.',
+        says: 'tscircuit’s autorouter lays every trace in seconds, even on boards of four layers, and the agent keeps routing as the design changes.',
       },
     ],
   },

@@ -133,6 +133,50 @@ for (const [name, svg] of Object.entries(files)) {
   console.log(name, `${Math.round(svg.length / 1024)} kB`)
 }
 
+// And the clock's traces, for the card that has them routed one by one: each as runs of
+// places, in top.svg's px, a run to a layer, those of the part of the board the card
+// shows. (The drawing is the board's mm, so many px to one, from where its middle is:
+// found from where a trace's turns are drawn in it.)
+{
+  const top = files["top.svg"]
+  const segments = [...top.matchAll(/d="M ([\d.]+) ([\d.]+) L [\d.]+ [\d.]+"[^>]*stroke-width="([\d.]+)"[^>]*data-type="pcb_trace"/g)]
+  type Wire = { x: number; y: number; width?: number; layer?: string }
+  const traces = (circuit as { type: string; route?: Wire[] }[]).filter((element) => element.type === "pcb_trace")
+  const perMm = Number(segments.find(([, , , width]) => Math.abs(Number(width) / 0.5 - 13.84) < 0.1)![3]) / 0.5
+  const offsets = new Map<string, number>()
+  for (const [, x, y] of segments)
+    for (const trace of traces)
+      for (const point of trace.route ?? []) {
+        if (point.x === undefined) continue
+        const key = `${(Number(x) - point.x * perMm).toFixed(1)} ${(Number(y) + point.y * perMm).toFixed(1)}`
+        offsets.set(key, (offsets.get(key) ?? 0) + 1)
+      }
+  const [ox, oy] = [...offsets].sort((a, b) => b[1] - a[1])[0][0].split(" ").map(Number)
+  const AREA = { left: 230, top: 90, right: 880, bottom: 510 }
+  const runs = traces.flatMap((trace) => {
+    const points = (trace.route ?? []).filter((point) => point.x !== undefined)
+    const at = points.map((point) => [Math.round((ox + point.x * perMm) * 10) / 10, Math.round((oy - point.y * perMm) * 10) / 10])
+    if (at.some(([x, y]) => x < AREA.left || x > AREA.right || y < AREA.top || y > AREA.bottom)) return []
+    // a run to each layer it is on
+    const out: { layer: string; width: number; points: number[][] }[] = []
+    points.forEach((point, index) => {
+      const layer = point.layer ?? out.at(-1)?.layer ?? "top"
+      const last = out.at(-1)
+      if (!last || last.layer !== layer) {
+        out.push({ layer, width: Math.round((point.width ?? 0.15) * perMm * 10) / 10, points: last ? [last.points.at(-1)!, at[index]] : [at[index]] })
+      } else last.points.push(at[index])
+    })
+    return [out.filter((run) => run.points.length > 1)]
+  })
+  const module = `// Made by scripts/boards.ts: the clock's traces round its microcontroller, each as
+// runs of places in top.svg's px, a run to a layer, for the card that routes them.
+export const AREA = ${JSON.stringify(AREA)} as const
+export const ROUTES: { layer: string; width: number; points: number[][] }[][] = ${JSON.stringify(runs)}
+`
+  await writeFile(path.resolve(here, "../components/features/scenes/clock-routes.ts"), module)
+  console.log("clock-routes.ts", runs.length, "traces")
+}
+
 // And a board of four layers, of a project of the user's (MEEDEE, a little instrument),
 // for the technical view's card: its top as that view draws it (its other layers under
 // it, faint), and what U3's first pad is joined to, X-rayed as the app does it
