@@ -7,11 +7,11 @@ import {
   XIcon,
 } from 'lucide-react'
 import { useId, type ComponentType, type CSSProperties, type ReactNode } from 'react'
-import { Count } from '../../stageshow/motion/Count'
 import type { Act } from '../../stageshow/act'
 import type { Layout } from '../../stageshow/looks'
 import { ReferenceIcon } from '../../app/icons'
 import { CORNER, Model, Round, Scene } from '../fx'
+import { CLOCKWORK, HANDS } from './clockwork'
 import './more.scss'
 
 // And more: the board of pictures a design starts from, the tools the agent makes for
@@ -369,39 +369,88 @@ function Picture({ kind }: { kind: Swatch }) {
 }
 
 // ── Tools made for your model ──────────────────────────────────────────────
-// The arm's own tool, as its agent made it: a slider for two of its joints, and a
-// choice of poses. Ready is picked, and the joints go to it, the sliders with them;
-// then Rest, and the arm is folded again.
+// The clock's movement, and a tool its agent made for it: the time, to be set to twelve,
+// three or six. Each is picked in turn, and the hands go round to it, the minute hand
+// round the hours between. (The movement is the explode card's pictures of it, put
+// together, clockwork.ts; the hands are drawn straight on, and laid on its face as it
+// is seen, to be turned on the page.)
 
-type Pose = 'rest' | 'ready'
-type ToolsState = { pose: Pose }
+/** The times the tool has, in hours from twelve. */
+const TIMES = [
+  { hours: 3, said: '3:00' },
+  { hours: 6, said: '6:00' },
+  { hours: 12, said: '12:00' },
+] as const
 
-const ANGLES: Record<Pose, { shoulder: number; elbow: number }> = {
-  rest: { shoulder: 0, elbow: 0 },
-  ready: { shoulder: 95, elbow: 100 },
-}
+type ToolsState = { hours: number }
 
 async function toolsScript(a: Act<ToolsState>) {
-  await a.wait(1100)
-  await a.click('pose-ready')
-  await a.set({ pose: 'ready' })
-  await a.wait(3200)
-  await a.click('pose-rest')
-  await a.set({ pose: 'rest' })
-  await a.wait(1800)
+  await a.wait(1000)
+  for (const time of TIMES) {
+    await a.click(`time-${time.hours}`)
+    await a.set({ hours: time.hours })
+    await a.wait(2600)
+  }
+  // twelve is where it began
+  await a.snap({ hours: 0 })
+  await a.wait(300)
 }
 
-function Slider({ value, most, unit = '°' }: { value: number; most: number; unit?: string }) {
+/**
+ * How wide the movement's pictures are drawn, and where its middle is, wide and on a
+ * phone: in the middle of the card. (Its middle as clockwork.ts has it is of the boxes
+ * round its parts, which reach a little further to the right than it is seen to: so
+ * it is set as far the other way, of how wide it is drawn.)
+ */
+const MOVEMENT: Record<Layout, { wide: number; x: number; y: number }> = {
+  wide: { wide: 900, x: 300 - 0.027 * 900, y: 300 },
+  compact: { wide: 530, x: 180 - 0.027 * 530, y: 180 },
+}
+/** Its parts that stay as they are: all but the hands that are turned. */
+const STILL = [...CLOCKWORK.layers].filter((part) => !HANDS.some((hand) => hand.id === part.id)).sort((a, b) => a.z - b.z)
+/** How big a hand's element is, before it is laid on the face. */
+const HAND_PX = 100
+
+function Movement({ hours, layout }: { hours: number; layout: Layout }) {
+  const { wide, x, y } = MOVEMENT[layout]
+  const left = x - CLOCKWORK.middle[0] * wide
+  const top = y - CLOCKWORK.middle[1] * wide * CLOCKWORK.tall
   return (
-    <div className="mx-slider" style={{ '--along': value / most } as CSSProperties}>
-      <div className="mx-slider__says">
-        <span>
-          <Count value={value} duration={900} format={(n) => `${Math.round(n)}${unit}`} />
-        </span>
-      </div>
-      <div className="mx-slider__trail">
-        <i />
-      </div>
+    <div className="mx-movement" style={{ left, top, width: wide, height: wide * CLOCKWORK.tall }}>
+      {STILL.map((part) => (
+        <img key={part.id} src={`/renders/clockwork/${part.id}.webp`} alt="" draggable={false} />
+      ))}
+      {HANDS.map((hand) => {
+        // a px of its picture is so many mm of the face: laid on the face as it is seen
+        const mm = (hand.half * 2) / HAND_PX
+        const matrix = [
+          hand.across[0] * wide * mm,
+          hand.across[1] * wide * mm,
+          -hand.up[0] * wide * mm,
+          -hand.up[1] * wide * mm,
+        ]
+        const to = hand.id === 'hour-hand' ? hours * 30 : hours * 360
+        return (
+          <div
+            key={hand.id}
+            className="mx-movement__hand"
+            style={{
+              left: hand.pivot[0] * wide - HAND_PX / 2,
+              top: hand.pivot[1] * wide - HAND_PX / 2,
+              width: HAND_PX,
+              height: HAND_PX,
+              transform: `matrix(${matrix.join(',')},0,0)`,
+            }}
+          >
+            <img
+              src={`/renders/clockwork/${hand.id}-flat.webp`}
+              alt=""
+              draggable={false}
+              style={{ transform: `rotate(${to - hand.angle}deg)` }}
+            />
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -422,46 +471,39 @@ function Tools() {
   return (
     <Scene<ToolsState>
       className="mx-tools"
-      initial={{ pose: 'rest' }}
-      poster={{ pose: 'ready' }}
+      initial={{ hours: 0 }}
+      poster={{ hours: 3 }}
       script={toolsScript}
-      cursor={{ at: { wide: { x: 520, y: 420 }, compact: { x: 300, y: 400 } } }}
+      cursor={{ at: { wide: { x: 300, y: 560 }, compact: { x: 200, y: 340 } } }}
     >
-      {(s) => {
-        const angles = ANGLES[s.pose]
-        return (
-          <>
-            <Model src="arm" className="mx-tools__rest" shown={s.pose === 'rest'} />
-            <Model src="arm-raised" className="mx-tools__ready" shown={s.pose === 'ready'} />
-            <Round tool on style={{ position: 'absolute', top: CORNER, right: CORNER }}>
-              <HammerIcon />
-            </Round>
-            <div className="fx-tools mx-tools__panel">
-              <div className="mx-tabs">
-                <span className="mx-tabs__on">Arm</span>
-                <span>Routine</span>
-              </div>
-              <Control title="Shoulder" says="Lifts the upper arm.">
-                <Slider value={angles.shoulder} most={110} />
-              </Control>
-              <Control title="Elbow" says="Bends the forearm.">
-                <Slider value={angles.elbow} most={150} />
-              </Control>
-              <Control title="Pose" says="Where the arm goes.">
-                <div className="mx-choice">
-                  <span data-on={s.pose === 'rest' || undefined} data-target="pose-rest" data-cursor="pointer">
-                    Rest
-                  </span>
-                  <span data-on={s.pose === 'ready' || undefined} data-target="pose-ready" data-cursor="pointer">
-                    Ready
-                  </span>
-                  <span>Reach</span>
-                </div>
-              </Control>
+      {(s, _rect, layout) => (
+        <>
+          <Movement hours={s.hours} layout={layout} />
+          <Round tool on style={{ position: 'absolute', top: CORNER, right: CORNER }}>
+            <HammerIcon />
+          </Round>
+          <div className="fx-tools mx-tools__panel">
+            <div className="mx-tabs">
+              <span className="mx-tabs__on">Clock</span>
+              <span>Alarm</span>
             </div>
-          </>
-        )
-      }}
+            <Control title="Time" says="Where the hands point.">
+              <div className="mx-choice">
+                {TIMES.map((time) => (
+                  <span
+                    key={time.hours}
+                    data-on={s.hours % 12 === time.hours % 12 || undefined}
+                    data-target={`time-${time.hours}`}
+                    data-cursor="pointer"
+                  >
+                    {time.said}
+                  </span>
+                ))}
+              </div>
+            </Control>
+          </div>
+        </>
+      )}
     </Scene>
   )
 }

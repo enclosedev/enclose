@@ -202,22 +202,37 @@ $tool-panel: oklch(from var(--axis-z) calc(l - 0.135) c calc(h + 6));
 // (the folded arm and the raised one are drawn from the same eye: placed so that
 // their bases are one, the one comes where the other was)
 .mx-tools {
-  &__rest {
-    left: 21px;
-    top: 190px;
-    width: 277px;
-  }
-
-  &__ready {
-    left: -203px;
-    top: 141px;
-    width: 501px;
-  }
-
+  // the tool, as the app floats it over the view, under its button: over the movement
   &__panel {
     top: 64px;
     right: 18px;
     width: 290px;
+  }
+}
+
+// The clock's movement, put together: its parts' pictures one over another, and its
+// hands laid on its face as it is seen (more.tsx), turned round to the time.
+.mx-movement {
+  position: absolute;
+
+  > img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  &__hand {
+    position: absolute;
+    transform-origin: 50% 50%;
+
+    img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      transition: transform 1.8s cubic-bezier(0.65, 0, 0.35, 1);
+    }
   }
 }
 
@@ -518,18 +533,6 @@ $tool-panel: oklch(from var(--axis-z) calc(l - 0.135) c calc(h + 6));
   }
 
   .mx-writing__box { width: 172px; }
-
-  .mx-tools__rest {
-    left: 72px;
-    top: 41px;
-    width: 193px;
-  }
-
-  .mx-tools__ready {
-    left: -84px;
-    top: 7px;
-    width: 350px;
-  }
 
   .mx-tools__panel {
     top: auto;

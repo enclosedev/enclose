@@ -304,7 +304,12 @@ try {
   }
   {
     const drawn = await page.evaluate(
-      async (base, ids, size, most) => (window as any).renders.drawLayers(base, ids, size, size / 1200, most),
+      async (base, ids, size, most) =>
+        (window as any).renders.drawLayers(base, ids, size, size / 1200, most, {
+          // (the seconds hand is on a little dial of its own, round another arbor)
+          hands: ['hour-hand', 'minute-hand'],
+          arbor: 'centre-wheel',
+        }),
       '/examples/clock/build',
       CLOCKWORK,
       CLOCKWORK_SIZE,
@@ -316,6 +321,11 @@ try {
       await writeFile(path.join(OUT, 'clockwork', `${layer.id}.webp`), Buffer.from(url.split(',')[1], 'base64'))
       layers.push(layer)
     }
+    const hands = []
+    for (const { url, ...hand } of drawn.hands as { id: string; url: string }[]) {
+      await writeFile(path.join(OUT, 'clockwork', `${hand.id}-flat.webp`), Buffer.from(url.split(',')[1], 'base64'))
+      hands.push(hand)
+    }
     const round = (value: unknown) => JSON.stringify(value, (_key, n) => (typeof n === 'number' ? Math.round(n * 1e4) / 1e4 : n), 2)
     await writeFile(
       path.join(here, '../components/features/scenes/clockwork.ts'),
@@ -325,6 +335,10 @@ try {
 // apart; and where the middle of the whole is, together and pulled apart as far as
 // ${CLOCKWORK_MOST}, as shares of its width and its height.
 export const CLOCKWORK = ${round({ most: CLOCKWORK_MOST, tall: drawn.tall, middle: drawn.middle, middleApart: drawn.middleApart, layers })} as const
+
+// And its hands, each drawn straight on (public/renders/clockwork/<hand>-flat), to be
+// turned on the page: see scripts/example-view.ts's \`Hand\`.
+export const HANDS = ${round(hands)} as const
 `,
     )
     console.log('clockwork')

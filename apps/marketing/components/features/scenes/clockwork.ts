@@ -107,3 +107,42 @@ export const CLOCKWORK = {
     }
   ]
 } as const
+
+// And its hands, each drawn straight on (public/renders/clockwork/<hand>-flat), to be
+// turned on the page: see scripts/example-view.ts's `Hand`.
+export const HANDS = [
+  {
+    "id": "hour-hand",
+    "half": 31.8254,
+    "angle": -52.7094,
+    "pivot": [
+      0.394,
+      0.5757
+    ],
+    "across": [
+      0.0034,
+      0.0018
+    ],
+    "up": [
+      -0.0001,
+      -0.0035
+    ]
+  },
+  {
+    "id": "minute-hand",
+    "half": 49.8255,
+    "angle": 60.8533,
+    "pivot": [
+      0.3872,
+      0.5808
+    ],
+    "across": [
+      0.0034,
+      0.0018
+    ],
+    "up": [
+      -0.0001,
+      -0.0035
+    ]
+  }
+] as const

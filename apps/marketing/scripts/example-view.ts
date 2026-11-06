@@ -275,6 +275,24 @@ export function drawShape(
   return shoot()
 }
 
+/**
+ * A hand of a clock, to be turned on the page: drawn by itself as seen straight on, its
+ * arbor in the middle of its picture, which is `half` mm from its middle to its edge; at
+ * `angle` degrees round from twelve, as the model has it; and how the clock's face lies
+ * on the pictures of the rest (as `drawLayers` has them), in shares of their width: where
+ * the arbor is, and where a mm across the face (to three o'clock) and a mm up it (to
+ * twelve) go from there.
+ */
+export type Hand = {
+  id: string
+  url: string
+  half: number
+  angle: number
+  pivot: [number, number]
+  across: [number, number]
+  up: [number, number]
+}
+
 /** One part of an example drawn by itself, and where it goes as the model comes apart. */
 export type Layer = {
   id: string
@@ -302,7 +320,9 @@ export async function drawLayers(
   size: number,
   line: number,
   most: number,
-): Promise<{ layers: Layer[]; middle: [number, number]; middleApart: [number, number]; tall: number }> {
+  /** (of a clock: its hands, and the part whose middle their arbor goes through) */
+  clock?: { hands: readonly string[]; arbor: string },
+): Promise<{ layers: Layer[]; middle: [number, number]; middleApart: [number, number]; tall: number; hands: Hand[] }> {
   const manifest = (await (await fetch(`${base}/enclose.model.json`)).json()) as Manifest & {
     parts: { explode?: [number, number, number] }[]
   }
@@ -410,7 +430,64 @@ export async function drawLayers(
       z: -centre.clone().addScaledVector(one.way, most).distanceTo(eye),
     })
   }
-  return { layers, middle: middleOf(together), middleApart: middleOf(apart), tall: tall / wide }
+  // And each hand, drawn straight on, to be turned on the page over the rest: the face is
+  // the model's X (to three) and Z (to twelve), and is seen from its -Y.
+  const hands: Hand[] = []
+  const arbor = clock && made.find((one) => one.id === clock.arbor)
+  if (clock && arbor) {
+    const axle = arbor.room.getCenter(new THREE.Vector3())
+    const onCut = (point: THREE.Vector3): [number, number] => {
+      const [x, y] = onPicture(point)
+      return [(x - cut.left) / wide, (y - cut.top) / wide]
+    }
+    const square = 512
+    const flat = new THREE.OrthographicCamera()
+    flat.up.set(0, 0, 1)
+    for (const id of clock.hands) {
+      const hand = made.find((one) => one.id === id)
+      if (!hand) continue
+      const pivot = new THREE.Vector3(axle.x, hand.room.getCenter(new THREE.Vector3()).y, axle.z)
+      // how far it reaches from its arbor, and which way its tip is
+      let reach = 0
+      let tip = new THREE.Vector3()
+      const at = new THREE.Vector3()
+      hand.held.traverse((node) => {
+        const mesh = node as THREE.Mesh
+        if (!mesh.isMesh || (node as LineSegments2).isLineSegments2) return
+        const position = mesh.geometry.attributes.position
+        for (let i = 0; i < position.count; i++) {
+          at.fromBufferAttribute(position, i).applyMatrix4(mesh.matrix)
+          const far = Math.hypot(at.x - pivot.x, at.z - pivot.z)
+          if (far > reach) [reach, tip] = [far, at.clone()]
+        }
+      })
+      const half = reach * 1.06
+      Object.assign(flat, { left: -half, right: half, top: half, bottom: -half, near: 1, far: 1000 })
+      flat.position.copy(pivot).add(new THREE.Vector3(0, -400, 0))
+      flat.lookAt(pivot)
+      flat.updateProjectionMatrix()
+      for (const other of made) other.held.visible = other === hand
+      renderer.setSize(square, square, false)
+      ink.resolution.set(square, square)
+      renderer.render(scene, flat)
+      const url = renderer.domElement.toDataURL('image/webp', 0.9)
+      renderer.setSize(size, size, false)
+      ink.resolution.set(size, size)
+      const [px, py] = onCut(pivot)
+      const [ax, ay] = onCut(pivot.clone().add(new THREE.Vector3(1, 0, 0)))
+      const [ux, uy] = onCut(pivot.clone().add(new THREE.Vector3(0, 0, 1)))
+      hands.push({
+        id,
+        url,
+        half,
+        angle: (Math.atan2(tip.x - pivot.x, tip.z - pivot.z) * 180) / Math.PI,
+        pivot: [px, py],
+        across: [ax - px, ay - py],
+        up: [ux - px, uy - py],
+      })
+    }
+  }
+  return { layers, middle: middleOf(together), middleApart: middleOf(apart), tall: tall / wide, hands }
 }
 
 /**
