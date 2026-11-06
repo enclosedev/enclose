@@ -11,7 +11,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import http from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { build } from 'esbuild'
+import { build, type Plugin } from 'esbuild'
 import puppeteer from 'puppeteer-core'
 import { REST, type Look } from '../components/app/look'
 import type { Paint } from '../components/app/view'
@@ -22,6 +22,11 @@ const EXAMPLES = path.resolve(here, '../../../examples')
 /** The other examples, and how big each is drawn: a square this many px a side. */
 const OTHERS = ['clock', 'lamp', 'stool']
 const OTHERS_SIZE = 2400
+/** And the colours card's simple solids, each this many px a side. */
+const SHAPE_SIZE = 1000
+/** The metals its Material tab shows, in the app's order, and the cube's colour by then, which a tinted one takes. */
+const METALS = ['aluminium-polished', 'aluminium-brushed', 'aluminium-anodised', 'steel', 'steel-hammered', 'brass']
+const PALETTE_ORANGE = '#feaf57'
 const onlyOthers = process.argv.includes('examples')
 /**
  * How many of a still's px there are to one of the window's: as many as a card drawing
@@ -33,8 +38,11 @@ const ROUND = 6
 const OUT = path.join(PUBLIC, 'renders')
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 
-/** The arm as each card shows it: how it is looked at and stands, and what it is painted. */
-type Still = { look?: Partial<Look>; paint?: Paint }
+/**
+ * The arm as each card shows it: how it is looked at and stands, and what it is painted;
+ * and (`as`) cut as another still is, so that what is in both is in the same place in each.
+ */
+type Still = { look?: Partial<Look>; paint?: Paint; as?: string }
 const MIDDLE = { x: 860, y: 500 }
 const ALL_OF_IT = ['base', 'shoulder', 'upper-arm', 'lower-arm', 'wrist', 'gripper', 'jaw']
 const STILLS: Record<string, Still> = {
@@ -53,14 +61,42 @@ const STILLS: Record<string, Still> = {
   },
   // the gripper, picked in the list of parts and shown on its own
   gripper: { look: { others: 0, alone: 1, distance: 3.2 } },
+  // and by itself where it is in the arm, as the arm's still has it
+  'gripper-in-place': { look: { others: 0 }, as: 'arm' },
 }
 /** The parts whose pictures the list of parts shows, drawn as the app draws them. */
 const PICTURES = ['base', 'shoulder', 'upper-arm', 'lower-arm', 'wrist', 'gripper', 'jaw']
 
+// The app's own materials, as Render draws them (apps/desktop's materials.ts), for the
+// colours card's Material tab: with the app's aliases, three.js the page's own (one copy
+// of it), and no pictures of grains (no metal has one; the app has Vite find them).
+const DESKTOP = path.resolve(here, '../../desktop')
+const theApp: Plugin = {
+  name: 'the-app',
+  setup(build) {
+    build.onResolve({ filter: /^@shared\// }, (args) => ({ path: path.join(DESKTOP, 'shared', `${args.path.slice(8)}.ts`) }))
+    build.onResolve({ filter: /^three(\/.*)?$/ }, async (args) => {
+      if (args.pluginData?.page || !args.importer.startsWith(DESKTOP)) return undefined
+      const found = await build.resolve(args.path, {
+        kind: args.kind,
+        resolveDir: path.resolve(here, '..'),
+        pluginData: { page: true },
+      })
+      return { path: found.path }
+    })
+    build.onLoad({ filter: /viewport\/materials\.ts$/ }, async (args) => ({
+      contents: (await readFile(args.path, 'utf8')).replace(/import\.meta\.glob<string>\([^)]*\)/s, '{}'),
+      loader: 'ts',
+    }))
+  },
+}
+
 const bundled = await build({
   stdin: {
     contents: `export { openView } from './components/app/view'
-export { drawBox, drawExample } from './scripts/example-view'`,
+export { drawBox, drawExample, drawShape } from './scripts/example-view'
+export { grainOf, physicalOf, pictureOf, studioFor } from '../desktop/src/components/viewport/materials'
+export { materialOf } from '../desktop/shared/materials'`,
     resolveDir: path.resolve(here, '..'),
     loader: 'ts',
   },
@@ -68,6 +104,7 @@ export { drawBox, drawExample } from './scripts/example-view'`,
   format: 'iife',
   globalName: 'renders',
   write: false,
+  plugins: [theApp],
 })
 const script = bundled.outputFiles[0].text
 
@@ -107,7 +144,7 @@ try {
   await mkdir(OUT, { recursive: true })
 
   /** Cut a picture to what is drawn in it, and make it a WebP. (In the page.) */
-  const cutIn = `(source, margin) => {
+  const cutIn = `(source, margin, fixed) => {
     const flat = document.createElement('canvas')
     flat.width = source.width
     flat.height = source.height
@@ -125,12 +162,15 @@ try {
         }
     left = Math.max(0, left - margin); top = Math.max(0, top - margin)
     right = Math.min(width - 1, right + margin); bottom = Math.min(height - 1, bottom + margin)
+    if (fixed) ({ left, top, right, bottom } = fixed)
     const cut = document.createElement('canvas')
     cut.width = right - left + 1
     cut.height = bottom - top + 1
     cut.getContext('2d').drawImage(flat, left, top, cut.width, cut.height, 0, 0, cut.width, cut.height)
-    return cut.toDataURL('image/webp', 0.9)
+    return { url: cut.toDataURL('image/webp', 0.9), box: { left, top, right, bottom } }
   }`
+  /** Where each still was cut, for one to be cut as another is. */
+  const cuts: Record<string, unknown> = {}
 
   for (const name of OTHERS) {
     const url = await page.evaluate(
@@ -153,26 +193,97 @@ try {
     await writeFile(path.join(OUT, 'example-box.webp'), Buffer.from(url.split(',')[1], 'base64'))
     console.log('example-box')
   }
+  // the simple solids of the colours card: each in its colour, and the cube given another
+  // colour by hand and then bare metal
+  const SHAPES: [string, string, string, boolean][] = [
+    ['shape-cube', 'cube', 'green', false],
+    ['shape-cube-orange', 'cube', 'orange', false],
+    ['shape-sphere', 'sphere', 'pink', false],
+    ['shape-cylinder', 'cylinder', 'blue', false],
+    ['shape-torus', 'torus', 'yellow', false],
+  ]
+  for (const [name, shape, colour, metal] of SHAPES) {
+    const url = await page.evaluate(
+      async (shape, colour, metal, size) => {
+        const canvas = (window as any).renders.drawShape(shape, colour, metal, size, size / 1200)
+        return canvas.toDataURL('image/webp', 0.88) as string
+      },
+      shape,
+      colour,
+      metal,
+      SHAPE_SIZE,
+    )
+    await writeFile(path.join(OUT, `${name}.webp`), Buffer.from(url.split(',')[1], 'base64'))
+    console.log(name)
+  }
+  // and what the colours card's Material tab shows: the app's balls of its metals, and
+  // the cube made of brushed aluminium, as Render draws it
+  const balls = await page.evaluate(async (ids, colour) => {
+    const app = (window as any).renders
+    const out: Record<string, string> = {}
+    for (const id of ids) {
+      // (as WebP)
+      const image = new Image()
+      image.src = await app.pictureOf(app.materialOf(id), null, colour)
+      await image.decode()
+      const flat = document.createElement('canvas')
+      flat.width = image.width
+      flat.height = image.height
+      flat.getContext('2d')!.drawImage(image, 0, 0)
+      out[id] = flat.toDataURL('image/webp', 0.9)
+    }
+    return out
+  }, METALS, PALETTE_ORANGE)
+  for (const [id, url] of Object.entries(balls)) {
+    await writeFile(path.join(OUT, `material-${id}.webp`), Buffer.from(url.split(',')[1], 'base64'))
+    console.log(`material-${id}`)
+  }
+  {
+    const url = await page.evaluate(async (size) => {
+      const app = (window as any).renders
+      const brushed = app.materialOf('aluminium-brushed')
+      const grain = await app.grainOf(brushed)
+      const canvas = app.drawShape(
+        'cube',
+        'green',
+        true,
+        size,
+        size / 1200,
+        (across: unknown, renderer: unknown, scene: { environment: unknown }) => {
+          scene.environment = app.studioFor(renderer)
+          const made = app.physicalOf(brushed, null, across, grain)
+          made.color.set(brushed.colour)
+          return made
+        },
+      )
+      return canvas.toDataURL('image/webp', 0.88) as string
+    }, SHAPE_SIZE)
+    await writeFile(path.join(OUT, 'shape-cube-metal.webp'), Buffer.from(url.split(',')[1], 'base64'))
+    console.log('shape-cube-metal')
+  }
   if (onlyOthers) process.exit(0)
 
   for (const [name, still] of Object.entries(STILLS)) {
-    const url = await page.evaluate(
-      async (look, paint, cutIn, sharp, round) => {
+    const made = await page.evaluate(
+      async (look, paint, cutIn, sharp, round, fixed) => {
         const canvas = document.createElement('canvas')
         document.body.append(canvas)
         const view = await (window as any).renders.openView(canvas, sharp, paint)
         view.draw(look)
-        const url = (0, eval)(cutIn)(canvas, round * sharp)
+        const made = (0, eval)(cutIn)(canvas, round * sharp, fixed)
         view.dispose()
         canvas.remove()
-        return url as string
+        return made as { url: string; box: unknown }
       },
       { ...REST, ...MIDDLE, grid: 0, ...still.look },
       still.paint ?? {},
       cutIn,
       SHARP,
       ROUND,
+      still.as ? cuts[still.as] : null,
     )
+    cuts[name] = made.box
+    const url = made.url
     await writeFile(path.join(OUT, `${name}.webp`), Buffer.from(url.split(',')[1], 'base64'))
     console.log(name)
   }

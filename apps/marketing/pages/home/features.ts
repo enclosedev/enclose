@@ -68,7 +68,7 @@ export const GROUPS: Group[] = [
       {
         scene: 'parts',
         title: 'Every part, listed.',
-        says: 'The model’s parts in their groups, each with its picture and its file. Pick a group to see it on its own.',
+        says: 'The agent keeps the parts in their groups as it goes, so you keep your flow. Pick a group to see it on its own.',
       },
       {
         scene: 'explode',

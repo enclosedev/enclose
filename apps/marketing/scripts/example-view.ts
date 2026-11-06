@@ -77,7 +77,7 @@ function stage(size: number, line: number) {
     renderer.render(scene, camera)
     return canvas
   }
-  return { scene, ink, box, shoot }
+  return { scene, ink, box, shoot, renderer }
 }
 
 /** A surface of the palette's, as the view gives one (view.ts). */
@@ -220,5 +220,53 @@ export function drawBox(size: number, line: number): HTMLCanvasElement {
   )
   // and the bottom of the cradle, further down
   add(new THREE.CylinderGeometry(52, 52, 3, 64).rotateX(Math.PI / 2), insert, at(0, 0, tall - 18 - slab - 30))
+  return shoot()
+}
+
+/** The simple solids the colours card shows, four to a card. */
+export type Shape = 'cube' | 'sphere' | 'cylinder' | 'torus'
+
+/**
+ * One simple solid by itself, about 100 mm across, standing on the ground as a model
+ * would: in a colour of the palette's (by name), or bare metal. As `drawBox` draws.
+ */
+export function drawShape(
+  shape: Shape,
+  colour: string,
+  metal: boolean,
+  size: number,
+  line: number,
+  /**
+   * (or made of a material of the app's, as Render draws it: given the solid's size, mm,
+   * and the renderer and the scene, to light it by the studio)
+   */
+  madeOf?: (size: THREE.Vector3, renderer: THREE.WebGLRenderer, scene: THREE.Scene) => THREE.Material,
+): HTMLCanvasElement {
+  const { scene, ink, box, shoot, renderer } = stage(size, line)
+  const geometry =
+    shape === 'cube'
+      ? new THREE.BoxGeometry(100, 100, 100)
+      : shape === 'sphere'
+        ? new THREE.SphereGeometry(58, 96, 64)
+        : shape === 'cylinder'
+          ? new THREE.CylinderGeometry(46, 46, 110, 96).rotateX(Math.PI / 2)
+          : new THREE.TorusGeometry(44, 20, 48, 128)
+  geometry.computeBoundingBox()
+  // standing on the ground
+  geometry.translate(0, 0, -geometry.boundingBox!.min.z)
+  const across = geometry.boundingBox!.getSize(new THREE.Vector3())
+  const solid = new THREE.Mesh(
+    geometry,
+    madeOf ? madeOf(across, renderer, scene) : surface(metal ? METAL : PALETTE[colour], metal),
+  )
+  const creases = new LineSegments2(
+    new LineSegmentsGeometry().fromEdgesGeometry(new THREE.EdgesGeometry(geometry, 20)),
+    ink,
+  )
+  creases.renderOrder = 1
+  solid.add(creases)
+  scene.add(solid)
+  geometry.computeBoundingBox()
+  box.union(geometry.boundingBox!)
   return shoot()
 }

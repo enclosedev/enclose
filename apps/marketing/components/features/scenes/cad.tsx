@@ -1,4 +1,4 @@
-import { DownloadIcon, MessageSquareIcon, XIcon, ArrowUpIcon, BoxesIcon, Grid3x3Icon, UnfoldVerticalIcon } from 'lucide-react'
+import { DownloadIcon, MessageSquareIcon, XIcon, ArrowUpIcon, BoxesIcon, SearchIcon } from 'lucide-react'
 import type { ComponentType, CSSProperties, ReactNode } from 'react'
 import { Collapse } from '../../stageshow/motion/Collapse'
 import type { Act } from '../../stageshow/act'
@@ -293,7 +293,8 @@ function Notes() {
 }
 
 // ── Colours and materials ──────────────────────────────────────────────────
-// The upper arm is clicked, and its ball opened: it is given orange, and then brushed
+// Four simple solids, two by two, so that what happens to one is all there is to see.
+// The cube is clicked, and its ball opened: it is given orange, and then brushed
 // aluminium, and the view draws each. Then Cmd+Z, twice, takes both back.
 
 const PALETTE: [string, string][] = [
@@ -312,11 +313,17 @@ const PALETTE: [string, string][] = [
 ]
 const GREEN = '#54ff7d'
 const ORANGE = '#feaf57'
-const METALS: { id: string; name: string; finish: string; colour: string }[] = [
-  { id: 'polished', name: 'Aluminium', finish: 'Polished', colour: '#d9dce0' },
-  { id: 'brushed', name: 'Aluminium', finish: 'Brushed', colour: '#b9bdc3' },
-  { id: 'anodised', name: 'Aluminium', finish: 'Anodised', colour: ORANGE },
-  { id: 'steel', name: 'Steel', finish: 'Satin', colour: '#9a9ea4' },
+/**
+ * The metals, as the app's Material tab lists them, each on its ball as the app draws it
+ * (public/renders/material-*, scripts/renders.ts; anodised takes the cube's orange).
+ */
+const METALS: { id: string; name: string; finish: string }[] = [
+  { id: 'aluminium-polished', name: 'Aluminium', finish: 'Polished' },
+  { id: 'aluminium-brushed', name: 'Aluminium', finish: 'Brushed' },
+  { id: 'aluminium-anodised', name: 'Aluminium', finish: 'Anodised' },
+  { id: 'steel', name: 'Steel', finish: 'Satin' },
+  { id: 'steel-hammered', name: 'Steel', finish: 'Hammered' },
+  { id: 'brass', name: 'Brass', finish: 'Polished' },
 ]
 
 type PaintState = {
@@ -328,12 +335,45 @@ type PaintState = {
 }
 const paintStart: PaintState = { picked: false, open: false, tab: 'colour', colour: null, metal: false }
 
-const PAINT_STILL: Record<Layout, Placed> = {
-  wide: { left: -150, top: 144, width: 480 },
-  compact: { left: -150, top: 185, width: 420 },
+/**
+ * The solids (public/renders/shape-*, scripts/renders.ts): each picture's width, as big
+ * as it is drawn at on a wide card, and where in it the solid's middle is, as shares of
+ * it. They are drawn from one place, so that the smaller in their pictures are drawn
+ * the bigger here, to be about one size.
+ */
+const SHAPES = [
+  { src: 'shape-cube', width: 288, middle: [0.495, 0.521] },
+  { src: 'shape-sphere', width: 400, middle: [0.5, 0.5] },
+  { src: 'shape-cylinder', width: 280, middle: [0.5, 0.502] },
+  { src: 'shape-torus', width: 400, middle: [0.5, 0.514] },
+] as const
+/** The middles of the two by two, on a wide card; a phone's is this much smaller. */
+const CELLS = [
+  [190, 195],
+  [410, 195],
+  [190, 415],
+  [410, 415],
+] as const
+const COMPACT_BY = 0.6
+/** Where on the cube it is clicked. */
+const CUBE: Record<Layout, { x: number; y: number }> = {
+  wide: { x: 190, y: 195 },
+  compact: { x: 140, y: 117 },
 }
-/** where on the upper arm it is clicked, on the still */
-const UPPER = { x: 1120, y: 330 }
+const AWAY: Record<Layout, { x: number; y: number }> = {
+  wide: { x: 300, y: 300 },
+  compact: { x: 180, y: 20 },
+}
+/** A solid's picture, its middle on the middle of its place in the two by two. */
+const placed = (shape: (typeof SHAPES)[number], cell: readonly [number, number], layout: Layout): CSSProperties => {
+  const by = layout === 'compact' ? COMPACT_BY : 1
+  const width = shape.width * by
+  return {
+    left: cell[0] * by - width * shape.middle[0],
+    top: cell[1] * by - width * shape.middle[1],
+    width,
+  }
+}
 
 async function paintScript(a: Act<PaintState>) {
   await a.wait(700)
@@ -349,7 +389,7 @@ async function paintScript(a: Act<PaintState>) {
   await a.click('tab-material')
   await a.set({ tab: 'material' })
   await a.wait(550)
-  await a.click('metal-brushed')
+  await a.click('metal-aluminium-brushed')
   await a.set({ metal: true })
   await a.wait(1900)
   await a.click('hit-away')
@@ -378,19 +418,21 @@ function Paint() {
       cursor={{ at: { wide: { x: 470, y: 400 }, compact: { x: 280, y: 380 } } }}
     >
       {(s, _rect, layout) => {
-        const still = PAINT_STILL[layout]
-        const at = on(still, UPPER.x, UPPER.y)
-        const shown = s.metal ? 'arm-metal' : s.colour ? 'arm-orange' : 'arm'
+        const at = CUBE[layout]
+        const shown = s.metal ? 'shape-cube-metal' : s.colour ? 'shape-cube-orange' : 'shape-cube'
         const colour = s.colour ? ORANGE : GREEN
         return (
           <>
-            {(['arm', 'arm-orange', 'arm-metal'] as const).map((src) => (
-              <Model key={src} src={src} style={box(still)} shown={shown === src} />
+            {(['shape-cube', 'shape-cube-orange', 'shape-cube-metal'] as const).map((src) => (
+              <Model key={src} src={src} style={placed(SHAPES[0], CELLS[0], layout)} shown={shown === src} />
+            ))}
+            {SHAPES.slice(1).map((shape, index) => (
+              <Model key={shape.src} src={shape.src} style={placed(shape, CELLS[index + 1], layout)} />
             ))}
             <Hit name="hit-upper" x={at.x} y={at.y} />
-            <Hit name="hit-away" x={layout === 'wide' ? 120 : 70} y={layout === 'wide' ? 60 : 80} />
+            <Hit name="hit-away" x={AWAY[layout].x} y={AWAY[layout].y} />
             <PartButtons
-              name="Upper arm"
+              name="Cube"
               at={at}
               shown={s.picked}
               colour={s.metal ? '#b9bdc3' : colour}
@@ -405,10 +447,15 @@ function Paint() {
                 </span>
               </div>
               <div className="cad-look__pages" data-tab={s.tab}>
-                <div className="cad-look__page">
-                  <div className="cad-look__picker" style={{ '--hue': s.colour ? '35' : '135' } as CSSProperties}>
+                <div className="cad-look__page" style={{ '--hue': s.colour ? '32' : '135' } as CSSProperties}>
+                  {/* as the app's picker: how much colour and how light, the hue, and its #rrggbb */}
+                  <div className="cad-look__picker">
                     <i />
                   </div>
+                  <div className="cad-look__hue" style={{ '--at': s.colour ? '9%' : '37%' } as CSSProperties}>
+                    <i />
+                  </div>
+                  <span className="cad-look__hex">{s.colour ? '#FEAF57' : '#54FF7D'}</span>
                   <div className="cad-look__swatches">
                     {PALETTE.map(([name, hex]) => (
                       <span
@@ -422,24 +469,31 @@ function Paint() {
                     ))}
                   </div>
                 </div>
-                <div className="cad-look__page">
-                  <div className="cad-look__kind">Metal</div>
+                <div className="cad-look__page cad-look__page--materials">
+                  <span className="cad-look__search">
+                    <SearchIcon />
+                  </span>
                   <div className="cad-look__materials">
                     {METALS.map((metal) => (
                       <span
                         key={metal.id}
                         className="cad-look__material"
-                        data-on={(s.metal && metal.id === 'brushed') || undefined}
+                        data-on={(s.metal && metal.id === 'aluminium-brushed') || undefined}
                         data-target={`metal-${metal.id}`}
                         data-cursor="pointer"
                       >
-                        <Ball colour={metal.colour} metal={metal.id !== 'anodised'} size={36} />
+                        <img src={`/renders/material-${metal.id}.webp`} alt="" draggable={false} />
                         <b>{metal.name}</b>
                         <small>{metal.finish}</small>
                       </span>
                     ))}
                   </div>
                 </div>
+              </div>
+              {/* materials are seen in Render, which the view is not in (the app's own line) */}
+              <div className="cad-look__render" data-on={s.tab === 'material' || undefined}>
+                <span>Materials show in Render</span>
+                <b>Show</b>
               </div>
             </div>
           </>
@@ -450,10 +504,10 @@ function Paint() {
 }
 
 // ── Every part, listed ─────────────────────────────────────────────────────
-// Parts is pressed, and the list comes up beside the model, which moves over to what
-// the list leaves of the view. The list is gone down to the gripper, which is picked,
-// and the view shows it on its own; picked again, the rest is back, and the list is
-// put away.
+// Parts is pressed, and the list comes up over the model, which stays where it is, seen
+// through the list's glass. The list is gone down to the gripper, which is picked, and
+// the rest of the model goes, the gripper left where it is in it; picked again, the
+// rest is back, and the list is put away.
 
 type Group = { id: string; name: string; size: string; parts: { name: string; size: string; picture?: string }[] }
 const GROUPS: Group[] = [
@@ -571,16 +625,10 @@ function Parts() {
         return (
           <div className="cad-parts__view" data-open={s.open || undefined} data-picked={s.picked || undefined}>
             <Model src="arm" className="cad-parts__arm" shown={!s.picked} />
-            <Model src="gripper" className="cad-parts__gripper" shown={s.picked} />
+            <Model src="gripper-in-place" className="cad-parts__arm" shown={s.picked} />
             <div className="cad-parts__column">
               <Round on={s.open} target="parts-button">
                 <BoxesIcon />
-              </Round>
-              <Round>
-                <Grid3x3Icon />
-              </Round>
-              <Round>
-                <UnfoldVerticalIcon />
               </Round>
             </div>
             <div className="fx-panel cad-parts__list" data-target="list">
