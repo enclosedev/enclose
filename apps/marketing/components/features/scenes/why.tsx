@@ -356,7 +356,8 @@ function Github() {
 }
 
 // ── The agent you already pay for ─────────────────────────────────────────
-// The line under the message says how it will be answered. Pressed, it opens the
+// The card is the conversation, all of it, and nothing else. The line under the
+// message says how it will be answered. Pressed, it opens the
 // agents' marks over the three choices: which model, how hard it thinks, and what it
 // may do without asking. Codex is picked, and thinks harder; and then Claude again.
 
@@ -422,7 +423,6 @@ function Agents() {
         const mark = MARKS.find((one) => one.id === s.provider)!
         return (
           <>
-            <Model src="arm" className="fx-agents__arm" />
             <aside className="fx-thread fx-agents__thread">
               <header>New conversation</header>
               {/* a conversation with nothing in it yet, as the app has one */}
