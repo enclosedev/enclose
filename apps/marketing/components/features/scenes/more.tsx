@@ -21,7 +21,9 @@ import './more.scss'
 // A loose board of pictures: materials and finishes, gathered for a project. One is
 // clicked and comes up close, the rest pushed aside; a click on it pins a dot, and
 // what is said of that place is written beside it and pinned. A click on the ground
-// puts the picture back, with its note on it.
+// puts the picture back, with its note on it. Then three are picked out together, by a
+// box dragged round them, and Cmd+G puts them in a group: they go into one pile, under
+// its title and how many it has, as the app's board lays one (inspiration/layout.ts).
 
 type Swatch = 'walnut' | 'aluminium' | 'felt' | 'ceramic' | 'grille' | 'knob' | 'oak'
 type Box = { x: number; y: number; w: number; h: number }
@@ -57,16 +59,47 @@ const FOCUS: Record<Layout, Box> = {
 const SPOT = { x: 0.3, y: 0.66 }
 const NOTE = 'This grain, on the base'
 
+/** The pictures that go in a group, what it is called, and where its pile is. */
+const GROUPED: Swatch[] = ['knob', 'aluminium', 'oak']
+const GROUP_TITLE = 'Dial and trim'
+const PILE: Record<Layout, { x: number; y: number }> = {
+  wide: { x: 372, y: 330 },
+  compact: { x: 200, y: 236 },
+}
+/** How the pictures of a pile lie on one another, the top one first (the app's LAID). */
+const LAID = [
+  { dx: 0, dy: 0, turn: 0 },
+  { dx: -16, dy: 6, turn: -2 },
+  { dx: 14, dy: 10, turn: 1.6 },
+]
+/** Where the box that picks them out is dragged from and to, round them. */
+const MARQUEE: Record<Layout, { from: { x: number; y: number }; to: { x: number; y: number } }> = {
+  wide: { from: { x: 528, y: 508 }, to: { x: 198, y: 158 } },
+  compact: { from: { x: 300, y: 350 }, to: { x: 22, y: 168 } },
+}
+
 type BoardState = {
   focused: boolean
   /** the note: being written, or pinned, or not there */
   note: 'none' | 'writing' | 'pinned'
   text: string
+  /** the box being dragged round some of the pictures, in the card's px */
+  marquee: { x0: number; y0: number; x1: number; y1: number } | null
+  picked: boolean
+  grouped: boolean
   /** the whole board, faded out for the loop to start again */
   gone: boolean
 }
 
-const boardStart: BoardState = { focused: false, note: 'none', text: '', gone: false }
+const boardStart: BoardState = {
+  focused: false,
+  note: 'none',
+  text: '',
+  marquee: null,
+  picked: false,
+  grouped: false,
+  gone: false,
+}
 
 async function boardScript(a: Act<BoardState>) {
   await a.wait(900)
@@ -83,7 +116,22 @@ async function boardScript(a: Act<BoardState>) {
   await a.wait(2600)
   await a.click('ground')
   await a.set({ focused: false })
-  await a.wait(2400)
+  await a.wait(1400)
+  // three of them picked out by a box dragged round them, and grouped
+  await a.move('marquee-from', { duration: 700 })
+  await a.drag(
+    'marquee-to',
+    (at, from) => {
+      const [x0, y0, x1, y1] = [from.x, from.y, at.x, at.y]
+      a.put({ marquee: { x0, y0, x1, y1 } })
+    },
+    { duration: 1100, cursor: 'preserve' },
+  )
+  await a.set({ marquee: null, picked: true })
+  await a.wait(500)
+  await a.key('cmd+g')
+  await a.set({ picked: false, grouped: true })
+  await a.wait(3000)
   // the board goes, and comes back as it was found
   await a.set({ gone: true })
   await a.wait(500)
@@ -105,22 +153,40 @@ function Board() {
     <Scene<BoardState>
       className="mx-board"
       initial={boardStart}
-      poster={{ focused: true, note: 'pinned', text: NOTE, gone: false }}
+      poster={{ ...boardStart, note: 'pinned', text: NOTE, grouped: true }}
       script={boardScript}
       cursor={{ at: { wide: { x: 470, y: 420 }, compact: { x: 250, y: 400 } } }}
     >
-      {(s, _rect, layout) => {
+      {(s, rect, layout) => {
         const focus = FOCUS[layout]
         const spot = { x: focus.x + focus.w * SPOT.x, y: focus.y + focus.h * SPOT.y }
+        const pile = PILE[layout]
+        const stage = rect('ground-all')
+        const box = s.marquee && {
+          left: Math.min(s.marquee.x0, s.marquee.x1) - stage.x,
+          top: Math.min(s.marquee.y0, s.marquee.y1) - stage.y,
+          width: Math.abs(s.marquee.x1 - s.marquee.x0),
+          height: Math.abs(s.marquee.y1 - s.marquee.y0),
+        }
         return (
-          <div className="mx-board__all" data-gone={s.gone || undefined}>
+          <div className="mx-board__all" data-gone={s.gone || undefined} data-target="ground-all">
             <div className="mx-board__ground" data-target="ground" />
+            <span className="mx-board__spot" data-target="marquee-from" style={{ left: MARQUEE[layout].from.x, top: MARQUEE[layout].from.y }} />
+            <span className="mx-board__spot" data-target="marquee-to" style={{ left: MARQUEE[layout].to.x, top: MARQUEE[layout].to.y }} />
             {(Object.keys(BOARD[layout]) as Swatch[]).map((swatch) => {
               const box = BOARD[layout][swatch]
               const up = swatch === 'walnut' && s.focused
               const aside = s.focused && swatch !== 'walnut'
               // the walnut goes up by a move and a scale, from where it lies to the middle
               const scale = focus.w / box.w
+              // and those grouped lie in the pile, each turned as the app lays them
+              const inPile = GROUPED.indexOf(swatch)
+              const laid = LAID[inPile]
+              const piled =
+                s.grouped && laid
+                  ? `translate(${pile.x - box.w / 2 - box.x + laid.dx}px, ${pile.y - box.h / 2 - box.y + laid.dy}px) ` +
+                    `translate(${box.w / 2}px, ${box.h / 2}px) rotate(${laid.turn}deg) translate(${-box.w / 2}px, ${-box.h / 2}px)`
+                  : undefined
               const style: CSSProperties = {
                 left: box.x,
                 top: box.y,
@@ -130,7 +196,8 @@ function Board() {
                   ? `translate(${focus.x - box.x}px, ${focus.y - box.y}px) scale(${scale})`
                   : aside
                     ? pushed(box, focus)
-                    : undefined,
+                    : piled,
+                zIndex: s.grouped && laid ? 3 + (LAID.length - inPile) : undefined,
               }
               return (
                 <div
@@ -138,6 +205,7 @@ function Board() {
                   className="mx-picture"
                   data-up={up || undefined}
                   data-aside={aside || undefined}
+                  data-picked={(s.picked && inPile >= 0) || undefined}
                   data-target={swatch === 'walnut' ? 'walnut' : undefined}
                   data-cursor={swatch === 'walnut' ? (s.focused ? 'crosshair' : 'pointer') : undefined}
                   style={style}
@@ -157,6 +225,13 @@ function Board() {
                 </div>
               )
             })}
+
+            {/* the box dragged round what is picked out, and the group's title over its pile */}
+            {box && <div className="mx-marquee" style={box} />}
+            <div className="mx-group" data-on={s.grouped || undefined} style={{ left: pile.x, top: pile.y - 92 }}>
+              <span>{GROUP_TITLE}</span>
+              <b>{GROUPED.length}</b>
+            </div>
 
             {/* where the note goes, to be clicked: on the picture once it is up */}
             <span className="mx-board__spot" data-target="spot" data-cursor="crosshair" style={{ left: spot.x, top: spot.y }} />
