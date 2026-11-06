@@ -22,8 +22,8 @@ export type Group = {
 export const GROUPS: Group[] = [
   {
     id: 'why',
-    heading: 'A workbench for things you make with an agent.',
-    lede: 'Every project, conversation and version in one window.',
+    heading: 'Build with an agent.',
+    lede: '\nEvery project, conversation\nand version in one window.',
     features: [
       {
         scene: 'projects',
@@ -54,8 +54,8 @@ export const GROUPS: Group[] = [
   },
   {
     id: 'cad',
-    heading: 'Point at the part. Say what should change.',
-    lede: 'The agent writes the model’s code.',
+    heading: 'CAD, made simple.',
+    lede: '\nNotes, colours, parts and\nblueprints, just by asking.',
     features: [
       {
         scene: 'notes',
@@ -91,8 +91,8 @@ export const GROUPS: Group[] = [
   },
   {
     id: 'pcb',
-    heading: 'The board that fits the case.',
-    lede: 'The agent designs it with tscircuit and leaves room for every plug.',
+    heading: 'Electronics, too.',
+    lede: '\nThe agent designs the board,\nno expertise needed.',
     poweredBy: { name: 'tscircuit', logo: '/brands/tscircuit.png', href: 'https://tscircuit.com' },
     features: [
       {
@@ -119,8 +119,8 @@ export const GROUPS: Group[] = [
   },
   {
     id: 'more',
-    heading: 'Made to be made yours.',
-    lede: 'Collect ideas before there’s a model, and let the agent build the tools you need.',
+    heading: 'Beyond the design.',
+    lede: '\nInspiration boards, custom\ntools and real-world scale.',
     features: [
       {
         scene: 'inspiration',

@@ -16,10 +16,10 @@ export default motion({
   // far down the screen: from this far below it, px, over this long, s; their words seen
   // a word at a time on the way, the next this long after the one before, s.
   headings: {
-    rise: 24.8,
-    duration: 1.53,
-    stagger: 0.06,
-    ease: 'expo.out',
+    rise: 43.5,
+    duration: 0.97,
+    stagger: 0.086,
+    ease: 'circ.out',
     start: 'top 85%',
   },
 })

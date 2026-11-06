@@ -16,7 +16,6 @@ import { fileURLToPath } from 'node:url'
 import { build, type Plugin } from 'esbuild'
 import puppeteer from 'puppeteer-core'
 import { REST, type Look } from '../components/app/look'
-import type { Paint } from '../components/app/view'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const PUBLIC = path.resolve(here, '../public')
@@ -91,29 +90,15 @@ const OUT = path.join(PUBLIC, 'renders')
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 
 /**
- * The arm as each card shows it: how it is looked at and stands, and what it is painted;
- * and (`as`) cut as another still is, so that what is in both is in the same place in each.
+ * The arm as each card shows it: how it is looked at and stands; and (`as`) cut as
+ * another still is, so that what is in both is in the same place in each.
  */
-type Still = { look?: Partial<Look>; paint?: Paint; as?: string }
+type Still = { look?: Partial<Look>; as?: string }
 const MIDDLE = { x: 860, y: 500 }
-const ALL_OF_IT = ['base', 'shoulder', 'upper-arm', 'lower-arm', 'wrist', 'gripper', 'jaw']
 const STILLS: Record<string, Still> = {
   arm: {},
-  exploded: { look: { apart: 1, distance: 4.4 } },
-  // the upper arm given another colour by hand, and then another material
-  'arm-orange': { paint: { 'upper-arm': 'orange' } },
-  'arm-metal': { paint: { 'upper-arm': 'metal' } },
-  // another conversation's version of it: all in white, with an orange shoulder
-  'arm-white': {
-    paint: { ...Object.fromEntries(ALL_OF_IT.map((group) => [group, 'white'])), shoulder: 'orange' },
-  },
-  // and that version, raised as the arm's tool moves it
-  'arm-raised': {
-    look: { shoulder: 95, elbow: 100, wrist: 10 },
-  },
-  // the gripper, picked in the list of parts and shown on its own
-  gripper: { look: { others: 0, alone: 1, distance: 3.2 } },
-  // and by itself where it is in the arm, as the arm's still has it
+  // the gripper, picked in the list of parts, by itself where it is in the arm, as the
+  // arm's still has it
   'gripper-in-place': { look: { others: 0 }, as: 'arm' },
 }
 /** The parts whose pictures the list of parts shows, drawn as the app draws them. */
@@ -487,7 +472,7 @@ export const CLOQUE = ${JSON.stringify({ frames: CLOQUE_FRAMES, rate: CLOQUE_RAT
         return made as { url: string; box: unknown }
       },
       { ...REST, ...MIDDLE, grid: 0, ...still.look },
-      still.paint ?? {},
+      {},
       cutIn,
       SHARP,
       ROUND,

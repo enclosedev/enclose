@@ -9,7 +9,6 @@ $ease: cubic-bezier(0.32, 0.72, 0, 1);
 // PCB mode's ground, a shade under the model's view
 $ground: #151515;
 $line: rgb(255 255 255 / 0.1);
-$destructive: #e7000b;
 $finished: #22c55e;
 
 @mixin shimmer {

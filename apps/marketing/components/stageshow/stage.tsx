@@ -47,7 +47,7 @@ export interface StageProps<S> {
   /**
    * A second, smaller design for narrow containers. Below `below` px of
    * container width the stage uses this size, the render's `layout` argument
-   * (and `useLook().layout` inside the stage) and data-layout become 'compact', and the script restarts. Build the
+   * and data-layout become 'compact', and the script restarts. Build the
    * compact scene as a tighter crop around the story, never the wide scene
    * shrunk.
    */
@@ -82,7 +82,7 @@ export interface StageProps<S> {
   specimen?: boolean
   /** No framing, when the developer asks for it: no ground, and the product sits whole with room around it, floating on their page. Film's bleed and floating checks stand down; everything else still applies. */
   unframed?: boolean
-  /** `layout` is 'wide' or 'compact' (see `compact`); useLook() also has it, but only in components rendered inside the stage. */
+  /** `layout` is 'wide' or 'compact' (see `compact`). */
   children: (s: S, rect: (name: string) => Rect, layout: Layout) => ReactNode
 }
 

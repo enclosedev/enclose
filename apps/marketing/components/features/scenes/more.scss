@@ -344,51 +344,6 @@ $tool-panel: oklch(from var(--axis-z) calc(l - 0.135) c calc(h + 6));
   }
 }
 
-.mx-slider {
-  --along: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  width: 100%;
-
-  &__says {
-    padding: 0 7px;
-    font-weight: 500;
-    font-variant-numeric: tabular-nums;
-
-    > span {
-      position: relative;
-      left: calc(var(--along) * 100%);
-      display: block;
-      width: fit-content;
-      translate: calc(var(--along) * -100%);
-      white-space: nowrap;
-      transition:
-        left 0.9s $ease,
-        translate 0.9s $ease;
-    }
-  }
-
-  &__trail {
-    position: relative;
-    height: 22px;
-    border-radius: 999px;
-    background: rgb(255 255 255 / 0.25);
-
-    i {
-      position: absolute;
-      top: 50%;
-      left: calc(11px + var(--along) * (100% - 22px));
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: #fff;
-      transform: translate(-50%, -50%);
-      transition: left 0.9s $ease;
-    }
-  }
-}
-
 .mx-choice {
   display: flex;
   width: 100%;
@@ -462,6 +417,5 @@ $tool-panel: oklch(from var(--axis-z) calc(l - 0.135) c calc(h + 6));
     &__about { width: 120px; }
   }
 
-  .mx-slider { gap: 3px; }
 
 }

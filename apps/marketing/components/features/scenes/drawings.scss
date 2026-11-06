@@ -7,20 +7,7 @@
 $ease: cubic-bezier(0.32, 0.72, 0, 1);
 $swing: cubic-bezier(0.65, 0, 0.35, 1);
 
-// ── the column of round buttons down the view's right ──────────────────────
-.dw-column {
-  position: absolute;
-  top: 50%;
-  right: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  transform: translateY(-50%);
-}
-
 // ── Pulled apart ───────────────────────────────────────────────────────────
-// The two stills are of the arm seen from the same place, the one apart from further
-// off: so the one apart is drawn the bigger by as much (4.4 / 3.6).
 .dw-explode {
   // the clockwork: its parts' pictures one over another, each moved apart on its own
   &__clockwork {
@@ -123,10 +110,6 @@ $swing: cubic-bezier(0.65, 0, 0.35, 1);
 
     .dw-slider { width: 120px; }
   }
-
-  // (a phone's card is shorter: the two under Parts are left out)
-  .dw-column > :nth-child(2),
-  .dw-column > :nth-child(3) { display: none; }
 }
 
 // ── Blueprints ─────────────────────────────────────────────────────────────

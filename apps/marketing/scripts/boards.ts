@@ -1,6 +1,6 @@
 // The clock example's circuit board, drawn as the app's PCB mode draws it, for the
-// landing page's cards: public/board/<view>.svg. As blueprints.ts does for the arm's
-// sheets, nothing is drawn here: each file is what the app's own `drawingOf` makes of
+// landing page's cards: public/board/<view>.svg. As blueprints.ts does for the
+// examples' sheets, nothing is drawn here: each file is what the app's own `drawingOf` makes of
 // the board, in the default theme's dark look, on PCB mode's ground.
 //
 // Run from apps/marketing:
@@ -43,7 +43,6 @@ Object.assign(globalThis, { DOMParser, XMLSerializer })
   }
 }
 const { drawingOf } = await import("../../desktop/src/components/pcb/drawing")
-const { convertCircuitJsonToPcbSvg } = await import("../../desktop/node_modules/circuit-to-svg/dist/index.js")
 // from "../../desktop/src/components/pcb/drawing"
 import type { Circuit } from "../../desktop/src/components/pcb/boards"
 import type { PcbColours } from "../../desktop/shared/theme-format"
@@ -95,7 +94,6 @@ const colours = Object.fromEntries(
 await mkdir(OUT, { recursive: true })
 const files = {
   "top.svg": drawingOf(circuit, "pcb", colours, true, GROUND, "top"),
-  "bottom.svg": drawingOf(circuit, "pcb", colours, true, GROUND, "bottom"),
   "schematic.svg": drawingOf(circuit, "schematic", colours, true, GROUND),
   // the board as it is before it is routed: its parts placed, and what is to be joined
   // drawn straight across (which the app draws for a board with no traces yet)
@@ -107,26 +105,6 @@ const files = {
     GROUND,
     "top"
   ),
-  // And the board as it comes from the maker, in the colours the app's 3D draws it in:
-  // its mask, the mask over copper, bare copper and its lettering. (The card leans it
-  // back, to be seen as the 3D view sees it.)
-  // (without the box tscircuit draws round the board, which is no part of it)
-  "made.svg": convertCircuitJsonToPcbSvg(circuit as never, {
-    width: 1600,
-    height: 1600,
-    backgroundColor: "transparent",
-    showSolderMask: true,
-    colorOverrides: {
-      copper: { top: colours["board-pads"], bottom: colours["board-pads"] },
-      soldermask: { top: colours["board-mask"], bottom: colours["board-mask"] },
-      soldermaskWithCopperUnderneath: { top: colours["board-traces"], bottom: colours["board-traces"] },
-      soldermaskOverCopper: { top: colours["board-traces"], bottom: colours["board-traces"] },
-      substrate: colours["board-mask"],
-      silkscreen: { top: colours["board-print"], bottom: colours["board-print"] },
-      boardOutline: colours["board-traces"],
-      drill: "#0b0b0b",
-    },
-  }).replace(/<rect class="pcb-boundary"[^>]*\/>/, ""),
 }
 for (const [name, svg] of Object.entries(files)) {
   await writeFile(path.join(OUT, name), svg)

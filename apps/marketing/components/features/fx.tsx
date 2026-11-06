@@ -1,4 +1,4 @@
-import { ArrowUpIcon, BoxIcon, GitBranchIcon, PaperclipIcon } from 'lucide-react'
+import { ArrowUpIcon, GitBranchIcon, PaperclipIcon } from 'lucide-react'
 import type { CSSProperties, ReactNode } from 'react'
 // (each part of the kit from its own file: its index brings every part's CSS)
 import { Stage, type StageProps } from '../stageshow/stage'
@@ -174,26 +174,6 @@ export function Round({
         </span>
       )}
     </span>
-  )
-}
-
-/** A part named in a message: what it is about. */
-export function Chip({ children, icon = <BoxIcon /> }: { children: ReactNode; icon?: ReactNode }) {
-  return (
-    <span className="fx-chip">
-      {icon}
-      {children}
-    </span>
-  )
-}
-
-/** What you said, in the conversation. */
-export function Bubble({ children, chips }: { children: ReactNode; chips?: ReactNode }) {
-  return (
-    <div className="fx-turn">
-      {chips && <div className="fx-turn__chips">{chips}</div>}
-      <div className="fx-bubble">{children}</div>
-    </div>
   )
 }
 

@@ -1,11 +1,11 @@
-// Named curves, as numbers (for tweens on the clock) and as CSS. The video
+// Named curves, as numbers (for tweens on the clock). The video
 // ones are measured from product launch films: one house curve for moves
 // inside a shot, a steeper one for moves that end in a cut, and an expo-out
 // settle for the shot that picks the move up.
 
-export type Bezier = readonly [number, number, number, number]
+type Bezier = readonly [number, number, number, number]
 
-export const EASE = {
+const EASE = {
   /** Moves inside a shot (push-in, pan, a long cursor trip): peak at about 40%, long soft tail. 1.4 to 2.7 s. */
   house: [0.65, 0, 0.1, 1],
   /** The outgoing half of a move that ends in a cut: accelerates into it. */
@@ -16,16 +16,9 @@ export const EASE = {
   enter: [0.1, 0.8, 0.3, 0.95],
   /** One long cursor trip across the frame. */
   trip: [0.78, 0, 0.17, 1],
-  /** The kit's camera push-in (Camera). */
-  camera: [0.45, 0, 0.1, 1],
 } as const satisfies Record<string, Bezier>
 
-export type EaseName = keyof typeof EASE
-
-export const css = (e: EaseName | Bezier) => {
-  const [a, b, c, d] = typeof e === 'string' ? EASE[e] : e
-  return `cubic-bezier(${a}, ${b}, ${c}, ${d})`
-}
+type EaseName = keyof typeof EASE
 
 /** cubic-bezier(x1, y1, x2, y2) as a function of time 0..1, as CSS works it out. */
 export function bezier(e: EaseName | Bezier): (t: number) => number {
@@ -56,10 +49,4 @@ export function bezier(e: EaseName | Bezier): (t: number) => number {
     }
     return ((ay * u + by) * u + cy) * u
   }
-}
-
-/** The curve's slope as it starts (progress per unit time at t = 0). */
-export const startSlope = (e: EaseName | Bezier) => {
-  const [x1, y1] = typeof e === 'string' ? EASE[e] : e
-  return x1 > 0 ? y1 / x1 : 1e3
 }

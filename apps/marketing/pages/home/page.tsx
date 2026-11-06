@@ -132,7 +132,7 @@ export default function Home({ headline, description }: { headline: string; desc
         <h2 className="home__last showcase__heading">
           <Words>Make something.</Words>{' '}
           <span>
-            <Words>Enclose is free and open source, for macOS and Linux.</Words>
+            <Words>{'\nFree and open source,\nfor macOS and Linux.'}</Words>
           </span>
         </h2>
         <Download />

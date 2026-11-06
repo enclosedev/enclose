@@ -20,6 +20,12 @@
     margin: 0;
 
     > span:not(.word) { color: var(--muted); }
+
+    // set in three lines where the copy says (pages/home/features.ts), on a phone as
+    // they fall
+    @media (max-width: 767px) {
+      .break { display: none; }
+    }
   }
 
   // what the group is made with: small, under its heading

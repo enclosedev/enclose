@@ -35,7 +35,8 @@ pages/privacy/     the privacy page
 agents/            every page in Markdown, for agents that ask for it
 components/features/  the groups' rows of cards (Showcase.tsx), and each card's piece of
                    the app, rebuilt and set going (scenes/), out of the app's parts (fx.tsx)
-components/stageshow/  the Stageshow kit (benji.org/stageshow, MIT) every card is a stage of
+components/stageshow/  what every card is a stage of: the stage, its script and its cursor, from
+                   the Stageshow kit (benji.org/stageshow, MIT; only what is used is kept)
 components/app/    the app's window, rebuilt out of HTML, and its 3D view
   data.ts          the projects, the conversation and the tools it is filled with
   view.ts          the model, drawn with three.js as the app draws one

@@ -10,7 +10,7 @@ import './cad.scss'
 // the model is made of.
 
 // ── The arm's still, and places on it ──────────────────────────────────────
-// The stills of the whole arm (arm, arm-orange, arm-metal) are one framing, this many
+// The stills of the whole arm (arm, gripper-in-place) are one framing, this many
 // px; a place on a part is given in those px, measured on the still, and found on the
 // card from where the still is put and how wide.
 const ARM = { width: 1287, height: 1012 }

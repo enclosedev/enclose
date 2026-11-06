@@ -302,78 +302,6 @@ $ease: cubic-bezier(0.32, 0.72, 0, 1);
   }
 }
 
-.fx-messages {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 14px;
-  min-height: 0;
-  padding: 8px 20px 16px;
-  overflow: hidden;
-}
-
-.fx-turn {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-
-  &__chips {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 4px;
-  }
-}
-
-.fx-bubble {
-  max-width: 85%;
-  padding: 8px 14px;
-  border-radius: 16px;
-  background: var(--app-raised);
-  text-wrap: balance;
-}
-
-.fx-reply {
-  margin: 0;
-  text-wrap: pretty;
-}
-
-.fx-quiet {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--app-muted);
-  @include type.style('ui');
-
-  svg {
-    width: 14px;
-    height: 14px;
-  }
-
-  &--working > span { @include shimmer(var(--app-fg)); }
-}
-
-.fx-chip {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: 4px;
-  height: 24px;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: var(--app-raised);
-  @include type.style('ui');
-  font-weight: 500;
-  white-space: nowrap;
-
-  svg {
-    width: 12px;
-    height: 12px;
-  }
-}
-
 .fx-composer {
   display: flex;
   flex-direction: column;
@@ -596,9 +524,4 @@ $ease: cubic-bezier(0.32, 0.72, 0, 1);
     @include type.style('ui');
   }
 
-  &__rule {
-    height: 1px;
-    margin: 4px -4px;
-    background: $line;
-  }
 }
