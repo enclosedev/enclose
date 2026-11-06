@@ -3,7 +3,7 @@ import {
   RotateCcwIcon,
   UnfoldVerticalIcon,
 } from 'lucide-react'
-import { memo, useEffect, useState, type ComponentType, type CSSProperties } from 'react'
+import { memo, useEffect, useId, useState, type ComponentType, type CSSProperties } from 'react'
 import type { Act } from '../../stageshow/act'
 import { CORNER, Pill, Round, Scene, Switch } from '../fx'
 import { CLOCKWORK } from './clockwork'
@@ -272,19 +272,18 @@ function Blueprint() {
 }
 
 // ── Assembly guides ────────────────────────────────────────────────────────
-// The page a guide is: its steps down the left, and the arm beside them, drawn from
-// a corner. Step by step its parts come in and go on, lit, over those on already;
-// at the end it is whole, and going back up the steps takes it apart again.
+// The page a guide is: its steps down the left, and the counter stool beside them,
+// drawn from a corner, bigger than the card has room for. Step by step its parts come
+// in and go on, lit, over those on already; at the end it is whole, and going back up
+// the steps takes it apart again.
 
 const STEPS = [
-  { title: 'Base', says: 'Stand the base on the table, its board towards you.', parts: 'Base, motor holder, board', on: ['base'] },
-  { title: 'Shoulder', says: 'Press the shoulder onto the first servo’s horn, and screw it down.', parts: 'Shoulder, 2 horns, 6 screws', on: ['shoulder'] },
-  { title: 'Upper arm', says: 'Fit the upper arm over the second servo, its cable to the back.', parts: 'Upper arm, servo, 4 screws', on: ['upper-arm'] },
-  { title: 'Lower arm', says: 'Hang the lower arm from the elbow’s horn.', parts: 'Lower arm, wrist holder, servo', on: ['lower-arm'] },
-  { title: 'Wrist', says: 'Screw the wrist to the fourth servo’s horn.', parts: 'Wrist, servo, 4 screws', on: ['wrist'] },
-  { title: 'Gripper and jaw', says: 'Put the gripper on, then hook the jaw over its servo.', parts: 'Gripper, jaw, 2 servos', on: ['gripper', 'jaw'] },
+  { title: 'Frame', says: 'Stand the four legs and the backrest up, glides to the floor.', parts: '4 legs, backrest, 4 glides', on: ['frame'] },
+  { title: 'Brackets', says: 'Key a bracket into the top of each leg, and screw its plate on.', parts: '4 brackets, 4 keys, 4 plates', on: ['brackets'] },
+  { title: 'Footrest', says: 'Bolt the ring between the legs, level all round.', parts: 'Ring, 4 bolts', on: ['footrest'] },
+  { title: 'Seat', says: 'Lay the seat on the brackets, and screw it on from below.', parts: 'Board, cushion, 8 screws', on: ['seat'] },
 ]
-/** The arm's groups, in the order the steps put them on. */
+/** The stool's groups, in the order the steps put them on. */
 const GROUPS = STEPS.flatMap((step) => step.on)
 
 type AssemblyState = { step: number }
@@ -307,7 +306,10 @@ async function assemblyScript(a: Act<AssemblyState>) {
 }
 
 function Assembly() {
-  const markup = useSheet('top-left.svg', (svg) => svg.querySelector('[data-part="dimensions"]')?.remove())
+  // (the stool's sheet: public/blueprint/stool, scripts/blueprints.ts)
+  const markup = useSheet('stool/top-left.svg', (svg) => svg.querySelector('[data-part="dimensions"]')?.remove())
+  // (this guide's own, since the card is in the page more than once, each at its own step)
+  const guide = useId()
   return (
     <Scene<AssemblyState>
       className="dw-assembly"
@@ -319,26 +321,26 @@ function Assembly() {
         const whole = s.step > STEPS.length
         return (
           <>
-            <div className="dw-guide" data-step={s.step}>
+            <div className="dw-guide" data-step={s.step} data-guide={guide}>
               <Drawn markup={markup} className="dw-guide__sheet" />
               <style>
                 {GROUPS.map((group) => {
                   const at = STEPS.findIndex((one) => one.on.includes(group)) + 1
                   const state = s.step < at ? 'off' : s.step === at ? 'lit' : 'on'
-                  return `.dw-guide [data-part="${group}"]{${PARTS[state]}}`
+                  return `[data-guide="${guide}"] [data-part="${group}"]{${PARTS[state]}}`
                 }).join('')}
               </style>
             </div>
             <div className="dw-assembly__cover">
-              <strong>Robot arm</strong>
-              <span>Assembly guide · 6 steps</span>
+              <strong>Counter stool</strong>
+              <span>Assembly guide · {STEPS.length} steps</span>
             </div>
             <div className="dw-steps">
               <div className="dw-steps__list" style={{ '--at': Math.min(s.step, STEPS.length) } as CSSProperties}>
                 <section className="dw-step" data-shown={s.step === 0 || undefined}>
                   <span className="dw-step__label">Before you start</span>
                   <ul className="dw-needs">
-                    <li>2 mm hex key</li>
+                    <li>4 mm hex key</li>
                     <li>Phillips screwdriver</li>
                   </ul>
                 </section>
@@ -356,9 +358,6 @@ function Assembly() {
                 ))}
               </div>
             </div>
-            <span className="dw-progress">
-              <i style={{ '--at': Math.min(s.step, STEPS.length) / STEPS.length } as CSSProperties} />
-            </span>
             <Round style={{ position: 'absolute', top: CORNER, right: CORNER }}>
               <RotateCcwIcon />
             </Round>
@@ -369,7 +368,7 @@ function Assembly() {
   )
 }
 
-/** How a group of the arm's is drawn, by whether its step has come. */
+/** How a group of the stool's is drawn, by whether its step has come. */
 const PARTS = {
   off: 'opacity:0;transform:translate(-6px,-9px)',
   on: 'opacity:1;transform:none;stroke:var(--dw-on)',

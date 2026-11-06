@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Top Left",
+    "file": "top-left.svg",
+    "scale": "1:5",
+    "bytes": 63372
+  },
+  {
+    "name": "Top Right",
+    "file": "top-right.svg",
+    "scale": "1:5",
+    "bytes": 63198
+  },
+  {
+    "name": "Bottom Left",
+    "file": "bottom-left.svg",
+    "scale": "1:5",
+    "bytes": 61057
+  },
+  {
+    "name": "Bottom Right",
+    "file": "bottom-right.svg",
+    "scale": "1:5",
+    "bytes": 61597
+  },
+  {
+    "name": "Front",
+    "file": "front.svg",
+    "scale": "1:5",
+    "bytes": 31548
+  },
+  {
+    "name": "Back",
+    "file": "back.svg",
+    "scale": "1:5",
+    "bytes": 28130
+  },
+  {
+    "name": "Top",
+    "file": "top.svg",
+    "scale": "1:5",
+    "bytes": 22902
+  },
+  {
+    "name": "Bottom",
+    "file": "bottom.svg",
+    "scale": "1:5",
+    "bytes": 48010
+  },
+  {
+    "name": "Left",
+    "file": "left.svg",
+    "scale": "1:5",
+    "bytes": 22720
+  },
+  {
+    "name": "Right",
+    "file": "right.svg",
+    "scale": "1:5",
+    "bytes": 23836
+  }
+]
