@@ -11,6 +11,8 @@
     "check": "modulato check && tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
     "model": "node scripts/pack-model.mjs",
     "blueprints": "tsx --tsconfig ../desktop/tsconfig.app.json scripts/blueprints.ts",
+    "boards": "tsx --tsconfig ../desktop/tsconfig.app.json scripts/boards.ts",
+    "renders": "tsx scripts/renders.ts",
     "og": "tsx scripts/og.ts",
     "test": "tsx --test agents/*.test.ts"
   },

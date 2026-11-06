@@ -1,0 +1,489 @@
+@use '../../../styles/typography' as type;
+
+// The cards of the model taken apart and drawn (drawings.tsx). Lengths are the cards'
+// design px (600 square, and 360 square on a phone), but for those inside a sheet's
+// SVG, which are its own: millimetres of paper.
+
+$ease: cubic-bezier(0.32, 0.72, 0, 1);
+$swing: cubic-bezier(0.65, 0, 0.35, 1);
+
+// ── the column of round buttons down the view's right ──────────────────────
+.dw-column {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transform: translateY(-50%);
+}
+
+// ── Pulled apart ───────────────────────────────────────────────────────────
+// The two stills are of the arm seen from the same place, the one apart from further
+// off: so the one apart is drawn the bigger by as much (4.4 / 3.6).
+.dw-explode {
+  &__model {
+    // how big the stills are drawn, and where the arm's middle is
+    --k: 0.2;
+    --cx: 272px;
+    --cy: 284px;
+    position: absolute;
+    inset: 0;
+  }
+
+  &__whole,
+  &__apart {
+    transition:
+      opacity 0.55s $ease,
+      transform 0.8s $ease;
+  }
+
+  &__whole {
+    left: calc(var(--cx) - 643.5px * var(--k));
+    top: calc(var(--cy) - 506px * var(--k));
+    width: calc(1287px * var(--k));
+  }
+
+  &__apart {
+    left: calc(var(--cx) - 1140px * var(--k));
+    top: calc(var(--cy) - 867.5px * var(--k));
+    width: calc(2280px * var(--k));
+    transform: scale(0.8);
+  }
+
+  // pulled apart: the whole goes out to where its pieces come in, and the slider
+  // pulls them further
+  [data-apart] &__whole { transform: scale(1.3); }
+  [data-apart] &__apart {
+    transform: scale(calc(0.9 + var(--pull) * 0.16));
+    transition:
+      opacity 0.55s $ease,
+      transform 0.8s $ease;
+  }
+}
+
+// the slider at the foot of the view, while the model is apart
+.dw-spread {
+  position: absolute;
+  bottom: 18px;
+  left: 272px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 16px 0 10px;
+  border-radius: 999px;
+  background: rgb(10 10 10 / 0.6);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.1),
+    0 0 0 1px rgb(250 250 250 / 0.1);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3) brightness(0.55);
+  backdrop-filter: blur(20px) saturate(1.3) brightness(0.55);
+  opacity: 0;
+  transform: translate(-50%, 8px);
+  transition:
+    opacity 0.3s,
+    transform 0.45s $ease;
+
+  &[data-on] {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  &__twice {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 24px;
+    color: var(--app-muted);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.dw-slider {
+  --along: 0;
+  position: relative;
+  width: 168px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgb(250 250 250 / 0.15);
+
+  &__range {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: calc(var(--along) * 100%);
+    border-radius: inherit;
+    background: var(--app-primary);
+  }
+
+  &__thumb {
+    position: absolute;
+    top: 50%;
+    left: calc(var(--along) * 100%);
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow:
+      0 0 0 1px var(--app-primary),
+      0 1px 3px rgb(0 0 0 / 0.3);
+    transform: translate(-50%, -50%);
+  }
+}
+
+[data-layout='compact'] {
+  .dw-explode__model {
+    --k: 0.13;
+    --cx: 160px;
+    --cy: 166px;
+  }
+
+  .dw-spread {
+    left: 160px;
+
+    .dw-slider { width: 120px; }
+  }
+
+  // (a phone's card is shorter: the two under Parts are left out)
+  .dw-column > :nth-child(2),
+  .dw-column > :nth-child(3) { display: none; }
+}
+
+// ── Blueprints ─────────────────────────────────────────────────────────────
+// The sheet opened out, 1.9 px to a millimetre of its paper, run off the top of the
+// view; the sheets either side of it show as the edges of their paper.
+.dw-blueprint {
+  &__paper,
+  &__beside {
+    position: absolute;
+    top: -100px;
+    width: 399px;
+    height: 499px;
+    border-radius: 14px;
+    background: var(--app-paper);
+  }
+
+  &__paper { left: 100px; }
+  &__beside--before { left: -339px; }
+  &__beside--after { left: 539px; }
+
+  &__sheet,
+  &__sheet svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  &__bars {
+    position: absolute;
+    bottom: 12px;
+    left: 100px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+// The dimensions: off, they are not there; switched on, their lines are drawn in, then
+// their arrows and numbers. The numbers are set a little bigger than the sheet has
+// them, to be read at the size of the card.
+.dw-blueprint__sheet {
+  [data-part='dimensions'] {
+    opacity: 0;
+    transition: opacity 0.35s;
+
+    path[pathLength] {
+      stroke-dasharray: 1;
+      stroke-dashoffset: 1;
+      transition: stroke-dashoffset 0s 0.35s;
+    }
+
+    text {
+      fill: #2e2e2e;
+      font-size: 5.6px;
+      font-weight: 500;
+    }
+  }
+
+  .dw-head,
+  .dw-mm,
+  .dw-in {
+    opacity: 0;
+    transition:
+      opacity 0.35s,
+      transform 0.45s $ease;
+  }
+
+  .dw-in { transform: translateY(3px); }
+}
+
+[data-dims] .dw-blueprint__sheet {
+  [data-part='dimensions'] {
+    opacity: 1;
+    transition: none;
+
+    path[pathLength] {
+      stroke-dashoffset: 0;
+      transition: stroke-dashoffset 0.9s $swing;
+    }
+  }
+
+  .dw-head { opacity: 1; transition: opacity 0.3s 0.7s; }
+  .dw-mm { opacity: 1; transition: opacity 0.4s 0.6s, transform 0.45s $ease; }
+}
+
+[data-dims][data-inches] .dw-blueprint__sheet {
+  .dw-mm {
+    opacity: 0;
+    transform: translateY(-3px);
+    transition: opacity 0.3s, transform 0.45s $ease;
+  }
+
+  .dw-in {
+    opacity: 1;
+    transform: none;
+    transition: opacity 0.35s 0.08s, transform 0.45s $ease 0.08s;
+  }
+}
+
+// millimetres or inches, which comes up beside Dimensions while it is on
+.dw-units {
+  display: block;
+  box-sizing: border-box;
+  max-width: 0;
+  margin-right: -8px;
+  overflow: hidden;
+  // (room for the pill's ring, which the width would cut)
+  padding: 2px 0;
+  opacity: 0;
+  transition:
+    max-width 0.45s $ease,
+    margin-right 0.45s $ease,
+    opacity 0.3s;
+
+  &[data-on] {
+    max-width: 104px;
+    margin-right: 0;
+    padding: 2px;
+    opacity: 1;
+  }
+
+  &__in {
+    display: flex;
+    gap: 2px;
+    width: max-content;
+    height: 36px;
+    padding: 4px;
+    border-radius: 999px;
+    background: rgb(10 10 10 / 0.6);
+    box-shadow:
+      0 4px 6px -1px rgb(0 0 0 / 0.1),
+      0 0 0 1px rgb(250 250 250 / 0.1);
+    @include type.style('ui-title');
+
+    b {
+      display: flex;
+      align-items: center;
+      height: 28px;
+      padding: 0 11px;
+      border-radius: 999px;
+      font-weight: 500;
+      transition:
+        background-color 0.25s,
+        color 0.25s;
+
+      &[data-on] {
+        background: var(--app-primary);
+        color: #171717;
+      }
+    }
+  }
+}
+
+[data-layout='compact'] {
+  .dw-blueprint__paper,
+  .dw-blueprint__beside {
+    top: -66px;
+    width: 326px;
+    height: 407px;
+    border-radius: 12px;
+  }
+
+  .dw-blueprint__paper { left: 22px; }
+  .dw-blueprint__beside { display: none; }
+  .dw-blueprint__bars {
+    left: 22px;
+
+    > .fx-pill:last-child { display: none; }
+  }
+
+  .dw-blueprint__sheet [data-part='dimensions'] text { font-size: 7px; }
+}
+
+// ── Assembly guides ────────────────────────────────────────────────────────
+// The guide's page, in its own dark: the arm drawn from a corner beside the steps, its
+// groups each on, off or lit by the step (the style the card writes, drawings.tsx).
+.dw-guide {
+  --dw-on: #707070;
+  --dw-lit: #fafafa;
+  position: absolute;
+  inset: 0;
+
+  // 2.6 px to a millimetre of the sheet: the arm's middle is about 102 mm across it
+  // and 131 down
+  &__sheet {
+    position: absolute;
+    top: -111px;
+    left: 141px;
+    width: 546px;
+    height: 683px;
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    svg > g > g {
+      transition:
+        opacity 0.45s,
+        transform 0.7s $ease,
+        stroke 0.6s;
+    }
+
+    [data-part='cables'] { display: none; }
+  }
+}
+
+.dw-assembly {
+  &__cover {
+    position: absolute;
+    top: 22px;
+    left: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+
+    strong {
+      @include type.style('ui-title');
+      font-weight: 650;
+    }
+
+    span { color: var(--app-muted); }
+  }
+}
+
+.dw-steps {
+  position: absolute;
+  top: 64px;
+  bottom: 0;
+  left: 24px;
+  width: 200px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 56px, #000 calc(100% - 80px), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 56px, #000 calc(100% - 80px), transparent);
+
+  &__list {
+    --at: 0;
+    --slot: 148px;
+    display: flex;
+    flex-direction: column;
+    padding-top: 60px;
+    transform: translateY(calc(var(--at) * var(--slot) * -1));
+    transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+.dw-step {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 2px;
+  height: var(--slot);
+  opacity: 0.42;
+  transition: opacity 0.25s ease-out;
+  @include type.style('ui-text');
+
+  &[data-shown] { opacity: 1; }
+
+  strong { font-weight: 650; }
+
+  p {
+    margin: 0;
+    line-height: 1.4;
+    text-wrap: pretty;
+  }
+
+  &__label,
+  &__parts {
+    color: var(--app-muted);
+    @include type.style('ui');
+  }
+
+  &__label { font-weight: 500; }
+
+  &__parts { margin-top: 6px; }
+}
+
+.dw-needs {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    padding: 8px 0;
+    background: linear-gradient(to right, rgb(250 250 250 / 0.38) 1px, transparent 1px) left top / 4px 1px repeat-x;
+  }
+}
+
+.dw-progress {
+  position: absolute;
+  top: 50%;
+  right: 22px;
+  width: 4px;
+  height: 164px;
+  margin-top: -82px;
+  border-radius: 2px;
+  background: rgb(250 250 250 / 0.14);
+
+  i {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 20px;
+    border-radius: 2px;
+    background: var(--app-fg);
+    transform: translateY(calc(var(--at) * 144px));
+    transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+[data-layout='compact'] {
+  .dw-guide__sheet {
+    top: -92px;
+    left: 17px;
+    width: 336px;
+    height: 420px;
+  }
+
+  .dw-assembly__cover,
+  .dw-progress { display: none; }
+
+  .dw-steps {
+    top: 236px;
+    right: 20px;
+    left: 20px;
+    width: auto;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 64px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 64px), transparent);
+
+    &__list {
+      --slot: 112px;
+      padding-top: 0;
+    }
+  }
+}

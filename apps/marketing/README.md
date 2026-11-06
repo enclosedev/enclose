@@ -20,14 +20,23 @@ starts the plain Vite server on a port.
 ## What is where
 
 ```
-pages/home/        the page: what it says, and the scroll that moves the window
-  tour.ts          the scroll, from stop to stop, and what goes on at each
-  motion.ts        where the window is at each stop (tokens, editable in ✦ Tweak)
+pages/home/        the page: what it says first, over the app's window, then what
+                   Enclose does, a group of cards at a time
+  features.ts      the groups, and what each card is called and says
+  intro.ts         the first screen: the arm in a studio of its own, and the app's
+                   window put together round it as the page is scrolled
+  Tinker.tsx       someone at work on that arm, picking parts out, colouring them
+                   and leaving notes on them
+  cards.ts         the rows of cards coming in as they are scrolled to
+  motion.ts        how the model and the cards come in (tokens, editable in ✦ Tweak)
 pages/about/       what Enclose is and who makes it
 pages/contact/     where to ask
 pages/terms/       the terms
 pages/privacy/     the privacy page
 agents/            every page in Markdown, for agents that ask for it
+components/features/  the groups' rows of cards (Showcase.tsx), and each card's piece of
+                   the app, rebuilt and set going (scenes/), out of the app's parts (fx.tsx)
+components/stageshow/  the Stageshow kit (benji.org/stageshow, MIT) every card is a stage of
 components/app/    the app's window, rebuilt out of HTML, and its 3D view
   data.ts          the projects, the conversation and the tools it is filled with
   view.ts          the model, drawn with three.js as the app draws one
@@ -35,6 +44,9 @@ shell/             the header, its mark (the brand's, drawn in code) and the foo
 tokens/            the type and the colors
 public/model/      the robot arm of the app's examples, packed small for the web
 public/blueprint/  that arm's blueprint sheets, drawn by the app's own code
+public/renders/    stills of the arm for the cards, drawn by the page's own view, and
+                   of the app's other examples (scripts/example-view.ts)
+public/board/      the clock example's circuit board, drawn by the app's PCB code
 scripts/           what makes those two
 ```
 
@@ -44,16 +56,20 @@ app's window changes, `components/app` is what to change to match.
 
 ## The model and its drawings
 
-Both are made from [`examples/arm`](../../examples/arm), and are committed, so the
-site builds without them being made again:
+They are made from [`examples/arm`](../../examples/arm) (and the board from
+[`examples/clock`](../../examples/clock)), and are committed, so the site builds without
+them being made again:
 
 ```sh
 npm run model        # public/model: the arm's meshes and edges, simplified
 npm run blueprints   # public/blueprint: its sheets, as the app would save them
+npm run renders      # public/renders: stills of it, and of the other examples, for the
+                     # cards (needs Google Chrome; `-- examples` for those alone)
+npm run boards       # public/board: the clock's board, as PCB mode draws it
 ```
 
-`npm run blueprints` runs the desktop app's own drawing code, so `apps/desktop`
-has to have its packages installed.
+`npm run blueprints` and `npm run boards` run the desktop app's own drawing code, so
+`apps/desktop` has to have its packages installed.
 
 ## Deploying
 

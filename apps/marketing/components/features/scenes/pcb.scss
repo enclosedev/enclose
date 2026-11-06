@@ -1,0 +1,797 @@
+@use '../../../styles/typography' as type;
+
+// The circuit board cards (pcb.tsx). Lengths are the cards' design px (600 square, and
+// 360 square on a phone). A drawing of the board is laid in a `pcb-sheet`, at `--s` of
+// the drawing's own px, with the drawing's (`--x0`, `--y0`) at the view's top left:
+// what is pointed at on it is placed in the drawing's px, times `--s`.
+
+$ease: cubic-bezier(0.32, 0.72, 0, 1);
+// PCB mode's ground, a shade under the model's view
+$ground: #151515;
+$line: rgb(255 255 255 / 0.1);
+$destructive: #e7000b;
+$finished: #22c55e;
+
+@mixin shimmer {
+  --spread: calc(3ch + 40px);
+  background-image: linear-gradient(
+    110deg,
+    currentColor calc(50% - var(--spread)),
+    oklch(from currentColor max(0.8, calc(l + 0.4)) c h) 50%,
+    currentColor calc(50% + var(--spread))
+  );
+  background-repeat: no-repeat;
+  background-size: calc(200% + var(--spread) * 2) 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: fx-shimmer 2s linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    background-image: none;
+    -webkit-text-fill-color: currentColor;
+    animation: none;
+  }
+}
+
+.pcb-tech,
+.pcb-3d,
+.pcb-schem,
+.pcb-agent {
+  .ss-stage { background: $ground; }
+}
+
+.pcb-sheet {
+  position: absolute;
+  top: calc(var(--y0) * var(--s) * -1px);
+  left: calc(var(--x0) * var(--s) * -1px);
+  width: calc(1600px * var(--s));
+  height: calc(1550px * var(--s));
+
+  img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    width: 100%;
+    max-width: none;
+    pointer-events: none;
+  }
+}
+
+.pcb-spot {
+  position: absolute;
+}
+
+// ── the buttons down the right ─────────────────────────────────────────────
+.pcb-buttons {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transform: translateY(-50%);
+}
+
+// what opens out under a button: set in from it, its pressed look quieter
+.pcb-under {
+  position: relative;
+  right: 8px;
+
+  .fx-round[data-on] {
+    background: rgb(250 250 250 / 0.15);
+    color: var(--app-fg);
+  }
+}
+
+.pcb-number {
+  @include type.style('ui-title');
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.pcb-exit .fx-round {
+  background: $destructive;
+  color: #fff;
+  box-shadow: 0 0 0 1px $destructive;
+}
+
+[data-layout='compact'] .pcb-buttons {
+  gap: 4px;
+
+  .fx-round {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+// ── what is said of what the pointer is over ───────────────────────────────
+.pcb-label {
+  position: absolute;
+  z-index: 3;
+  max-width: 220px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--app-fg);
+  color: #171717;
+  @include type.style('ui');
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+  box-shadow:
+    0 4px 12px rgb(0 0 0 / 0.35),
+    0 0 0 1px rgb(23 23 23 / 0.25);
+  opacity: 0;
+  transition: opacity 0.18s;
+  pointer-events: none;
+
+  &[data-on] { opacity: 1; }
+
+  &__quiet { color: rgb(23 23 23 / 0.65); }
+}
+
+// ── Technical view ─────────────────────────────────────────────────────────
+.pcb-tech {
+  &__view {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    perspective: 1800px;
+    --s: 0.7;
+    --x0: 140;
+    --y0: 40;
+  }
+
+  // the board, and its bottom on the back of it: turned over about the middle of the view
+  .pcb-flip {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    transform-origin: calc(300px + var(--x0) * var(--s) * 1px) calc(230px + var(--y0) * var(--s) * 1px);
+    transition: transform 1s $ease;
+
+    &[data-over] { transform: rotateY(180deg); }
+  }
+
+  .pcb-face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    background: $ground;
+
+    &--under { transform: rotateY(180deg); }
+  }
+
+  .pcb-marks {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .pcb-lit-trace {
+    fill: none;
+    stroke: var(--app-fg);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    // the trace is 0.5 mm, 7 of the drawing's px: lit 4 view px wider all round
+    stroke-width: calc(7px + 6px / var(--s));
+    opacity: 0;
+    transition: opacity 0.18s;
+
+    &[data-on] { opacity: 0.4; }
+  }
+
+  .pcb-lit-pad {
+    fill: none;
+    stroke: var(--app-fg);
+    stroke-width: calc(1.5px / var(--s));
+    opacity: 0;
+    transition: opacity 0.18s;
+
+    &[data-on] { opacity: 1; }
+  }
+}
+
+[data-layout='compact'] .pcb-tech__view {
+  --s: 0.55;
+  --x0: 380;
+  --y0: 120;
+
+  .pcb-flip { transform-origin: calc(180px + var(--x0) * var(--s) * 1px) calc(210px + var(--y0) * var(--s) * 1px); }
+}
+
+// ── In 3D ──────────────────────────────────────────────────────────────────
+.pcb-3d {
+  &__name {
+    position: absolute;
+    top: 16px;
+    left: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    @include type.style('ui-title');
+
+    svg {
+      width: 14px;
+      height: 14px;
+      color: var(--app-muted);
+    }
+  }
+
+  &__space {
+    position: absolute;
+    inset: 0;
+    perspective: 1100px;
+    perspective-origin: 50% 30%;
+  }
+
+  &__board {
+    position: absolute;
+    top: 50%;
+    left: 46%;
+    translate: -50% -48%;
+    transform-style: preserve-3d;
+    transition: transform 0.9s $ease;
+
+    &[data-held] { transition: none; }
+  }
+
+  // the board's edge: its outline, a little under it, over and over, a deeper green
+  &__edge {
+    position: absolute;
+    inset: 0;
+    background: #183a00;
+    -webkit-mask: url('/board/made.svg') center / 100% 100% no-repeat;
+    mask: url('/board/made.svg') center / 100% 100% no-repeat;
+
+    &:first-child {
+      // what lies under it, the board's shadow on the ground
+      background: rgb(0 0 0 / 0.55);
+      filter: blur(6px);
+      transform: translateZ(-14px) !important;
+    }
+  }
+
+  &__top {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+  }
+
+  &__parts {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+
+    // a part picked out: the rest of the board darkened round it
+    &[data-picking] .pcb-block:not([data-picked]) { filter: brightness(0.55); }
+  }
+
+  &__usb {
+    position: absolute;
+    transform-style: preserve-3d;
+    transform-origin: 0 0;
+  }
+
+  // where the drag across the board starts, and ends
+  &__grab {
+    position: absolute;
+    top: 352px;
+    left: 160px;
+    width: 2px;
+    height: 2px;
+
+    &--to { left: 330px; }
+  }
+}
+
+[data-layout='compact'] .pcb-3d {
+  &__board { left: 45%; }
+
+  &__grab {
+    top: 300px;
+    left: 70px;
+
+    &--to { left: 240px; }
+  }
+}
+
+.pcb-block {
+  position: absolute;
+  transform-style: preserve-3d;
+  transition: filter 0.3s;
+
+  i {
+    position: absolute;
+    inset: 0;
+    border-radius: 1px;
+    background: var(--side);
+  }
+
+  i[data-top] {
+    background: var(--top);
+    box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.12);
+    transition: background-color 0.3s, box-shadow 0.3s;
+  }
+
+  &[data-picked] i[data-top] {
+    background: #7a7a7a;
+    box-shadow: 0 0 0 1.5px var(--app-fg);
+  }
+
+  // what is on a board is mostly greys, drawn in the theme's shades for them
+  &--chip { --top: #3a3a3a; --side: #262626; }
+  &--plastic { --top: #2e2e2e; --side: #1d1d1d; }
+  &--metal { --top: #d8d8d8; --side: #8f8f8f; }
+  &--button { --top: #1f1f1f; --side: #141414; i { border-radius: 50%; } }
+  &--cream { --top: #f1ead8; --side: #b9b19c; }
+  &--tan { --top: #b7956a; --side: #7d6241; }
+}
+
+.pcb-picked {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 12px;
+  border-radius: 999px;
+  background: rgb(10 10 10 / 0.75);
+  box-shadow:
+    0 4px 12px rgb(0 0 0 / 0.3),
+    0 0 0 1px rgb(250 250 250 / 0.12);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3) brightness(0.55);
+  backdrop-filter: blur(20px) saturate(1.3) brightness(0.55);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-4px, -50%);
+  transition:
+    opacity 0.2s,
+    transform 0.3s $ease;
+  pointer-events: none;
+
+  &[data-on] {
+    opacity: 1;
+    transform: translate(0, -50%);
+  }
+
+  &__said {
+    display: flex;
+    gap: 8px;
+    @include type.style('ui-title');
+
+    span { color: var(--app-muted); font-weight: 400; }
+  }
+
+  &__say {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--app-primary);
+    color: #171717;
+
+    svg {
+      width: 13px;
+      height: 13px;
+    }
+  }
+}
+
+// ── The schematic ──────────────────────────────────────────────────────────
+.pcb-schem {
+  &__view {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    --s: 0.8;
+    --x0: 500;
+    --y0: 280;
+  }
+}
+
+[data-layout='compact'] .pcb-schem__view {
+  --s: 0.62;
+  --x0: 600;
+  --y0: 400;
+}
+
+.pcb-ring {
+  position: absolute;
+  z-index: 1;
+  border: 1.5px solid var(--app-fg);
+  border-radius: 8px;
+  opacity: 0;
+  transition: opacity 0.18s;
+  pointer-events: none;
+
+  &[data-on] { opacity: 1; }
+}
+
+.pcb-said {
+  position: absolute;
+  z-index: 3;
+  width: 236px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #1f1f1f;
+  box-shadow:
+    0 12px 32px -8px rgb(0 0 0 / 0.6),
+    0 0 0 1px rgb(250 250 250 / 0.1);
+  @include type.style('ui');
+  opacity: 0;
+  transform: translateX(-6px) scale(0.98);
+  transform-origin: left center;
+  transition:
+    opacity 0.2s,
+    transform 0.3s $ease;
+  pointer-events: none;
+
+  &[data-on] {
+    opacity: 1;
+    transform: none;
+  }
+
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 14px 12px;
+    @include type.style('ui-title');
+    font-weight: 400;
+  }
+
+  &__quiet { color: var(--app-muted); }
+
+  &__badge {
+    flex: none;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: rgb(250 250 250 / 0.1);
+    @include type.style('ui');
+    line-height: 22px;
+  }
+
+  dl {
+    margin: 0;
+    padding: 0 14px;
+  }
+
+  dl > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 0;
+    border-top: 1px solid $line;
+  }
+
+  dt,
+  dd { margin: 0; }
+
+  &__link {
+    color: var(--app-muted);
+    text-decoration: underline;
+    text-decoration-color: rgb(161 161 161 / 0.5);
+    text-underline-offset: 3px;
+  }
+
+  &__stock { color: $finished; }
+
+  &__board {
+    position: relative;
+    height: 78px;
+    margin-top: 6px;
+    overflow: hidden;
+    border-top: 1px solid $line;
+    background: $ground;
+
+    // the microcontroller, in the middle: its footprint is at (374, 371) in top.svg
+    img {
+      position: absolute;
+      top: calc(39px - 371px * 0.42);
+      left: calc(118px - 374px * 0.42);
+      width: calc(1600px * 0.42);
+      max-width: none;
+    }
+  }
+}
+
+.pcb-mono {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+// on a phone it opens under the part, where there is the room for it
+[data-layout='compact'] .pcb-said {
+  width: 248px;
+  transform-origin: left top;
+
+  &__board { display: none; }
+}
+
+// ── Made while you talk ────────────────────────────────────────────────────
+.pcb-agent {
+  &__all {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.45s;
+
+    &[data-shown] { opacity: 1; }
+  }
+
+  &__view {
+    position: absolute;
+    inset: 0 270px 0 0;
+    overflow: hidden;
+    --s: 0.47;
+    --x0: 175;
+    --y0: 30;
+  }
+
+  // the board as each build of it comes in: what is routed of it, over what is placed,
+  // as far across the view as the routing has got
+  &__routed {
+    --routed: 0;
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      #000 calc(var(--routed) * 46% + 6%),
+      transparent calc(var(--routed) * 46% + 10%)
+    );
+    mask-image: linear-gradient(
+      90deg,
+      #000 calc(var(--routed) * 46% + 6%),
+      transparent calc(var(--routed) * 46% + 10%)
+    );
+    transition: -webkit-mask-image 0.12s linear;
+  }
+
+  &__foot {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px 6px 6px;
+    border-radius: 999px;
+    background: rgb(10 10 10 / 0.7);
+    box-shadow: 0 0 0 1px rgb(250 250 250 / 0.1);
+    -webkit-backdrop-filter: blur(20px) saturate(1.3) brightness(0.55);
+    backdrop-filter: blur(20px) saturate(1.3) brightness(0.55);
+    opacity: 0;
+    transform: translateY(6px);
+    transition:
+      opacity 0.3s,
+      transform 0.4s $ease;
+
+    &[data-on] {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  // the step under way, as PCB mode's foot marks it: a light disc, and in it how far
+  &__ring {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--app-fg);
+
+    svg {
+      width: 14px;
+      height: 14px;
+      transform: rotate(-90deg);
+    }
+
+    circle {
+      fill: none;
+      stroke-width: 2;
+      stroke: rgb(23 23 23 / 0.2);
+    }
+
+    circle + circle {
+      stroke: #171717;
+      stroke-linecap: round;
+      stroke-dasharray: var(--share) 1;
+    }
+  }
+
+  &__stage {
+    display: flex;
+    flex-direction: column;
+    @include type.style('ui');
+    line-height: 1.3;
+
+    b { font-weight: 500; }
+    span {
+      color: var(--app-muted);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  &__thread {
+    width: 270px;
+
+    .fx-messages { padding: 8px 14px 14px; }
+  }
+
+  &__reply { @include type.style('ui-text'); }
+
+  &__composer {
+    flex: none;
+    padding: 0 12px 12px;
+
+    .fx-composer__write { min-height: 44px; }
+  }
+}
+
+[data-layout='compact'] .pcb-agent {
+  &__view { display: none; }
+  &__thread { width: 100%; border-left: 0; }
+}
+
+.pcb-job {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 10px 10px 12px;
+  border: 1px solid $line;
+  border-radius: 14px;
+  background: rgb(255 255 255 / 0.03);
+  @include type.style('ui');
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+
+    > svg {
+      width: 14px;
+      height: 14px;
+      color: var(--app-muted);
+    }
+  }
+
+  &__name {
+    @include type.style('ui-title');
+    white-space: nowrap;
+  }
+
+  &__badge {
+    height: 20px;
+    padding: 0 6px;
+    border: 1px solid $line;
+    border-radius: 6px;
+    color: var(--app-attention);
+    line-height: 18px;
+    font-weight: 500;
+
+    span { @include shimmer; }
+  }
+
+  &__does {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+  }
+
+  &__show,
+  &__stop,
+  &__made {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+
+    svg {
+      width: 15px;
+      height: 15px;
+    }
+  }
+
+  &__show { color: var(--app-muted); }
+
+  &__stop {
+    background: $destructive;
+    color: #fff;
+
+    svg {
+      width: 11px;
+      height: 11px;
+      fill: currentColor;
+    }
+  }
+
+  &__made { color: $finished; }
+
+  &__said {
+    margin: 0;
+    color: var(--app-fg);
+    @include type.style('ui-text');
+    animation: pcb-said 0.4s $ease;
+  }
+
+  &__more {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--app-muted);
+
+    svg {
+      width: 13px;
+      height: 13px;
+      opacity: 0.6;
+    }
+  }
+}
+
+@keyframes pcb-said {
+  from { opacity: 0; transform: translateY(3px); }
+}
+
+.pcb-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: rgb(161 161 161 / 0.6);
+
+    &[data-state='done'] { color: var(--app-muted); }
+    &[data-state='now'] {
+      color: var(--app-fg);
+      font-weight: 500;
+    }
+  }
+
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+.pcb-spin {
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid rgb(250 250 250 / 0.25);
+  border-top-color: var(--app-fg);
+  border-radius: 50%;
+  animation: pcb-spin 0.8s linear infinite;
+}
+
+.pcb-dot {
+  width: 5px;
+  height: 5px;
+  margin: 0 3px;
+  border-radius: 50%;
+  background: rgb(250 250 250 / 0.25);
+}
+
+@keyframes pcb-spin {
+  to { transform: rotate(360deg); }
+}

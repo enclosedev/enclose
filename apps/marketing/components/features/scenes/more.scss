@@ -1,0 +1,574 @@
+@use '../../../styles/typography' as type;
+
+// And more's cards (more.tsx). Lengths are the cards' design px (fx.tsx: 600 square,
+// and 360 square on a phone); what differs on a phone is under `[data-layout='compact']`.
+
+$ease: cubic-bezier(0.32, 0.72, 0, 1);
+$tool-panel: oklch(from var(--axis-z) calc(l - 0.135) c calc(h + 6));
+
+// ── the inspiration board ──────────────────────────────────────────────────
+.mx-board {
+  &__all {
+    position: absolute;
+    inset: 0;
+    transition: opacity 0.45s;
+
+    &[data-gone] { opacity: 0; }
+  }
+
+  &__ground {
+    position: absolute;
+    left: 468px;
+    top: 344px;
+    width: 24px;
+    height: 24px;
+  }
+
+  &__spot {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    margin: -1px 0 0 -1px;
+  }
+
+  &__buttons {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transform: translateY(-50%);
+    z-index: 3;
+  }
+}
+
+.mx-exit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e7000b;
+  color: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+}
+
+.mx-picture {
+  position: absolute;
+  background: rgb(250 250 250 / 0.05);
+  box-shadow: 0 10px 40px -8px rgb(0 0 0 / 0.45);
+  transform-origin: 0 0;
+  transition:
+    transform 0.8s $ease,
+    opacity 0.5s;
+
+  &[data-up] { z-index: 2; }
+  &[data-aside] { opacity: 0.55; }
+}
+
+.fx .mx-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+// a note pinned on a picture: a white dot, read at one size however big it is drawn
+.mx-mark {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    0 1px 4px rgb(0 0 0 / 0.5),
+    0 0 0 1px rgb(0 0 0 / 0.25);
+  transition: scale 0.8s $ease;
+}
+
+// what is written of a place: its dot, and a box beside it
+.mx-writing {
+  position: absolute;
+  z-index: 4;
+  opacity: 0;
+  transform: scale(0.96);
+  transform-origin: 0 0;
+  transition:
+    opacity 0.18s,
+    transform 0.25s $ease;
+  pointer-events: none;
+
+  &[data-on] {
+    opacity: 1;
+    transform: none;
+  }
+
+  &__dot {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border-radius: 50%;
+    background: var(--app-primary);
+    box-shadow:
+      0 1px 4px rgb(0 0 0 / 0.5),
+      0 0 0 2px #fff;
+  }
+
+  &__box {
+    position: absolute;
+    top: 0;
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 226px;
+    padding: 12px 12px 12px 14px;
+    border-radius: 16px;
+    background: rgb(10 10 10 / 0.9);
+    box-shadow:
+      0 20px 25px -5px rgb(0 0 0 / 0.3),
+      0 0 0 1px rgb(250 250 250 / 0.1);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    transform: translateY(-50%);
+  }
+
+  &__text {
+    min-height: 3lh;
+    @include type.style('ui-text');
+  }
+
+  &__placeholder { color: var(--app-muted); }
+
+  &__typed::after {
+    content: '';
+    display: inline-block;
+    width: 1.5px;
+    height: 1.15em;
+    margin-left: 1px;
+    background: var(--app-fg);
+    vertical-align: text-bottom;
+  }
+
+  &__foot {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  &__pin {
+    display: flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 10px;
+    border-radius: 6px;
+    background: var(--app-primary);
+    color: #171717;
+    font-weight: 500;
+
+    &[data-pressed] { opacity: 0.85; }
+  }
+}
+
+// the note once it is pinned, said beside its dot
+.mx-said {
+  position: absolute;
+  z-index: 3;
+  margin-left: 14px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgb(10 10 10 / 0.85);
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.2),
+    0 0 0 1px rgb(250 250 250 / 0.1);
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-4px, -50%);
+  transition:
+    opacity 0.25s,
+    transform 0.3s $ease;
+
+  &[data-on] {
+    opacity: 1;
+    transform: translate(0, -50%);
+    transition-delay: 0.15s;
+  }
+}
+
+// ── tools made for the model ───────────────────────────────────────────────
+// (the folded arm and the raised one are drawn from the same eye: placed so that
+// their bases are one, the one comes where the other was)
+.mx-tools {
+  &__rest {
+    left: 21px;
+    top: 190px;
+    width: 277px;
+  }
+
+  &__ready {
+    left: -203px;
+    top: 141px;
+    width: 501px;
+  }
+
+  &__panel {
+    top: 64px;
+    right: 18px;
+    width: 290px;
+  }
+}
+
+.mx-tabs {
+  display: flex;
+  flex: none;
+  height: 42px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.17);
+  @include type.style('ui-title');
+  font-weight: 400;
+
+  span {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    color: rgb(255 255 255 / 0.6);
+
+    &:first-child { padding-left: 16px; }
+  }
+
+  &__on#{&}__on {
+    color: #fff;
+    font-weight: 500;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: auto 0 -1px;
+      height: 1.5px;
+      background: #fff;
+    }
+  }
+}
+
+.mx-control {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.17);
+  @include type.style('ui-tight');
+
+  &:last-child { border-bottom: 0; }
+
+  &__about {
+    flex: none;
+    width: 92px;
+
+    div:first-child { font-weight: 500; }
+    div:last-child {
+      color: rgb(255 255 255 / 0.6);
+      text-wrap: balance;
+    }
+  }
+
+  &__set {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    min-width: 0;
+  }
+}
+
+.mx-slider {
+  --along: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+
+  &__says {
+    padding: 0 7px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+
+    > span {
+      position: relative;
+      left: calc(var(--along) * 100%);
+      display: block;
+      width: fit-content;
+      translate: calc(var(--along) * -100%);
+      white-space: nowrap;
+      transition:
+        left 0.9s $ease,
+        translate 0.9s $ease;
+    }
+  }
+
+  &__trail {
+    position: relative;
+    height: 22px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.25);
+
+    i {
+      position: absolute;
+      top: 50%;
+      left: calc(11px + var(--along) * (100% - 22px));
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      transform: translate(-50%, -50%);
+      transition: left 0.9s $ease;
+    }
+  }
+}
+
+.mx-choice {
+  display: flex;
+  width: 100%;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.14);
+
+  span {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+    border-radius: 999px;
+    color: rgb(255 255 255 / 0.85);
+    font-weight: 500;
+    transition:
+      background-color 0.25s,
+      color 0.25s;
+
+    &[data-on] {
+      background: #fff;
+      color: $tool-panel;
+    }
+  }
+}
+
+// ── seen at its size ───────────────────────────────────────────────────────
+// The stool's picture has room round it: it is moved and scaled about the foot of the
+// stool in it, so that the stool stands where it did, smaller, on the scene's floor.
+.mx-reference {
+  &__stool {
+    position: absolute;
+    left: 20px;
+    top: 42px;
+    width: 481px;
+    height: 481px;
+    transform-origin: 49.9% 78.7%;
+    transition: transform 1.1s $ease;
+
+    &[data-small] { transform: translate(80px, -20px) scale(0.41); }
+  }
+
+  &__picture {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  &__scene {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.6s 0.3s;
+
+    &[data-on] { opacity: 1; }
+  }
+
+  & &__floor {
+    position: absolute;
+    left: 70px;
+    top: 340px;
+    width: 400px;
+    height: 120px;
+  }
+
+  & &__person {
+    position: absolute;
+    left: 200px;
+    top: 140px;
+    width: 65px;
+    height: 260px;
+  }
+}
+
+// a thing of a scene's: one tone over the view, a thin line round it
+.fx .mx-figure {
+  display: block;
+  overflow: visible;
+
+  path,
+  ellipse {
+    fill: #222222;
+    stroke: #4a4a4a;
+    stroke-width: 1;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+}
+
+.mx-scenes {
+  position: absolute;
+  top: 62px;
+  right: 14px;
+  display: flex;
+  flex-direction: column;
+  width: 206px;
+  overflow: hidden;
+  border-radius: 16px;
+  background: color-mix(in srgb, #0a0a0a, #fafafa 2.6%);
+  box-shadow:
+    0 10px 15px -3px rgb(0 0 0 / 0.3),
+    0 0 0 1px rgb(250 250 250 / 0.1);
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+  transform-origin: top right;
+  transition:
+    opacity 0.2s,
+    transform 0.3s $ease;
+
+  &[data-on] {
+    opacity: 1;
+    transform: none;
+  }
+
+  &__title {
+    padding: 14px 16px 10px;
+    @include type.style('ui-head');
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 12px 12px;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px;
+    border: 1px solid rgb(250 250 250 / 0.1);
+    border-radius: 12px;
+    background: rgb(250 250 250 / 0.05);
+    transition:
+      border-color 0.2s,
+      box-shadow 0.2s;
+
+    &[data-hover] { border-color: rgb(250 250 250 / 0.4); }
+
+    &[data-lit] {
+      border-color: transparent;
+      box-shadow: inset 0 0 0 2px var(--app-fg);
+    }
+  }
+
+  & &__picture {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 8px;
+    background: rgb(250 250 250 / 0.06);
+
+    > svg {
+      width: 40px;
+      height: 40px;
+    }
+
+    > .mx-figure--person {
+      width: auto;
+      height: 44px;
+    }
+  }
+
+  &__words {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    @include type.style('ui');
+
+    span:first-child { font-weight: 500; }
+    span:last-child { color: rgb(250 250 250 / 0.45); }
+  }
+}
+
+// ── on a phone ─────────────────────────────────────────────────────────────
+[data-layout='compact'] {
+  .mx-board__ground {
+    left: 150px;
+    top: 296px;
+  }
+
+  .mx-board__buttons {
+    right: 10px;
+    gap: 5px;
+  }
+
+  .mx-writing__box { width: 172px; }
+
+  .mx-tools__rest {
+    left: 72px;
+    top: 41px;
+    width: 193px;
+  }
+
+  .mx-tools__ready {
+    left: -84px;
+    top: 7px;
+    width: 350px;
+  }
+
+  .mx-tools__panel {
+    top: auto;
+    right: 14px;
+    bottom: 14px;
+    left: 14px;
+    width: auto;
+  }
+
+  .mx-tabs { height: 38px; }
+
+  .mx-control {
+    padding: 10px 14px;
+
+    &__about { width: 120px; }
+  }
+
+  .mx-slider { gap: 3px; }
+
+  .mx-reference__stool {
+    left: -25px;
+    top: 57px;
+    width: 410px;
+    height: 410px;
+
+    &[data-small] { transform: translate(50px, -10px) scale(0.39); }
+  }
+
+  .mx-reference__floor {
+    left: 35px;
+    top: 325px;
+    width: 300px;
+    height: 90px;
+  }
+
+  .mx-reference__person {
+    left: 120px;
+    top: 160px;
+    width: 52.5px;
+    height: 210px;
+  }
+}

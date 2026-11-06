@@ -16,7 +16,7 @@ import { BUILT, type Look } from './look'
 // The colours parts are drawn in: the app's own (its shared/palette.ts), as its default
 // theme (themes/default.json) has them in the dark look the window is drawn in; and the
 // order groups that give none are handed them in.
-const PALETTE: Record<string, string> = {
+export const PALETTE: Record<string, string> = {
   red: '#ff726f',
   orange: '#feaf57',
   yellow: '#fff24f',
@@ -31,9 +31,15 @@ const PALETTE: Record<string, string> = {
   lightgrey: '#d4d4d4',
   grey: '#464646',
 }
-const IN_TURN = ['blue', 'orange', 'green', 'pink', 'cyan', 'yellow', 'violet', 'lime', 'red', 'indigo']
-const METAL = '#c4c7cc'
-const EDGE = '#0e1012'
+export const IN_TURN = ['blue', 'orange', 'green', 'pink', 'cyan', 'yellow', 'violet', 'lime', 'red', 'indigo']
+export const METAL = '#c4c7cc'
+/**
+ * A colour the model gives a part that the page draws as another: the arm's servos are
+ * grey, which is all but lost on the dark view, and are drawn red. (A colour given by
+ * hand is drawn as it is.)
+ */
+const SHOWN_AS: Record<string, string> = { grey: 'red' }
+export const EDGE = '#0e1012'
 
 // Where each joint is as built, and the line it turns about, in mm: the arm's own
 // tool has these (examples/arm/tools/arm.js). A joint turns its link and every link
@@ -78,16 +84,62 @@ const PICTURE = 300
 const FILL = 0.86
 const HOME = new THREE.Vector3(0.5, -0.62, 0.6).normalize()
 
+/**
+ * Where the window would be on the canvas, when the canvas is not the window's own: its
+ * top left corner and its scale, in the canvas's px. The model is drawn as the window
+ * would have it, and the rest of the canvas round that as more of the same view.
+ */
+export type Frame = { x: number; y: number; scale: number }
+
+/** What is under a point of the canvas: a part of a group, and where on it, in mm. */
+export type Hit = { group: string; label: string; colour: string; point: [number, number, number] }
+
 export type View = {
-  draw: (look: Look) => void
+  draw: (look: Look, frame?: Frame) => void
+  /** (as last drawn) what is under this point of the canvas, in the page's px */
+  hit: (x: number, y: number) => Hit | null
+  /** (as last drawn) where a point of the model is on the canvas, in the page's px */
+  place: (point: readonly [number, number, number]) => { x: number; y: number }
+  /** (as last drawn) the room the model takes on the canvas, in the page's px */
+  bounds: () => { left: number; top: number; right: number; bottom: number }
+  /**
+   * Give a group a colour of the palette, as the app's colour picker does (or null: as
+   * it was); and draw it so.
+   */
+  paint: (group: string, colour: string | null) => void
+  /**
+   * Pick a group out, as a click on it does in the app (or null: none); `plain`, seen in
+   * its own colour, as it is while a colour is chosen for it.
+   */
+  pick: (group: string | null, plain?: boolean) => void
   /** how many of the screen's pixels there are to one of the window's */
   sharpen: (ratio: number) => void
+  /** (a studio's canvas) how big it is now, in the page's px */
+  resize: (width: number, height: number) => void
   /** Draw each of these parts by itself, handing each picture over as it is made. */
   pictures: (ids: readonly string[], each: (id: string, url: string) => void) => Promise<void>
   dispose: () => void
 }
 
-export async function openView(canvas: HTMLCanvasElement, ratio: number): Promise<View> {
+/**
+ * Colours given parts by hand, as the app's own colour picker gives them: by a part's id
+ * or its group's, a name of the palette's, or `metal` for bare metal. (The page's window
+ * has none: what the feature cards show, scripts/renders.ts draws with them.)
+ */
+export type Paint = Record<string, string>
+
+/**
+ * The view, in the app's window by default: or, as a studio, on a canvas of any size
+ * (see `Frame`), with a light fixed over the model that it casts its shadow by, on a
+ * floor that is not drawn and goes on for ever (how much of the shadow there is, is
+ * the look's `shadow`).
+ */
+export async function openView(
+  canvas: HTMLCanvasElement,
+  ratio: number,
+  paint: Paint = {},
+  { studio = false }: { studio?: boolean } = {},
+): Promise<View> {
   const at = (file: string) => `/model/${file}`
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
   const [packed, lines, gltf] = await Promise.all([
@@ -99,7 +151,15 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.setPixelRatio(ratio)
-  renderer.setSize(WINDOW.width, WINDOW.height, false)
+  /** how big the canvas is, in the page's px */
+  const sized = studio
+    ? { width: canvas.clientWidth || WINDOW.width, height: canvas.clientHeight || WINDOW.height }
+    : { width: WINDOW.width, height: WINDOW.height }
+  renderer.setSize(sized.width, sized.height, false)
+  if (studio) {
+    renderer.shadowMap.enabled = true
+    renderer.shadowMap.type = THREE.PCFShadowMap
+  }
 
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(FOV, WINDOW.width / WINDOW.height, 1, 10000)
@@ -115,14 +175,19 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
   // ── the parts ───────────────────────────────────────────────────────────
   // (A surface is one of a kind: of a colour, and of the cables, or of the group that
   // the list of parts shows on its own, or of neither. The kinds come and go apart.)
+  // (And what is picked out by a click, as the app draws it: in the selection's colour,
+  // a white, lit up, and seen as it is, not through the view's lens.)
   type Kind = { cable: boolean; picked: boolean }
   const colours = new Map<string, { material: THREE.MeshStandardMaterial } & Kind>()
-  const surface = (colour: string, metal: boolean, { cable, picked }: Kind) => {
-    const name = `${colour}${metal ? ':metal' : ''}${cable ? ':cable' : ''}${picked ? ':picked' : ''}`
+  const surface = (colour: string, metal: boolean, { cable, picked }: Kind, chosen = false) => {
+    const name = `${colour}${metal ? ':metal' : ''}${cable ? ':cable' : ''}${picked ? ':picked' : ''}${chosen ? ':chosen' : ''}`
     let material = colours.get(name)?.material
     if (!material) {
       material = new THREE.MeshStandardMaterial({
         color: colour,
+        emissive: chosen ? '#ffffff' : '#000000',
+        emissiveIntensity: chosen ? 0.3 : 0,
+        toneMapped: !chosen,
         metalness: metal ? 0.55 : 0.1,
         roughness: metal ? 0.45 : 0.62,
         side: THREE.DoubleSide,
@@ -150,6 +215,12 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
   const edgeInk = ink()
   const cableInk = ink()
   const pickedInk = ink()
+  // (the lines of what is picked out by a click: heavier, and drawn in full)
+  const chosenInk = ink()
+  chosenInk.opacity = 1
+  const CHOSEN_LINE = 2
+  /** The heaviest a line is drawn on a canvas of its own, in the page's px. */
+  const FINE = 0.8
 
   const found = new Map<string, THREE.Mesh>()
   gltf.scene.traverse((node) => {
@@ -175,9 +246,12 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
     const kind = { cable: part.group === 'cables', picked: part.group === PICKED }
     const { cable } = kind
     const group = packed.groups.findIndex((one) => one.id === part.group)
-    const colour = part.metal
+    const given = paint[part.id] ?? (part.metal ? undefined : paint[part.group])
+    const metal = given ? given === 'metal' : part.metal
+    const own = part.color && (SHOWN_AS[part.color] ?? part.color)
+    const colour = metal
       ? METAL
-      : PALETTE[part.color ?? IN_TURN[Math.max(group, 0) % IN_TURN.length]] ?? part.color!
+      : PALETTE[given ?? own ?? IN_TURN[Math.max(group, 0) % IN_TURN.length]] ?? part.color!
 
     const object = new THREE.Group()
     object.matrixAutoUpdate = false
@@ -185,11 +259,13 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
     const room = mesh.geometry.boundingBox!.clone().applyMatrix4(TO_MODEL)
     // (its corners are packed as whole numbers, which moving them here would spoil:
     // the mesh is turned to the model's frame instead)
-    const skin = new THREE.Mesh(mesh.geometry, surface(colour, part.metal, kind))
+    const skin = new THREE.Mesh(mesh.geometry, surface(colour, metal, kind))
+    skin.castShadow = studio
     skin.matrixAutoUpdate = false
     skin.matrix.copy(TO_MODEL)
     object.add(skin)
 
+    let lined: LineSegments2 | null = null
     const [first, count] = part.edges
     if (count > 0) {
       const positions = new Float32Array(count * 6)
@@ -201,10 +277,24 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
       )
       drawn.renderOrder = 1
       object.add(drawn)
+      lined = drawn
     }
     model.add(object)
     return [
-      { id: part.id, object, room, cable, link: part.group, explode: new THREE.Vector3(...part.explode) },
+      {
+        id: part.id,
+        object,
+        skin,
+        lined,
+        inked: lined?.material as LineMaterial | undefined,
+        room,
+        cable,
+        kind,
+        metal,
+        colour,
+        link: part.group,
+        explode: new THREE.Vector3(...part.explode),
+      },
     ]
   })
   scene.add(model)
@@ -221,6 +311,34 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
   // (and the world's axes: the model is built on the ground, about where they meet)
   const ground = makeGround(ratio, { x: '#ff0033', y: '#74d908', z: '#0f73ff' })
   scene.add(...ground.objects)
+
+  // ── the studio's floor, and the light over it ───────────────────────────
+  // The floor is only its shadows; the light is high over the model and a little in
+  // front, to the left, and stays where it is as the eye goes round.
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(radius * 60, radius * 60),
+    new THREE.ShadowMaterial({ color: '#000000', opacity: 0, transparent: true }),
+  )
+  floor.position.set(middle.x, middle.y, box.min.z)
+  floor.receiveShadow = true
+  floor.visible = studio
+  const sun = new THREE.DirectionalLight('#ffffff', 0.35)
+  sun.position.set(middle.x - radius * 1.2, middle.y - radius * 1.6, box.min.z + radius * 4)
+  sun.target.position.copy(middle)
+  sun.castShadow = studio
+  sun.shadow.mapSize.set(2048, 2048)
+  sun.shadow.radius = 10
+  sun.shadow.blurSamples = 20
+  sun.shadow.bias = -0.0004
+  Object.assign(sun.shadow.camera, {
+    left: -radius * 2.4,
+    right: radius * 2.4,
+    top: radius * 2.4,
+    bottom: -radius * 2.4,
+    near: radius,
+    far: radius * 9,
+  })
+  if (studio) scene.add(floor, sun, sun.target)
 
   // ── a frame ─────────────────────────────────────────────────────────────
   const turned = new Map<string, THREE.Matrix4>()
@@ -244,7 +362,9 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
     fill.position.copy(from).multiplyScalar(-0.6).addScaledVector(right, -0.7).add(new THREE.Vector3(0, 0, 0.4))
   }
 
-  const draw = (look: Look) => {
+  let last: { look: Look; frame?: Frame } | null = null
+  const draw = (look: Look, frame?: Frame) => {
+    last = { look, frame }
     // Each joint turns its link and all that the link carries: so a link is turned
     // by every joint from the base out to its own, the innermost last.
     moved.identity()
@@ -279,8 +399,10 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
       material.opacity = there
     }
     edgeInk.opacity = INK * look.others
+    chosenInk.opacity = look.others
     cableInk.opacity = INK * look.cables * look.others
     ground.show(look.grid)
+    ;(floor.material as THREE.ShadowMaterial).opacity = 0.6 * look.shadow
 
     const around = look.azimuth * RADIANS
     const above = look.elevation * RADIANS
@@ -295,17 +417,77 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
     camera.near = size * 0.2
     camera.far = size * look.distance + radius * 8
     camera.lookAt(aim)
-    // the model's middle is not the window's: the conversation is over one side of it
+    // the model's middle is not the window's: the conversation is over one side of it.
+    // (On a canvas of its own the window is somewhere on it, and of it the canvas has
+    // as much more as it has room for.)
+    const { x, y, scale } = frame ?? { x: 0, y: 0, scale: 1 }
     camera.setViewOffset(
       WINDOW.width,
       WINDOW.height,
-      WINDOW.width / 2 - look.x,
-      WINDOW.height / 2 - look.y,
-      WINDOW.width,
-      WINDOW.height,
+      WINDOW.width / 2 - look.x - x / scale,
+      WINDOW.height / 2 - look.y - y / scale,
+      sized.width / scale,
+      sized.height / scale,
     )
+    if (frame)
+      for (const ink of [edgeInk, cableInk, pickedInk, chosenInk]) {
+        ink.resolution.set(sized.width, sized.height)
+        // as the window is scaled, but never heavier than a fine line, however big the
+        // model is drawn
+        ink.linewidth = Math.min(scale, FINE) * (ink === chosenInk ? CHOSEN_LINE : 1)
+      }
     light(eye)
     renderer.render(scene, camera)
+  }
+
+  // ── pointing at it ──────────────────────────────────────────────────────
+  // As it was last drawn: the camera is where that left it.
+  const pointer = new THREE.Raycaster()
+  const toCanvas = (point: THREE.Vector3) => {
+    point.project(camera)
+    return { x: ((point.x + 1) / 2) * sized.width, y: ((1 - point.y) / 2) * sized.height }
+  }
+  const hit: View['hit'] = (x, y) => {
+    if (!last) return null
+    pointer.setFromCamera(new THREE.Vector2((x / sized.width) * 2 - 1, 1 - (y / sized.height) * 2), camera)
+    const solid = parts.filter((part) => !part.cable && part.object.visible)
+    const [first] = pointer.intersectObjects(solid.map((part) => part.skin), false)
+    const part = first && solid.find((one) => one.skin === first.object)
+    if (!part) return null
+    const label = packed.groups.find((group) => group.id === part.link)?.label ?? part.link
+    const colour = `#${(part.skin.material as THREE.MeshStandardMaterial).color.getHexString()}`
+    return { group: part.link, label, colour, point: first.point.toArray() }
+  }
+  const corner = new THREE.Vector3()
+  const bounds: View['bounds'] = () => {
+    const room = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity }
+    for (let i = 0; i < 8; i++) {
+      corner.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z)
+      const { x, y } = toCanvas(corner)
+      room.left = Math.min(room.left, x)
+      room.right = Math.max(room.right, x)
+      room.top = Math.min(room.top, y)
+      room.bottom = Math.max(room.bottom, y)
+    }
+    return room
+  }
+  // What each group is painted, and which is picked out (and whether it is seen in its
+  // own colour, as it is while a colour is chosen for it): each part follows.
+  const painted = new Map<string, string>()
+  let chosen: { group: string; plain: boolean } | null = null
+  const restyle = () => {
+    for (const part of parts) {
+      if (part.cable) continue
+      const out = chosen?.group === part.link
+      if (part.lined && part.inked) part.lined.material = out ? chosenInk : part.inked
+      if (out && !chosen!.plain) part.skin.material = surface('#ffffff', false, part.kind, true)
+      else if (part.metal) part.skin.material = surface(METAL, true, part.kind)
+      else {
+        const given = painted.get(part.link)
+        part.skin.material = surface(given ? PALETTE[given] : part.colour, false, part.kind)
+      }
+    }
+    if (last) draw(last.look, last.frame)
   }
 
   // ── the parts' pictures ─────────────────────────────────────────────────
@@ -321,7 +503,7 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
     const flat = new THREE.OrthographicCamera()
     flat.up.copy(camera.up)
     const corner = new THREE.Vector3()
-    const inks = [edgeInk, cableInk, pickedInk]
+    const inks = [edgeInk, cableInk, pickedInk, chosenInk]
     // all that a part is drawn in, which the scroll has more or less there
     const drawnIn = [...[...colours.values()].map(({ material }) => material), ...inks]
     try {
@@ -369,7 +551,7 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
         ground.objects.forEach((object, index) => (object.visible = laid[index]))
         one.object.matrix.copy(stood)
         drawnIn.forEach((material, index) => (material.opacity = faint[index]))
-        for (const ink of inks) ink.resolution.set(WINDOW.width, WINDOW.height)
+        for (const ink of inks) ink.resolution.set(sized.width, sized.height)
         key.position.copy(lit[0])
         fill.position.copy(lit[1])
         // one a frame, so that they do not hold the page up
@@ -383,11 +565,31 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
 
   return {
     draw,
+    hit,
+    place: (point) => toCanvas(corner.set(...point)),
+    bounds,
+    paint(group, colour) {
+      if (colour) painted.set(group, colour)
+      else painted.delete(group)
+      restyle()
+    },
+    pick(group, plain = false) {
+      chosen = group ? { group, plain } : null
+      restyle()
+    },
     pictures,
     sharpen(next) {
       ground.sharpen(next)
       renderer.setPixelRatio(next)
-      renderer.setSize(WINDOW.width, WINDOW.height, false)
+      renderer.setSize(sized.width, sized.height, false)
+      // (which clears it)
+      if (last) draw(last.look, last.frame)
+    },
+    resize(width, height) {
+      Object.assign(sized, { width, height })
+      renderer.setSize(width, height, false)
+      // (which clears it)
+      if (last) draw(last.look, last.frame)
     },
     dispose() {
       gone = true
@@ -397,7 +599,11 @@ export async function openView(canvas: HTMLCanvasElement, ratio: number): Promis
       edgeInk.dispose()
       cableInk.dispose()
       pickedInk.dispose()
+      chosenInk.dispose()
       ground.dispose()
+      floor.geometry.dispose()
+      floor.material.dispose()
+      sun.shadow.map?.dispose()
       renderer.dispose()
     },
   }

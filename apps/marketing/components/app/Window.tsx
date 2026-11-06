@@ -10,9 +10,11 @@ import {
   GitBranchIcon,
   Grid3x3Icon,
   HammerIcon,
+  ImagesIcon,
   MessageSquareIcon,
   PanelRightCloseIcon,
   PaperclipIcon,
+  PinIcon,
   PlusIcon,
   SearchIcon,
   SettingsIcon,
@@ -22,16 +24,17 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { drawMark, GIZMO, GIZMO_PARTS } from '../../shell/axes'
 import {
   ACTIVITIES,
+  GROUPS,
   OPEN,
   PARTS,
   PICKED,
   PLACEHOLDER,
-  PROJECTS,
   SHEETS,
   SWITCHES,
   THREAD,
   TITLE,
   TYPED,
+  type Group,
   type Item,
   type Project,
   type SwitchId,
@@ -42,8 +45,8 @@ import './app.scss'
 // The app's window, rebuilt on the page out of what the app itself is built of,
 // so that the page can say what is in it: how many projects, what was said, where
 // the model is turned to. It is a picture: nothing in it is to be pressed, and
-// everything that changes in it is changed by the page's scroll (pages/home/tour.ts),
-// which finds its parts by their `data-` names.
+// what moves in it is moved by the page (pages/home/intro.ts), which finds its parts by
+// their `data-` names.
 
 const SWITCH_ICON: Record<SwitchId, ReactNode> = {
   parts: <BoxesIcon />,
@@ -54,6 +57,7 @@ const SWITCH_ICON: Record<SwitchId, ReactNode> = {
   pcb: <BoardIcon />,
   blueprint: <DraftingCompassIcon />,
   assembly: <BookOpenIcon />,
+  inspiration: <ImagesIcon />,
   search: <SearchIcon />,
   tools: <HammerIcon />,
 }
@@ -92,15 +96,12 @@ function Written({
   said,
   news,
   branch,
-  sends,
 }: {
   name: string
   when?: string
   said: string
   news?: Project['news']
   branch?: string
-  /** its conversation is the one the page's scroll sends a message in: see below */
-  sends?: boolean
 }) {
   return (
     <>
@@ -123,15 +124,6 @@ function Written({
           {news === 'working' && <Going />}
         </span>
       )}
-      {/* What the open project's card says once the scroll has sent its message: that
-          the agent is at work, and for how long, which is the time the conversation
-          says too. The scroll puts `data-working` on the card, and takes it off. */}
-      {sends && (
-        <span className="app__news app__news--working" data-app="at-work">
-          {NEWS.working}
-          <span data-app="at-work-for">0 s</span>
-        </span>
-      )}
     </>
   )
 }
@@ -141,7 +133,7 @@ function ProjectCard({ project }: { project: Project }) {
   return (
     <div
       className="app__tuck"
-      data-app={project.later ? 'later' : project.id === OPEN ? 'open' : 'other'}
+      data-float
       data-project={project.id}
     >
       <div className="app__tucked">
@@ -150,7 +142,7 @@ function ProjectCard({ project }: { project: Project }) {
             className={`app__card${project.id === OPEN ? ' app__card--lit' : ''}`}
             data-under={under.length > 0 || undefined}
           >
-            <Written {...project} sends={project.id === OPEN} />
+            <Written {...project} />
             {under.length > 0 && <span className="app__sliver" data-app="sliver" />}
           </div>
           {under.length > 0 && (
@@ -175,6 +167,21 @@ function ProjectCard({ project }: { project: Project }) {
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Over the projects of a group, as wide as their cards: its name, a line out to what is
+ * done with the group, a new project in it and pinning it to the top (filled, pinned).
+ */
+function GroupHeading({ group }: { group: Group }) {
+  return (
+    <div className="app__heading" data-float>
+      <span>{group.name}</span>
+      <i />
+      <PlusIcon />
+      <PinIcon fill={group.pinned ? 'currentColor' : 'none'} />
     </div>
   )
 }
@@ -284,27 +291,28 @@ export function Window() {
             </div>
           </div>
 
-          <div className="app__lights">
+          <div className="app__lights" data-app="lights">
             <i />
             <i />
             <i />
           </div>
 
           <aside className="app__sidebar" data-app="sidebar">
-            {PROJECTS.map((project) => (
-              <ProjectCard key={project.id} project={project} />
-            ))}
-            <span className="app__round app__round--plain" data-app="add">
+            {GROUPS.flatMap((group) => [
+              <GroupHeading key={`group-${group.name}`} group={group} />,
+              ...group.projects.map((project) => <ProjectCard key={project.id} project={project} />),
+            ])}
+            <span className="app__round app__round--plain app__add" data-float>
               <PlusIcon />
             </span>
           </aside>
-          <span className="app__round app__round--plain app__settings">
+          <span className="app__round app__round--plain app__settings" data-float>
             <SettingsIcon />
           </span>
 
           {/* what moves with the conversation's edge: the buttons, their tips, the panel */}
           <div className="app__edge" data-app="edge">
-            <span className="app__round app__round--on app__talk" data-app="talk">
+            <span className="app__round app__round--on app__talk" data-app="talk" data-float>
               <MessageSquareIcon />
             </span>
             <div className="app__column" data-app="column">
@@ -313,6 +321,7 @@ export function Window() {
                   key={item.id}
                   className={`app__round${item.id === 'tools' ? ' app__round--tool' : ''}`}
                   data-switch={item.id}
+                  data-float
                 >
                   {SWITCH_ICON[item.id]}
                   <span className="app__tip">
@@ -327,6 +336,7 @@ export function Window() {
               className="app__gizmo"
               viewBox="-50 -50 100 100"
               data-app="gizmo"
+              data-float
               dangerouslySetInnerHTML={{ __html: drawMark(GIZMO, GIZMO_PARTS) }}
             />
 

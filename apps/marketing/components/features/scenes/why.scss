@@ -1,0 +1,535 @@
+// Why Enclose's cards (why.tsx). Lengths are the cards' design px (fx.tsx: 600 square,
+// and 360 square on a phone).
+
+.fx-projects {
+  &__view {
+    position: absolute;
+    inset: 0;
+  }
+
+  // The model in the view behind the cards, as big as the app has it: more of it than
+  // the card has room for, its top coming up into the view from its foot, under the
+  // cards (the arm's still is cut close round it; the examples' pictures have room
+  // round them).
+  &__arm {
+    left: 90px;
+    top: 90px;
+    width: 1000px;
+  }
+
+  &__example {
+    left: -253px;
+    top: -162px;
+    width: 1300px;
+  }
+
+  &__sidebar {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+}
+
+// (the stage inside the card says which of its two designs is showing)
+[data-layout='compact'] {
+  .fx-projects__arm {
+    left: 60px;
+    top: 150px;
+    width: 620px;
+  }
+
+  .fx-projects__example {
+    left: -100px;
+    top: 20px;
+    width: 836px;
+  }
+}
+
+// ── what the sidebar has besides cards ─────────────────────────────────────
+// A group's heading: its name small and quiet, a rule, and its + and pin.
+.fx-heading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 196px;
+  height: 22px;
+  padding-left: 2px;
+  color: var(--app-muted);
+
+  span { white-space: nowrap; }
+
+  i {
+    flex: 1;
+    height: 1px;
+    min-width: 16px;
+    margin: 0 4px;
+    background: rgb(255 255 255 / 0.1);
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+    margin: 0 3px;
+  }
+
+  // (a heading under cards has room over it, as the list gives a group)
+  &:not(:first-child) { margin-top: 8px; }
+}
+
+// An earlier conversation, under its project's card, by the arrow back up to it.
+.fx-earlier {
+  display: flex;
+  align-items: center;
+
+  &__back {
+    display: flex;
+    flex: none;
+    justify-content: center;
+    width: 32px;
+    color: var(--app-muted);
+
+    svg {
+      width: 12px;
+      height: 12px;
+    }
+  }
+}
+
+// ── A version for each conversation ────────────────────────────────────────
+.fx-versions {
+  &__sidebar {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  &__arm {
+    left: 262px;
+    top: 220px;
+    width: 330px;
+  }
+
+  // (reaching up and out, it is wider than it is tall)
+  &__raised {
+    left: 252px;
+    top: 266px;
+    width: 340px;
+  }
+}
+
+[data-layout='compact'] {
+  .fx-versions__arm {
+    left: 150px;
+    top: 232px;
+    width: 230px;
+  }
+
+  .fx-versions__raised {
+    left: 96px;
+    top: 260px;
+    width: 250px;
+  }
+}
+
+// ── Projects that go together ──────────────────────────────────────────────
+.fx-groups {
+  &__sidebar {
+    position: absolute;
+    top: 14px;
+    left: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  &__arm {
+    left: 262px;
+    top: 190px;
+    width: 330px;
+  }
+
+  &__gripper {
+    left: 318px;
+    top: 182px;
+    width: 230px;
+  }
+
+  &__from {
+    color: var(--app-fg);
+    font-weight: 500;
+  }
+}
+
+[data-layout='compact'] {
+  .fx-groups__arm {
+    left: 150px;
+    top: 220px;
+    width: 250px;
+  }
+
+  .fx-groups__gripper {
+    left: 210px;
+    top: 232px;
+    width: 140px;
+  }
+}
+
+// ── Backed up to GitHub ────────────────────────────────────────────────────
+.fx-github {
+  &__arm {
+    left: -30px;
+    top: 270px;
+    width: 300px;
+  }
+
+  &__sidebar {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  // the project's repository, as GitHub lists its commits, in GitHub's dark look
+  &__repo {
+    position: absolute;
+    top: 40px;
+    left: 236px;
+    width: 346px;
+    bottom: -40px;
+    overflow: hidden;
+    border-radius: 14px;
+    background: #0d1117;
+    color: #f0f6fc;
+    box-shadow:
+      0 20px 40px -10px rgb(0 0 0 / 0.6),
+      0 0 0 1px #30363d;
+
+    > header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 52px;
+      padding: 0 18px;
+      border-bottom: 1px solid #30363d;
+      font-size: 14px;
+      line-height: 20px;
+
+      svg {
+        width: 20px;
+        height: 20px;
+      }
+    }
+  }
+
+  &__name { font-weight: 600; }
+
+  &__private {
+    padding: 0 7px;
+    border: 1px solid #3d444d;
+    border-radius: 999px;
+    color: #9198a1;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 18px;
+  }
+
+  &__bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px 10px;
+    color: #9198a1;
+  }
+
+  &__select {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 8px 0 10px;
+    border: 1px solid #3d444d;
+    border-radius: 6px;
+    background: #212830;
+    color: #f0f6fc;
+    font-weight: 500;
+
+    svg {
+      width: 14px;
+      height: 14px;
+      color: #9198a1;
+    }
+  }
+
+  &__list {
+    margin: 0 18px;
+    overflow: hidden;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+  }
+}
+
+// a commit, as GitHub lists one: what it says, and who made it and when
+.fx-commit {
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  border-top: 1px solid #30363d;
+  transition: background-color 1.2s;
+
+  .ss-collapse + &,
+  .fx-github__list > &:first-child { border-top: 0; }
+
+  &[data-fresh] {
+    border-top: 0;
+    background: rgb(56 139 253 / 0.1);
+  }
+
+  &__dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    margin-top: 5px;
+    border: 1.5px solid #9198a1;
+    border-radius: 50%;
+  }
+
+  &__words {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  &__title {
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #9198a1;
+    white-space: nowrap;
+  }
+
+  &__branch {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 0 6px;
+    border-radius: 6px;
+    background: rgb(56 139 253 / 0.15);
+    color: #58a6ff;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    line-height: 18px;
+
+    svg {
+      width: 11px;
+      height: 11px;
+    }
+  }
+
+  &--filler i {
+    display: block;
+    height: 7px;
+    margin: 6px 0 2px;
+    border-radius: 4px;
+    background: #262c36;
+  }
+}
+
+[data-layout='compact'] {
+  .fx-github__arm {
+    left: 214px;
+    top: 14px;
+    width: 160px;
+  }
+
+  .fx-github__repo {
+    top: 132px;
+    left: 18px;
+    width: 324px;
+  }
+}
+
+// ── The agent you already pay for ──────────────────────────────────────────
+.fx-agents {
+  &__arm {
+    left: -110px;
+    top: 220px;
+    width: 360px;
+  }
+
+  &__thread {
+    left: 236px;
+    width: auto;
+  }
+
+  &__empty {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 0 40px 40px;
+    text-align: center;
+    text-wrap: balance;
+
+    strong { font-weight: 500; }
+    span { color: var(--app-muted); }
+  }
+
+  &__foot {
+    position: relative;
+    flex: none;
+    padding: 0 14px 14px;
+  }
+
+  // what the line under the message opens, over it: the agents' marks, and the three
+  // choices of the one picked
+  // (it is over the line that opens it, and goes out over the view as far as it needs)
+  &__pop {
+    position: absolute;
+    right: 14px;
+    bottom: calc(100% - 2px);
+    left: -40px;
+    padding: 6px;
+    border-radius: 16px;
+    background: #1f1f1f;
+    box-shadow:
+      0 10px 30px -6px rgb(0 0 0 / 0.5),
+      0 0 0 1px rgb(250 250 250 / 0.08);
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+    transform-origin: 50% 100%;
+    transition:
+      opacity 0.18s,
+      transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+
+    &[data-on] {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  &__marks {
+    display: flex;
+    height: 46px;
+    margin-bottom: 7px;
+    border-bottom: 1px solid rgb(255 255 255 / 0.1);
+  }
+
+  &__mark {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    color: var(--app-fg);
+
+    svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: auto 0 -1px;
+      height: 1px;
+      background: var(--app-fg);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    &[data-on]::after { opacity: 1; }
+  }
+
+  &__choices {
+    display: flex;
+    overflow: hidden;
+    border: 1px solid rgb(255 255 255 / 0.1);
+    border-radius: 12px;
+    background: rgb(250 250 250 / 0.06);
+  }
+
+  &__choice {
+    display: flex;
+    flex: auto;
+    align-items: center;
+    gap: 6px;
+    height: 52px;
+    padding: 0 10px 0 14px;
+    border-left: 1px solid rgb(255 255 255 / 0.1);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    white-space: nowrap;
+
+    &:first-child { border-left: 0; }
+
+    &[data-hover] { background: rgb(250 250 250 / 0.05); }
+
+    svg {
+      width: 18px;
+      height: 18px;
+      color: var(--app-muted);
+      stroke-width: 1.5;
+    }
+  }
+
+  // how hard it thinks, over the choice it is
+  &__efforts {
+    bottom: 64px;
+    left: 110px;
+    transform-origin: 0 100%;
+  }
+
+  &__tick {
+    display: flex;
+    width: 14px;
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+}
+
+[data-layout='compact'] {
+  .fx-agents__arm { display: none; }
+
+  .fx-agents__thread { left: 0; }
+
+  .fx-agents__pop { left: 14px; }
+
+  .fx-agents__efforts { left: 80px; }
+
+  .fx-agents__choice {
+    padding: 0 6px 0 10px;
+    font-size: 13px;
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+}

@@ -22,76 +22,93 @@ export type Project = {
   news?: 'working' | 'asking' | 'done'
   /** conversations had before, under its card */
   under?: Conversation[]
-  /** not there when the page opens: one of those the scroll brings in */
-  later?: boolean
 }
+
+/**
+ * Projects kept together, under a heading with the group's name: as the app lists them,
+ * each project in a group, a group of one going by its project's name. The pinned are
+ * at the top.
+ */
+export type Group = { name: string; pinned?: boolean; projects: Project[] }
 
 export const OPEN = 'arm'
 
-export const PROJECTS: Project[] = [
+export const GROUPS: Group[] = [
   {
-    id: 'clock',
-    name: 'Table clock',
-    when: '12h',
-    said: 'The base is white now; I left the feet under it dark.',
-    under: [
+    name: 'Robot arm',
+    pinned: true,
+    projects: [
       {
-        title: 'What is this for? Maybe remove it',
+        id: 'arm',
+        name: 'Robot arm',
         when: '12h',
-        said: 'Assistant reports removed Spring readout, Wind slider and the barrel’s click.',
+        said: 'Assistant reports new Routine tab: arm mimes activities over an empty table.',
       },
       {
-        title: 'Thinner bezel',
-        when: '6d',
-        said: 'The bezel is 2 mm across now, and the glass sits flush with it.',
-      },
-      {
-        title: 'Count the teeth',
-        when: '23d',
-        said: 'Every wheel has the teeth a real movement gives it, barrel to balance.',
+        id: 'mount',
+        name: 'Camera mount',
+        said: 'Moving the camera 12 mm back, clear of the jaw.',
+        news: 'working',
       },
     ],
   },
   {
-    id: 'mount',
-    name: 'Bike light mount',
-    said: 'Reworking the clamp for a 31.8 mm bar.',
-    news: 'working',
-    later: true,
+    name: 'Table clock',
+    pinned: true,
+    projects: [
+      {
+        id: 'clock',
+        name: 'Table clock',
+        when: '12h',
+        said: 'The base is white now; I left the feet under it dark.',
+        under: [
+          {
+            title: 'What is this for? Maybe remove it',
+            when: '12h',
+            said: 'Assistant reports removed Spring readout, Wind slider and the barrel’s click.',
+          },
+          {
+            title: 'Thinner bezel',
+            when: '6d',
+            said: 'The bezel is 2 mm across now, and the glass sits flush with it.',
+          },
+        ],
+      },
+    ],
   },
   {
-    id: 'lamp',
     name: 'Clip lamp',
-    when: '2d',
-    said: 'The shade tips 40° either way now, and the wire has the slack for it.',
-    branch: 'wider-clip',
+    projects: [
+      {
+        id: 'lamp',
+        name: 'Clip lamp',
+        when: '2d',
+        said: 'The shade tips 40° either way now, and the wire has the slack for it.',
+        branch: 'wider-clip',
+      },
+    ],
   },
   {
-    id: 'arm',
-    name: 'Robot arm',
-    when: '12h',
-    said: 'Assistant reports new Routine tab: arm mimes activities over an empty table.',
-  },
-  {
-    id: 'stool',
-    name: 'Counter stool',
-    when: '3d',
-    said: 'The seat is 650 mm up now, the height counters are sold at.',
-    later: true,
-  },
-  {
-    id: 'enclosure',
     name: 'Sensor enclosure',
-    said: 'Which side should the USB-C port come out of?',
-    news: 'asking',
-    later: true,
+    projects: [
+      {
+        id: 'enclosure',
+        name: 'Sensor enclosure',
+        said: 'Which side should the USB-C port come out of?',
+        news: 'asking',
+      },
+    ],
   },
   {
-    id: 'pillbox',
-    name: 'Pill box',
-    when: '41d',
-    said: 'Seven lids, each on its own hinge pin, and a catch that clicks.',
-    later: true,
+    name: 'Counter stool',
+    projects: [
+      {
+        id: 'stool',
+        name: 'Counter stool',
+        when: '3d',
+        said: 'The seat is 650 mm up now, the height counters are sold at.',
+      },
+    ],
   },
 ]
 
@@ -154,6 +171,7 @@ export const SWITCHES = [
   { id: 'pcb', label: 'PCB', key: '⇧P' },
   { id: 'blueprint', label: 'Blueprint', key: 'B' },
   { id: 'assembly', label: 'Assembly', key: 'A' },
+  { id: 'inspiration', label: 'Inspiration Board', key: '⇧I' },
   { id: 'search', label: 'Search', key: '⌘F' },
   { id: 'tools', label: 'Tools', key: 'T' },
 ] as const
