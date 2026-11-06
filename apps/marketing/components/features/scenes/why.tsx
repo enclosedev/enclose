@@ -3,7 +3,6 @@ import {
   ChevronDownIcon,
   CornerLeftUpIcon,
   GitBranchIcon,
-  MessageSquareIcon,
   PinIcon,
   PlusIcon,
 } from 'lucide-react'
@@ -11,7 +10,7 @@ import type { ComponentType, ReactNode } from 'react'
 import { Collapse } from '../../stageshow/motion/Collapse'
 import type { Act } from '../../stageshow/act'
 import { ClaudeIcon } from '../../app/icons'
-import { Composer, CORNER, Model, ProjectCard, Round, Scene, type News } from '../fx'
+import { Composer, Model, ProjectCard, Scene, type News } from '../fx'
 import { GitHubIcon, GrokIcon, OpenAIIcon, OpencodeIcon } from './marks'
 import './why.scss'
 
@@ -93,9 +92,6 @@ function Projects() {
               />,
             ])}
           </div>
-          <Round on style={{ position: 'absolute', top: CORNER, right: CORNER }}>
-            <MessageSquareIcon />
-          </Round>
         </>
       )}
     </Scene>
@@ -138,17 +134,15 @@ function Earlier({ first, children }: { first?: boolean; children: ReactNode }) 
 type Version = 'main' | 'white' | 'raised'
 type VersionsState = { open: Version }
 
+// (the last is only begun at the card's foot, and is not turned to)
 async function versionsScript(a: Act<VersionsState>) {
   await a.wait(1400)
   await a.click('version-white')
   await a.set({ open: 'white' })
-  await a.wait(2400)
-  await a.click('version-raised')
-  await a.set({ open: 'raised' })
-  await a.wait(2400)
+  await a.wait(2600)
   await a.click('version-main')
   await a.set({ open: 'main' })
-  await a.wait(1600)
+  await a.wait(2000)
 }
 
 function Versions() {
@@ -200,37 +194,38 @@ function Versions() {
 }
 
 // ── Projects that go together ─────────────────────────────────────────────
-// A group of two projects, the arm and its gripper, and another group under it. The
-// arm's agent widens the wrist mount, and hands the gripper's side of it over: the
-// gripper's card takes it up, with what it was handed. Turned to, it has finished.
+// A group of two projects, the table clock and the box it is sent in, and another
+// group under it. The clock's agent makes its case deeper, and hands the box what that
+// means for it: the box's card takes it up, with what it was handed. Turned to, it has
+// finished. Each is seen as the app has it, bigger than the card.
 
 type GroupsState = {
-  open: 'arm' | 'gripper'
-  arm: News | null
-  /** the arm's card: what was asked, or what came of it */
-  armDone: boolean
-  gripper: News | null
-  /** the gripper's card: handed the change, or done with it */
+  open: 'clock' | 'box'
+  clock: News | null
+  /** the clock's card: what was asked, or what came of it */
+  clockDone: boolean
+  box: News | null
+  /** the box's card: handed the change, or done with it */
   handed: boolean
 }
 
-const groupsStart: GroupsState = { open: 'arm', arm: 'working', armDone: false, gripper: null, handed: false }
+const groupsStart: GroupsState = { open: 'clock', clock: 'working', clockDone: false, box: null, handed: false }
 
 async function groupsScript(a: Act<GroupsState>) {
   await a.wait(2000)
-  await a.set({ arm: 'done', armDone: true })
+  await a.set({ clock: 'done', clockDone: true })
   await a.wait(1100)
   a.mark('handed')
-  await a.set({ gripper: 'working', handed: true })
+  await a.set({ box: 'working', handed: true })
   await a.wait(1800)
-  await a.click('group-gripper')
-  await a.set({ open: 'gripper', arm: null })
+  await a.click('group-box')
+  await a.set({ open: 'box', clock: null })
   await a.wait(1600)
-  await a.set({ gripper: null, handed: false })
+  await a.set({ box: null, handed: false })
   await a.wait(1800)
-  await a.click('group-arm')
-  // and the arm is asked for more
-  await a.set({ open: 'arm', arm: 'working', armDone: false })
+  await a.click('group-clock')
+  // and the clock is asked for more
+  await a.set({ open: 'clock', clock: 'working', clockDone: false })
   await a.wait(500)
 }
 
@@ -239,49 +234,46 @@ function Groups() {
     <Scene<GroupsState>
       className="fx-groups"
       initial={groupsStart}
-      poster={{ open: 'arm', arm: 'done', armDone: true, gripper: 'working', handed: true }}
+      poster={{ open: 'clock', clock: 'done', clockDone: true, box: 'working', handed: true }}
       script={groupsScript}
       cursor={{ at: { wide: { x: 470, y: 420 }, compact: { x: 300, y: 390 } } }}
     >
       {(s) => (
         <>
-          <Model src="arm" className="fx-groups__arm" shown={s.open === 'arm'} />
-          <Model src="gripper" className="fx-groups__gripper" shown={s.open === 'gripper'} />
+          <Model src="example-clock" className="fx-groups__example" shown={s.open === 'clock'} />
+          <Model src="example-box" className="fx-groups__example" shown={s.open === 'box'} />
           <div className="fx-groups__sidebar">
-            <GroupHeading name="SO-101 arm" pinned />
+            <GroupHeading name="Table clock" pinned />
             <ProjectCard
-              target="group-arm"
-              name="Arm"
+              target="group-clock"
+              name="Clock"
               said={
-                s.armDone
-                  ? 'Widened the wrist mount, and handed the gripper its side.'
-                  : 'Widen the wrist mount to 28 mm, for the new servo.'
+                s.clockDone
+                  ? 'Made the case 8 mm deeper, and told the box.'
+                  : 'Make the case 8 mm deeper, for a bigger battery.'
               }
-              news={s.arm}
-              lit={s.open === 'arm'}
+              news={s.clock}
+              lit={s.open === 'clock'}
             />
             <ProjectCard
-              target="group-gripper"
-              name="Gripper"
+              target="group-box"
+              name="Box"
               said={
                 s.handed ? (
                   <>
-                    <b className="fx-groups__from">From Arm:</b> the wrist mount is 28 mm now.
+                    <b className="fx-groups__from">From Clock:</b> the case is 8 mm deeper now.
                   </>
                 ) : (
-                  'Fitted its mount to the arm’s new wrist.'
+                  'Deepened the box and its cradle to fit.'
                 )
               }
               when="1 h"
-              news={s.gripper}
-              lit={s.open === 'gripper'}
+              news={s.box}
+              lit={s.open === 'box'}
             />
             <GroupHeading name="Kitchen" />
             <ProjectCard name="Counter stool" said="Raised the seat to 65 cm, and the footrest with it." when="Mon" />
           </div>
-          <Round on style={{ position: 'absolute', top: CORNER, right: CORNER }}>
-            <MessageSquareIcon />
-          </Round>
         </>
       )}
     </Scene>

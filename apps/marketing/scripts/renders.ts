@@ -60,7 +60,7 @@ const PICTURES = ['base', 'shoulder', 'upper-arm', 'lower-arm', 'wrist', 'grippe
 const bundled = await build({
   stdin: {
     contents: `export { openView } from './components/app/view'
-export { drawExample } from './scripts/example-view'`,
+export { drawBox, drawExample } from './scripts/example-view'`,
     resolveDir: path.resolve(here, '..'),
     loader: 'ts',
   },
@@ -143,6 +143,15 @@ try {
     )
     await writeFile(path.join(OUT, `example-${name}.webp`), Buffer.from(url.split(',')[1], 'base64'))
     console.log(`example-${name}`)
+  }
+  // and the clock's box, which the groups card has as a project of its own
+  {
+    const url = await page.evaluate(async (size) => {
+      const canvas = (window as any).renders.drawBox(size, size / 1200)
+      return canvas.toDataURL('image/webp', 0.88) as string
+    }, OTHERS_SIZE)
+    await writeFile(path.join(OUT, 'example-box.webp'), Buffer.from(url.split(',')[1], 'base64'))
+    console.log('example-box')
   }
   if (onlyOthers) process.exit(0)
 

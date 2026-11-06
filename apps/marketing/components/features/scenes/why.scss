@@ -101,10 +101,11 @@
 
 // ── A version for each conversation ────────────────────────────────────────
 .fx-versions {
-  // the list by itself, in the middle, bigger than the app has it
+  // The list by itself, bigger than the app has it, in the middle across and low down:
+  // its last card only begun at the card's foot, as if there were more under it.
   &__sidebar {
     position: absolute;
-    top: 50%;
+    top: calc(50% + 135px);
     left: 50%;
     display: flex;
     flex-direction: column;
@@ -115,7 +116,10 @@
 }
 
 [data-layout='compact'] {
-  .fx-versions__sidebar { transform: translate(-50%, -50%) scale(0.98); }
+  .fx-versions__sidebar {
+    top: calc(50% + 85px);
+    transform: translate(-50%, -50%) scale(0.98);
+  }
 }
 
 // ── Projects that go together ──────────────────────────────────────────────
@@ -130,16 +134,11 @@
     gap: 6px;
   }
 
-  &__arm {
-    left: 262px;
-    top: 190px;
-    width: 330px;
-  }
-
-  &__gripper {
-    left: 318px;
-    top: 182px;
-    width: 230px;
+  // each project's model as big as the app has it, under the cards, as in the first card
+  &__example {
+    left: -253px;
+    top: -162px;
+    width: 1300px;
   }
 
   &__from {
@@ -149,16 +148,10 @@
 }
 
 [data-layout='compact'] {
-  .fx-groups__arm {
-    left: 150px;
-    top: 220px;
-    width: 250px;
-  }
-
-  .fx-groups__gripper {
-    left: 210px;
-    top: 232px;
-    width: 140px;
+  .fx-groups__example {
+    left: -100px;
+    top: 20px;
+    width: 836px;
   }
 }
 

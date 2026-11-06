@@ -36,7 +36,7 @@ export const GROUPS: Group[] = [
       {
         scene: 'groups',
         title: 'Projects that go together.',
-        says: 'Keep an arm and its gripper in one group. The agent reads the others, and hands over what a change needs there.',
+        says: 'Grouping projects gives the agent their context: when one changes, it carries what that means over to the others.',
       },
       {
         scene: 'github',
