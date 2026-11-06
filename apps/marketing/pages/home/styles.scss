@@ -282,9 +282,9 @@
 
   &__top[data-spatial] .home__credit { display: block; }
 
+  // (on a phone, not at all: there is no room for it beside the mouse)
   @media (max-width: 767px) {
-    &__credit { bottom: 20px; left: 16px; }
-    &__cue { bottom: 52px; }
+    &__top[data-spatial] .home__credit { display: none; }
   }
 
   // ── someone at work on the arm ──────────────────────────────────────────

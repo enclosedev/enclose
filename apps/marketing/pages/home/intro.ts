@@ -24,10 +24,18 @@ import tokens from './motion'
  * its jaw shut, as it stays (it is built a little open).
  */
 const SIDE = { azimuth: 0, elevation: 6, distance: 3.6, shadow: 1, grip: 0 }
+/**
+ * And on a phone, where the screen is tall and narrow: from a front corner and above it,
+ * the arm across the screen corner to corner, as the app's Home has it. With no shadow
+ * on the floor: a phone's screen can get the light's map of it wrong (view.ts).
+ */
+const SIDE_COMPACT = { azimuth: -38, elevation: 28, distance: 3.6, shadow: 0, grip: 0 }
+const sideFor = (wide: number) => (wide < 768 ? SIDE_COMPACT : SIDE)
 /** And once the window is together: the app's own look. */
 const TOGETHER = { azimuth: REST.azimuth, elevation: REST.elevation, distance: REST.distance, shadow: 0, grip: 0 }
-/** The arm from its side, as SIDE draws it, in the window's px: about this big. */
+/** The arm from its side, as SIDE draws it, in the window's px: about this big (and as SIDE_COMPACT does). */
 const PROFILE = { width: 900, height: 540 }
+const PROFILE_COMPACT = { width: 760, height: 620 }
 /** How much of the arm is under the foot of the screen to begin with (on a phone: less). */
 const SUNK = { wide: 0.35, compact: 0.15 }
 
@@ -60,7 +68,7 @@ export function runIntro({
   if (!reduced && !top.hasAttribute('data-spatial')) top.setAttribute('data-spatial', '')
   const spatial = top.hasAttribute('data-spatial')
 
-  const look: Look = spatial ? { ...REST, ...SIDE, x: WINDOW.width / 2 } : { ...REST }
+  const look: Look = spatial ? { ...REST, ...sideFor(pin.clientWidth), x: WINDOW.width / 2 } : { ...REST }
   /** (the studio) where the window would be on it, as far as the model is drawn */
   const seenFrom: Frame = { x: 0, y: 0, scale: 1 }
   // (the window as it stays) how far the eye still is from where it rests, on its way
@@ -133,11 +141,12 @@ export function runIntro({
       const words = hero.offsetTop + hero.offsetHeight
       const room = screen.tall - words - (compact ? 32 : 40)
       const sunk = compact ? SUNK.compact : SUNK.wide
+      const profile = compact ? PROFILE_COMPACT : PROFILE
       alone.scale = Math.min(
-        (screen.wide * (compact ? 1.4 : 1)) / PROFILE.width,
-        room / (1 - sunk) / PROFILE.height,
+        (screen.wide * (compact ? 1.1 : 1)) / profile.width,
+        room / (1 - sunk) / profile.height,
       )
-      const tall = PROFILE.height * alone.scale
+      const tall = profile.height * alone.scale
       alone.x = screen.wide / 2 - (WINDOW.width / 2) * alone.scale
       alone.y = screen.tall + tall * (sunk - 0.5) - (WINDOW.height / 2) * alone.scale
 
@@ -189,7 +198,14 @@ export function runIntro({
     together.to([cue, credit].filter(Boolean), { autoAlpha: 0, duration: 0.04, ease: 'none' }, 0)
     // The eye goes round to where the app looks from, and the arm to where the window
     // has it; and the studio is cut down to the window.
-    together.fromTo(look, { ...SIDE }, { ...TOGETHER, duration: 0.5 }, 0.06)
+    // (from the side the screen has it seen from: worked out again as the screen changes)
+    const from = (key: keyof typeof SIDE) => () => sideFor(screen.wide)[key]
+    together.fromTo(
+      look,
+      { azimuth: from('azimuth'), elevation: from('elevation'), distance: from('distance'), shadow: from('shadow'), grip: from('grip') },
+      { ...TOGETHER, duration: 0.5 },
+      0.06,
+    )
     together.fromTo(
       seenFrom,
       { x: () => alone.x, y: () => alone.y, scale: () => alone.scale },

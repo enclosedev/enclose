@@ -403,6 +403,11 @@ export async function openView(
     cableInk.opacity = INK * look.cables * look.others
     ground.show(look.grid)
     ;(floor.material as THREE.ShadowMaterial).opacity = 0.6 * look.shadow
+    // (with no shadow on it, the floor is not drawn at all: and nor is the light's map of
+    // what is in its way, which some phones' screens get wrong, darkening all the floor
+    // the light sees)
+    floor.visible = studio && look.shadow > 0.001
+    renderer.shadowMap.enabled = floor.visible
 
     const around = look.azimuth * RADIANS
     const above = look.elevation * RADIANS
