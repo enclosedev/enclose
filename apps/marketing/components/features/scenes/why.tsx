@@ -7,7 +7,6 @@ import {
   PlusIcon,
 } from 'lucide-react'
 import type { ComponentType, ReactNode } from 'react'
-import { Collapse } from '../../stageshow/motion/Collapse'
 import type { Act } from '../../stageshow/act'
 import { ClaudeIcon } from '../../app/icons'
 import { Composer, Model, ProjectCard, Scene, type News } from '../fx'
@@ -281,38 +280,41 @@ function Groups() {
 }
 
 // ── Backed up to GitHub ───────────────────────────────────────────────────
-// The arm's agent finishes its turn, and the turn is a commit on the project's own
-// private repository, saying what it changed, as GitHub lists it. (A version's
-// commits are on its own branch.) After a while the new commit hands back.
+// The project's private repository, and its commits coming in one after another, each
+// a turn of the agent's that says what it changed (a version's on its own branch): the
+// newest rises to the front, those before it go back, smaller and fainter, and the
+// oldest fades away. It goes round: one that has faded waits out of sight, under the
+// front, to come in again.
 
-type GithubState = { done: boolean; pushed: boolean }
+/** The commits, in the order they come in. */
+const COMMITS = [
+  { title: 'Added: a slider for each joint', branch: 'main' },
+  { title: 'Recolored parts by hand', branch: 'version/all-in-white' },
+  { title: 'Changed: the cables lie at rest', branch: 'main' },
+  { title: 'Raised the arm, to reach a shelf', branch: 'version/reaching-up' },
+  { title: 'Fixed: the jaw no longer clips', branch: 'main' },
+  { title: 'Added: Rest, Ready and Reach poses', branch: 'main' },
+]
+/** How long ago each is, by how far back in the stack it is. */
+const AGO = ['just now', '4 minutes ago', '1 hour ago', '3 hours ago', 'yesterday', 'yesterday']
+
+type GithubState = { newest: number }
 
 async function githubScript(a: Act<GithubState>) {
-  await a.wait(1800)
-  await a.set({ done: true })
-  await a.wait(700)
-  a.mark('pushed')
-  await a.set({ pushed: true })
-  await a.wait(3600)
-  // the list gives back what the loop added, in one motion, and the turn is asked again
-  await a.set({ pushed: false, done: false })
-  await a.wait(900)
+  for (let i = 0; i < COMMITS.length; i++) {
+    await a.wait(2000)
+    await a.set((s) => ({ newest: (s.newest + 1) % COMMITS.length }))
+  }
 }
 
-const COMMITS = [
-  { title: 'Changed: the cables lie at rest', when: '2 hours ago', branch: 'main' },
-  { title: 'Recolored parts by hand', when: '3 hours ago', branch: 'version/all-in-white' },
-  { title: 'Fixed: the jaw no longer clips', when: 'yesterday', branch: 'main' },
-]
-
-function Commit({ title, when, branch, fresh }: { title: string; when: string; branch: string; fresh?: boolean }) {
+function Commit({ title, branch, depth }: { title: string; branch: string; depth: number }) {
   return (
-    <div className="fx-commit" data-fresh={fresh || undefined}>
+    <div className="fx-commit" data-depth={depth}>
       <span className="fx-commit__dot" />
       <span className="fx-commit__words">
         <span className="fx-commit__title">{title}</span>
         <span className="fx-commit__meta">
-          {when}
+          {AGO[depth]}
           <span className="fx-commit__branch">
             <GitBranchIcon />
             {branch}
@@ -327,52 +329,25 @@ function Github() {
   return (
     <Scene<GithubState>
       className="fx-github"
-      initial={{ done: false, pushed: false }}
-      poster={{ done: true, pushed: true }}
+      initial={{ newest: 0 }}
+      poster={{ newest: 2 }}
       script={githubScript}
     >
       {(s) => (
         <>
-          <Model src="arm" className="fx-github__arm" />
-          <div className="fx-github__sidebar">
-            <GroupHeading name="Robot arm" pinned />
-            <ProjectCard
-              name="Robot arm"
-              said={s.done ? 'Added a slider for each joint, and three poses.' : 'Make a slider for each joint, and a few poses.'}
-              news={s.done ? null : 'working'}
-              when="now"
-              lit
-            />
-          </div>
-          <div className="fx-github__repo">
-            <header>
-              <GitHubIcon />
-              <span className="fx-github__name">enclose-robot-arm</span>
-              <span className="fx-github__private">Private</span>
-            </header>
-            <div className="fx-github__bar">
-              <span className="fx-github__select">
-                <GitBranchIcon />
-                main
-                <ChevronDownIcon />
-              </span>
-              <span>Commits</span>
-            </div>
-            <div className="fx-github__list">
-              <Collapse open={s.pushed} reveal="drop">
-                <Commit title="Added: a slider for each joint" when="just now" branch="main" fresh />
-              </Collapse>
-              {COMMITS.map((commit) => (
-                <Commit key={commit.title} {...commit} />
-              ))}
-              <div className="fx-commit fx-commit--filler">
-                <span className="fx-commit__dot" />
-                <span className="fx-commit__words">
-                  <i style={{ width: 210 }} />
-                  <i style={{ width: 120 }} />
-                </span>
-              </div>
-            </div>
+          <header className="fx-github__repo">
+            <GitHubIcon />
+            <span className="fx-github__name">enclose-robot-arm</span>
+            <span className="fx-github__private">Private</span>
+          </header>
+          <div className="fx-github__stack">
+            {COMMITS.map((commit, index) => (
+              <Commit
+                key={commit.title}
+                {...commit}
+                depth={(s.newest - index + COMMITS.length) % COMMITS.length}
+              />
+            ))}
           </div>
         </>
       )}

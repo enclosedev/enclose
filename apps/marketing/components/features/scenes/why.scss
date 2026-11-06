@@ -157,137 +157,97 @@
 
 // ── Backed up to GitHub ────────────────────────────────────────────────────
 .fx-github {
-  &__arm {
-    left: -30px;
-    top: 270px;
-    width: 300px;
-  }
-
-  &__sidebar {
-    position: absolute;
-    top: 18px;
-    left: 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  // the project's repository, as GitHub lists its commits, in GitHub's dark look
+  // the repository, in the card's corner, as GitHub names one
   &__repo {
     position: absolute;
-    top: 40px;
-    left: 236px;
-    width: 346px;
-    bottom: -40px;
-    overflow: hidden;
-    border-radius: 14px;
-    background: #0d1117;
+    top: 30px;
+    left: 30px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
     color: #f0f6fc;
-    box-shadow:
-      0 20px 40px -10px rgb(0 0 0 / 0.6),
-      0 0 0 1px #30363d;
+    font-size: 21px;
+    line-height: 28px;
 
-    > header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      height: 52px;
-      padding: 0 18px;
-      border-bottom: 1px solid #30363d;
-      font-size: 14px;
-      line-height: 20px;
-
-      svg {
-        width: 20px;
-        height: 20px;
-      }
+    svg {
+      width: 30px;
+      height: 30px;
     }
   }
 
   &__name { font-weight: 600; }
 
   &__private {
-    padding: 0 7px;
+    padding: 0 10px;
     border: 1px solid #3d444d;
     border-radius: 999px;
     color: #9198a1;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 500;
-    line-height: 18px;
+    line-height: 24px;
   }
 
-  &__bar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 18px 10px;
-    color: #9198a1;
-  }
-
-  &__select {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 28px;
-    padding: 0 8px 0 10px;
-    border: 1px solid #3d444d;
-    border-radius: 6px;
-    background: #212830;
-    color: #f0f6fc;
-    font-weight: 500;
-
-    svg {
-      width: 14px;
-      height: 14px;
-      color: #9198a1;
-    }
-  }
-
-  &__list {
-    margin: 0 18px;
-    overflow: hidden;
-    border: 1px solid #30363d;
-    border-radius: 6px;
+  // the commits, one in front of another, the front one a little under the middle
+  &__stack {
+    position: absolute;
+    top: 300px;
+    left: 50px;
+    width: 500px;
   }
 }
 
-// a commit, as GitHub lists one: what it says, and who made it and when
+// A commit, a card of its own in GitHub's dark look, where it is in the stack (its
+// depth): at the front, then each further back higher, smaller and fainter, until it is
+// gone; and, gone, waiting under the front, to rise into it again.
 .fx-commit {
+  position: absolute;
+  inset: 0 0 auto;
   display: flex;
-  gap: 12px;
-  padding: 12px 14px;
-  border-top: 1px solid #30363d;
-  transition: background-color 1.2s;
+  gap: 16px;
+  padding: 22px 24px;
+  border-radius: 18px;
+  background: #0d1117;
+  color: #f0f6fc;
+  box-shadow:
+    0 0 0 1px #30363d,
+    0 16px 32px -12px rgb(0 0 0 / 0.6);
+  transform-origin: 50% 0;
+  transition:
+    transform 0.8s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.6s ease;
 
-  .ss-collapse + &,
-  .fx-github__list > &:first-child { border-top: 0; }
+  // (further back, only its edge shows, as a notification's under another)
+  > * { transition: opacity 0.4s ease; }
+  &:not([data-depth='0']) > * { opacity: 0; }
 
-  &[data-fresh] {
-    border-top: 0;
-    background: rgb(56 139 253 / 0.1);
-  }
+  &[data-depth='0'] { z-index: 6; transform: none; }
+  &[data-depth='1'] { z-index: 5; transform: translateY(-30px) scale(0.94); opacity: 0.75; }
+  &[data-depth='2'] { z-index: 4; transform: translateY(-56px) scale(0.88); opacity: 0.45; }
+  &[data-depth='3'] { z-index: 3; transform: translateY(-80px) scale(0.82); opacity: 0.2; }
+  &[data-depth='4'] { z-index: 2; transform: translateY(-100px) scale(0.76); opacity: 0; }
+  &[data-depth='5'] { z-index: 7; transform: translateY(80px); opacity: 0; transition-duration: 0s; }
 
   &__dot {
     flex: none;
-    width: 8px;
-    height: 8px;
-    margin-top: 5px;
-    border: 1.5px solid #9198a1;
+    width: 12px;
+    height: 12px;
+    margin-top: 7px;
+    border: 2px solid #9198a1;
     border-radius: 50%;
   }
 
   &__words {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 8px;
     min-width: 0;
   }
 
   &__title {
     overflow: hidden;
-    font-size: 13px;
+    font-size: 19px;
     font-weight: 600;
-    line-height: 18px;
+    line-height: 26px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -295,50 +255,50 @@
   &__meta {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     color: #9198a1;
+    font-size: 15px;
     white-space: nowrap;
   }
 
   &__branch {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
-    padding: 0 6px;
-    border-radius: 6px;
+    gap: 5px;
+    padding: 0 8px;
+    border-radius: 7px;
     background: rgb(56 139 253 / 0.15);
     color: #58a6ff;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 11px;
-    line-height: 18px;
+    font-size: 14px;
+    line-height: 24px;
 
     svg {
-      width: 11px;
-      height: 11px;
+      width: 14px;
+      height: 14px;
     }
-  }
-
-  &--filler i {
-    display: block;
-    height: 7px;
-    margin: 6px 0 2px;
-    border-radius: 4px;
-    background: #262c36;
   }
 }
 
 [data-layout='compact'] {
-  .fx-github__arm {
-    left: 214px;
-    top: 14px;
-    width: 160px;
+  .fx-github__repo {
+    top: 22px;
+    left: 22px;
+    font-size: 17px;
+
+    svg {
+      width: 24px;
+      height: 24px;
+    }
   }
 
-  .fx-github__repo {
-    top: 132px;
+  .fx-github__stack {
+    top: 190px;
     left: 18px;
     width: 324px;
   }
+
+  .fx-commit__title { font-size: 16px; }
 }
 
 // ── The agent you already pay for ──────────────────────────────────────────
