@@ -22,6 +22,29 @@ const EXAMPLES = path.resolve(here, '../../../examples')
 /** The other examples, and how big each is drawn: a square this many px a side. */
 const OTHERS = ['clock', 'lamp', 'stool']
 const OTHERS_SIZE = 2400
+/**
+ * The clock's movement and its hands, which the pulled-apart card has: each part drawn by
+ * itself, to be moved apart on the page; how big, and how far apart it may go.
+ */
+const CLOCKWORK = [
+  'back-plate',
+  'pillars',
+  'motor',
+  'motor-screws',
+  'fourth-wheel',
+  'third-wheel',
+  'centre-wheel',
+  'front-plate',
+  'plate-screws',
+  'movement-screws',
+  'minute-wheel',
+  'hour-wheel',
+  'seconds-hand',
+  'hour-hand',
+  'minute-hand',
+]
+const CLOCKWORK_SIZE = 3400
+const CLOCKWORK_MOST = 1.6
 /** And the colours card's simple solids, each this many px a side. */
 const SHAPE_SIZE = 1000
 /** The metals its Material tab shows, in the app's order, and the cube's colour by then, which a tinted one takes. */
@@ -94,7 +117,7 @@ const theApp: Plugin = {
 const bundled = await build({
   stdin: {
     contents: `export { openView } from './components/app/view'
-export { drawBox, drawExample, drawShape } from './scripts/example-view'
+export { drawBox, drawExample, drawLayers, drawShape } from './scripts/example-view'
 export { grainOf, physicalOf, pictureOf, studioFor } from '../desktop/src/components/viewport/materials'
 export { materialOf } from '../desktop/shared/materials'`,
     resolveDir: path.resolve(here, '..'),
@@ -260,6 +283,33 @@ try {
     }, SHAPE_SIZE)
     await writeFile(path.join(OUT, 'shape-cube-metal.webp'), Buffer.from(url.split(',')[1], 'base64'))
     console.log('shape-cube-metal')
+  }
+  {
+    const drawn = await page.evaluate(
+      async (base, ids, size, most) => (window as any).renders.drawLayers(base, ids, size, size / 1200, most),
+      '/examples/clock/build',
+      CLOCKWORK,
+      CLOCKWORK_SIZE,
+      CLOCKWORK_MOST,
+    )
+    await mkdir(path.join(OUT, 'clockwork'), { recursive: true })
+    const layers = []
+    for (const { url, ...layer } of drawn.layers as { id: string; url: string }[]) {
+      await writeFile(path.join(OUT, 'clockwork', `${layer.id}.webp`), Buffer.from(url.split(',')[1], 'base64'))
+      layers.push(layer)
+    }
+    const round = (value: unknown) => JSON.stringify(value, (_key, n) => (typeof n === 'number' ? Math.round(n * 1e4) / 1e4 : n), 2)
+    await writeFile(
+      path.join(here, '../components/features/scenes/clockwork.ts'),
+      `// Made by scripts/renders.ts: the clock's movement and its hands, a picture of each part
+// (public/renders/clockwork), each cut alike, \`tall\` times as tall as it is wide; how far
+// each moves on it, as shares of its width, for each one of how far the clock is pulled
+// apart; and where the middle of the whole is, together and pulled apart as far as
+// ${CLOCKWORK_MOST}, as shares of its width and its height.
+export const CLOCKWORK = ${round({ most: CLOCKWORK_MOST, tall: drawn.tall, middle: drawn.middle, middleApart: drawn.middleApart, layers })} as const
+`,
+    )
+    console.log('clockwork')
   }
   if (onlyOthers) process.exit(0)
 

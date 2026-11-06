@@ -1,6 +1,7 @@
 // The sheets of the app's Blueprint view, drawn of the robot-arm example and saved as
 // SVGs for the landing page to load: public/blueprint/<sheet>.svg, and sheets.json to
-// say what there is.
+// say what there is. Given another example's name (`-- clock`), of that one, into
+// public/blueprint/<name>/.
 //
 // Nothing is drawn here. The model is loaded by the desktop app's own loader, its lines
 // are found by the app's own hidden-line drawing, and each file is what the app's own
@@ -41,9 +42,13 @@ import {
 import { readModel } from "../../desktop/src/lib/model"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const MODEL = path.resolve(here, "../../../examples/arm/build")
+const EXAMPLE = process.argv[2] ?? "arm"
+const MODEL = path.resolve(here, `../../../examples/${EXAMPLE}/build`)
 const MANIFEST = "enclose.model.json"
-const OUT = path.resolve(here, "../public/blueprint")
+const OUT = path.resolve(
+  here,
+  EXAMPLE === "arm" ? "../public/blueprint" : `../public/blueprint/${EXAMPLE}`
+)
 
 /** What the app's preferences start at, and what the sheets here are in. */
 const UNITS = "mm"
@@ -276,7 +281,8 @@ async function main() {
     `room ${room.min.map((n) => n.toFixed(1))} to ${room.max.map((n) => n.toFixed(1))} mm`
   )
 
-  await rm(OUT, { recursive: true, force: true })
+  // (the arm's are at the top of the folder, the other examples' in folders of their own)
+  if (EXAMPLE !== "arm") await rm(OUT, { recursive: true, force: true })
   await mkdir(OUT, { recursive: true })
   const sheets: { name: string; file: string; scale: string; bytes: number }[] =
     []

@@ -59,7 +59,7 @@ function stage(size: number, line: number) {
   const box = new THREE.Box3()
 
   /** From where the app's Home looks, the whole of what is in it filling the picture. */
-  const shoot = () => {
+  const frame = () => {
     const middle = box.getCenter(new THREE.Vector3())
     const radius = box.getSize(new THREE.Vector3()).length() / 2
     const camera = new THREE.PerspectiveCamera(FOV, 1, radius * 0.1, radius * 20)
@@ -74,10 +74,14 @@ function stage(size: number, line: number) {
     const right = new THREE.Vector3().crossVectors(eye, camera.up).normalize()
     key.position.copy(eye).multiplyScalar(0.7).addScaledVector(right, 0.5).add(new THREE.Vector3(0, 0, 0.9))
     fill.position.copy(eye).multiplyScalar(-0.6).addScaledVector(right, -0.7).add(new THREE.Vector3(0, 0, 0.4))
-    renderer.render(scene, camera)
+    camera.updateMatrixWorld()
+    return camera
+  }
+  const shoot = () => {
+    renderer.render(scene, frame())
     return canvas
   }
-  return { scene, ink, box, shoot, renderer }
+  return { scene, ink, box, shoot, frame, renderer }
 }
 
 /** A surface of the palette's, as the view gives one (view.ts). */
@@ -269,4 +273,142 @@ export function drawShape(
   geometry.computeBoundingBox()
   box.union(geometry.boundingBox!)
   return shoot()
+}
+
+/** One part of an example drawn by itself, and where it goes as the model comes apart. */
+export type Layer = {
+  id: string
+  /** the part by itself, where it is in the model, on a picture of the whole */
+  url: string
+  /** how far it moves across and down the picture, as shares of its width, for each one of `apart` */
+  dx: number
+  dy: number
+  /** which is in front of which: the higher, the nearer */
+  z: number
+}
+
+/**
+ * Some of an example's parts (`ids`), each drawn by itself on a picture of them all, in
+ * the same place in each, from where the app's Home looks: so that laid one over another
+ * they are the model, and moved apart along their own ways (what the model says each
+ * part's is) they are the model pulled apart, as far as `most` times those. The
+ * pictures are framed for all of that. And where the middle of the whole is, as shares
+ * of the picture, put together and pulled apart as far as it goes. A grey part is drawn
+ * white, which reads on the dark.
+ */
+export async function drawLayers(
+  base: string,
+  ids: readonly string[],
+  size: number,
+  line: number,
+  most: number,
+): Promise<{ layers: Layer[]; middle: [number, number]; middleApart: [number, number]; tall: number }> {
+  const manifest = (await (await fetch(`${base}/enclose.model.json`)).json()) as Manifest & {
+    parts: { explode?: [number, number, number] }[]
+  }
+  const loader = new GLTFLoader()
+  const { scene, ink, box, frame, renderer } = stage(size, line)
+  const chosen = manifest.parts.filter((part) => ids.includes(part.id))
+  const made = await Promise.all(
+    chosen.map(async (part) => {
+      const gltf = await loader.loadAsync(`${base}/${part.file}`)
+      const group = manifest.groups.findIndex((one) => one.id === part.group)
+      const metal = part.finish === 'metal'
+      const given = part.color === 'grey' ? 'white' : part.color
+      const colour = metal ? METAL : PALETTE[given ?? IN_TURN[Math.max(group, 0) % IN_TURN.length]] ?? part.color!
+      const material = surface(colour, metal)
+      const held = new THREE.Group()
+      const room = new THREE.Box3()
+      gltf.scene.updateMatrixWorld(true)
+      gltf.scene.traverse((node) => {
+        const mesh = node as THREE.Mesh
+        if (!mesh.isMesh) return
+        const skin = new THREE.Mesh(mesh.geometry, material)
+        skin.matrixAutoUpdate = false
+        skin.matrix.copy(TO_MODEL).multiply(mesh.matrixWorld)
+        held.add(skin)
+        mesh.geometry.computeBoundingBox()
+        room.union(mesh.geometry.boundingBox!.clone().applyMatrix4(skin.matrix))
+      })
+      if (part.edges) {
+        const positions = new Float32Array(await (await fetch(`${base}/${part.edges}`)).arrayBuffer())
+        const drawn = new LineSegments2(new LineSegmentsGeometry().setPositions(positions), ink)
+        drawn.renderOrder = 1
+        held.add(drawn)
+      }
+      scene.add(held)
+      const way = new THREE.Vector3(...(part.explode ?? [0, 0, 0]))
+      return { id: part.id, held, room, way }
+    }),
+  )
+  // framed for all of it, together and as far apart as it goes
+  for (const one of made) {
+    box.union(one.room)
+    box.union(one.room.clone().translate(one.way.clone().multiplyScalar(most)))
+  }
+  const camera = frame()
+  const onPicture = (point: THREE.Vector3) => {
+    const seen = point.clone().project(camera)
+    return [(seen.x + 1) / 2, (1 - seen.y) / 2] as const
+  }
+  const roomAt = (apart: number) => {
+    let [left, top, right, bottom] = [Infinity, Infinity, -Infinity, -Infinity]
+    for (const one of made)
+      for (let i = 0; i < 8; i++) {
+        const corner = new THREE.Vector3(
+          i & 1 ? one.room.max.x : one.room.min.x,
+          i & 2 ? one.room.max.y : one.room.min.y,
+          i & 4 ? one.room.max.z : one.room.min.z,
+        ).addScaledVector(one.way, apart)
+        const [x, y] = onPicture(corner)
+        left = Math.min(left, x)
+        right = Math.max(right, x)
+        top = Math.min(top, y)
+        bottom = Math.max(bottom, y)
+      }
+    return { left, top, right, bottom }
+  }
+  // Each picture is cut to what the whole takes up, together and as far apart as it goes,
+  // and a little room round it: and what is said of where things are, is of that.
+  const together = roomAt(0)
+  const apart = roomAt(most)
+  const pad = 0.02
+  const cut = {
+    left: Math.max(0, Math.min(together.left, apart.left) - pad),
+    top: Math.max(0, Math.min(together.top, apart.top) - pad),
+    right: Math.min(1, Math.max(together.right, apart.right) + pad),
+    bottom: Math.min(1, Math.max(together.bottom, apart.bottom) + pad),
+  }
+  const wide = cut.right - cut.left
+  const tall = cut.bottom - cut.top
+  const middleOf = (room: typeof together): [number, number] => [
+    ((room.left + room.right) / 2 - cut.left) / wide,
+    ((room.top + room.bottom) / 2 - cut.top) / (tall),
+  ]
+  const piece = document.createElement('canvas')
+  piece.width = Math.round(wide * size)
+  piece.height = Math.round(tall * size)
+
+  const eye = camera.position
+  const layers: Layer[] = []
+  for (const one of made) {
+    for (const other of made) other.held.visible = other === one
+    renderer.render(scene, camera)
+    const pen = piece.getContext('2d')!
+    pen.clearRect(0, 0, piece.width, piece.height)
+    pen.drawImage(renderer.domElement, cut.left * size, cut.top * size, piece.width, piece.height, 0, 0, piece.width, piece.height)
+    const centre = one.room.getCenter(new THREE.Vector3())
+    const [x0, y0] = onPicture(centre)
+    const [x1, y1] = onPicture(centre.clone().add(one.way))
+    layers.push({
+      id: one.id,
+      url: piece.toDataURL('image/webp', 0.88),
+      // (as shares of the cut picture's width, both ways)
+      dx: (x1 - x0) / wide,
+      dy: (y1 - y0) / wide,
+      // the nearer the eye, pulled apart, the higher
+      z: -centre.clone().addScaledVector(one.way, most).distanceTo(eye),
+    })
+  }
+  return { layers, middle: middleOf(together), middleApart: middleOf(apart), tall: tall / wide }
 }

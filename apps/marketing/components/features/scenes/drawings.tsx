@@ -1,18 +1,12 @@
 import {
-  BookOpenIcon,
-  BoxesIcon,
   DownloadIcon,
-  DraftingCompassIcon,
-  Grid3x3Icon,
-  HammerIcon,
-  MessageSquareIcon,
   RotateCcwIcon,
   UnfoldVerticalIcon,
 } from 'lucide-react'
 import { memo, useEffect, useState, type ComponentType, type CSSProperties } from 'react'
 import type { Act } from '../../stageshow/act'
-import { BoardIcon, SectionIcon } from '../../app/icons'
-import { CORNER, Model, Pill, Round, Scene, Switch } from '../fx'
+import { CORNER, Pill, Round, Scene, Switch } from '../fx'
+import { CLOCKWORK } from './clockwork'
 import './drawings.scss'
 
 // Agentic CAD, the model taken apart and drawn: pulled apart in the view, drawn on
@@ -74,43 +68,65 @@ const Drawn = memo(function Drawn({ markup, className }: { markup: string | null
   return <div className={className} dangerouslySetInnerHTML={markup ? { __html: markup } : undefined} />
 })
 
-/** The round buttons down the right of the view, as the app has them. */
-const COLUMN = [
-  { id: 'parts', icon: <BoxesIcon />, tip: 'Parts', keys: 'P' },
-  { id: 'grid', icon: <Grid3x3Icon />, tip: 'Grid', keys: 'G' },
-  { id: 'section', icon: <SectionIcon />, tip: 'Section', keys: 'S' },
-  { id: 'explode', icon: <UnfoldVerticalIcon />, tip: 'Explode', keys: 'E' },
-  { id: 'pcb', icon: <BoardIcon />, tip: 'PCB', keys: '⇧P' },
-  { id: 'blueprint', icon: <DraftingCompassIcon />, tip: 'Blueprint', keys: 'B' },
-  { id: 'assembly', icon: <BookOpenIcon />, tip: 'Assembly', keys: 'A' },
-] as const
-
 // ── Pulled apart ───────────────────────────────────────────────────────────
-// Explode, from the column down the right: the arm comes apart by its groups, and the
-// slider that comes up at the foot of the view pulls it further. Explode again puts it
-// back together.
+// The clock's movement and its hands, and Explode in the corner: pressed, they come
+// apart, each part along its own way, and the slider that comes up at the foot of the
+// view pulls them further. Explode again puts them back together. (Each part is a
+// picture of its own, moved apart on the page: clockwork.ts, made by scripts/renders.ts.)
 
 type ExplodeState = {
-  /** the tip beside the Explode button is up */
-  tip: boolean
   apart: boolean
   /** how far the slider is along, 0 to 1 */
   pull: number
 }
 
 const PULL = 0.2
-const explodeStart: ExplodeState = { tip: false, apart: false, pull: PULL }
+const explodeStart: ExplodeState = { apart: false, pull: PULL }
+
+/** How far apart the clockwork is, of how far its parts say they go, for where the slider is. */
+const apartFor = (s: ExplodeState) => (s.apart ? 0.6 + s.pull : 0)
+/**
+ * How wide the clockwork's pictures are drawn, design px, on a wide card and on a phone's:
+ * put together, it fills the view, and pulled apart its ends go out past the card's edges.
+ */
+const CLOCKWORK_WIDE = { wide: 900, compact: 540 } as const
+/** Its parts, the furthest back first. */
+const BACK_TO_FRONT = [...CLOCKWORK.layers].sort((a, b) => a.z - b.z)
+
+/**
+ * The clockwork, as far apart as `apart` says, its middle in the middle of the view:
+ * each part moved along its own way, the whole moved so that it stays in the middle.
+ */
+function Clockwork({ apart, width, middle }: { apart: number; width: number; middle: { x: number; y: number } }) {
+  const height = width * CLOCKWORK.tall
+  const along = apart / CLOCKWORK.most
+  const mx = CLOCKWORK.middle[0] + (CLOCKWORK.middleApart[0] - CLOCKWORK.middle[0]) * along
+  const my = CLOCKWORK.middle[1] + (CLOCKWORK.middleApart[1] - CLOCKWORK.middle[1]) * along
+  return (
+    <div
+      className="dw-explode__clockwork"
+      style={{ width, height, transform: `translate(${middle.x - mx * width}px, ${middle.y - my * height}px)` }}
+    >
+      {BACK_TO_FRONT.map((part) => (
+        <img
+          key={part.id}
+          src={`/renders/clockwork/${part.id}.webp`}
+          alt=""
+          draggable={false}
+          style={{ transform: `translate(${part.dx * apart * width}px, ${part.dy * apart * width}px)` }}
+        />
+      ))}
+    </div>
+  )
+}
 
 async function explodeScript(a: Act<ExplodeState>) {
   await a.wait(900)
   await a.move('explode')
-  await a.set({ tip: true })
-  await a.wait(500)
+  await a.wait(300)
   await a.click()
   await a.set({ apart: true })
-  await a.wait(500)
-  await a.set({ tip: false })
-  await a.wait(1100)
+  await a.wait(1600)
   // the slider, pulled along: the pieces go further apart
   await a.move({ at: 'thumb', x: 0.5, y: 0.5 })
   const rail = a.rect('rail')
@@ -134,39 +150,20 @@ function Explode() {
     <Scene<ExplodeState>
       className="dw-explode"
       initial={explodeStart}
-      poster={{ tip: false, apart: true, pull: 0.88 }}
+      poster={{ apart: true, pull: 0.88 }}
       script={explodeScript}
       cursor={{ at: { wide: { x: 470, y: 340 }, compact: { x: 250, y: 330 } }, idle: 1400 }}
     >
-      {(s) => (
+      {(s, _rect, layout) => (
         <>
-          <div
-            className="dw-explode__model"
-            data-apart={s.apart || undefined}
-            style={{ '--pull': s.pull } as CSSProperties}
-          >
-            <Model src="arm" className="dw-explode__whole" shown={!s.apart} />
-            <Model src="exploded" className="dw-explode__apart" shown={s.apart} />
-          </div>
-          <Round on style={{ position: 'absolute', top: CORNER, right: CORNER }}>
-            <MessageSquareIcon />
-          </Round>
-          <div className="dw-column">
-            {COLUMN.map((button) => (
-              <Round
-                key={button.id}
-                target={button.id === 'explode' ? 'explode' : undefined}
-                on={button.id === 'explode' && s.apart}
-                tip={button.id === 'explode' ? button.tip : undefined}
-                keys={button.keys}
-                showTip={button.id === 'explode' && s.tip}
-                tool={false}
-              >
-                {button.icon}
-              </Round>
-            ))}
-            <Round tool>
-              <HammerIcon />
+          <Clockwork
+            apart={apartFor(s)}
+            width={CLOCKWORK_WIDE[layout]}
+            middle={layout === 'wide' ? { x: 300, y: 285 } : { x: 180, y: 165 }}
+          />
+          <div className="dw-explode__corner">
+            <Round target="explode" on={s.apart} tool={false}>
+              <UnfoldVerticalIcon />
             </Round>
           </div>
           <div className="dw-spread" data-on={s.apart || undefined}>
@@ -231,7 +228,8 @@ async function blueprintScript(a: Act<BlueprintState>) {
 }
 
 function Blueprint() {
-  const markup = useSheet('top-right.svg', measured)
+  // (the clock's, as the card beside it has: public/blueprint/clock, scripts/blueprints.ts)
+  const markup = useSheet('clock/top-right.svg', measured)
   return (
     <Scene<BlueprintState>
       className="dw-blueprint"
