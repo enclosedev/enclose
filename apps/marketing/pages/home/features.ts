@@ -14,6 +14,8 @@ export type Group = {
   /** what the section says, in one paragraph: this, and then, quieter, `lede` */
   heading: string
   lede: string
+  /** what it is made with, said small under it, with that's mark and a link to it */
+  poweredBy?: { name: string; logo: string; href: string }
   features: Feature[]
 }
 
@@ -91,6 +93,7 @@ export const GROUPS: Group[] = [
     id: 'pcb',
     heading: 'The board that fits the case.',
     lede: 'The agent designs it with tscircuit and leaves room for every plug.',
+    poweredBy: { name: 'tscircuit', logo: '/brands/tscircuit.png', href: 'https://tscircuit.com' },
     features: [
       {
         scene: 'board-3d',
@@ -100,7 +103,7 @@ export const GROUPS: Group[] = [
       {
         scene: 'board-technical',
         title: 'Technical view.',
-        says: 'Each layer of copper, as the board is made. Point at a pad for its pin, or a trace for its net and length.',
+        says: 'Every copper layer, drawn as it is fabricated. X-ray a net to follow it through all four layers and every via.',
       },
       {
         scene: 'board-schematic',

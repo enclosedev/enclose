@@ -115,108 +115,88 @@ function Spot({ name, x, y, w = 1, h = 1, cursor = 'default' }: { name: string; 
 }
 
 // ── Technical view ─────────────────────────────────────────────────────────
-// The top of the board, as it is made. The pointer goes to a pad of the
-// microcontroller, which is boxed and named; then along to the long trace that
-// brings 5 V up from the USB socket, which is lit and said, with how long it is; then
-// to the second layer's button, and the board turns over to show its bottom.
+// A board of four layers (MEEDEE, a little instrument), all of it, its top as the
+// technical view draws it and the layers under it faint. The pointer goes to a pad of
+// U3, the boost converter, which is boxed and named; it is clicked, and its connection
+// is X-rayed, as the app does it: the rest of the board dimmed, and that alone drawn
+// over it, on every layer it goes through, in the colours of each (public/board/meedee,
+// made by scripts/boards.ts). Clicked off, the board is as it was.
 
-type TechState = { over: 'none' | 'pad' | 'trace'; layer: 1 | 2; tip: string | null }
+type TechState = { over: boolean; xray: boolean }
 
-/** The 5 V trace from C1 to the motor driver, in top.svg's px: where it turns. */
-const V5_TRACE = '1344,1118 1245,1019 1245,999 1236,989 1236,868 799,431 794,431 704,342 706,339'
-
-/**
- * What is pointed at, in top.svg's px: a pad, what its pin is called, and a place on
- * the trace. A phone's view is closer in, on the motor driver: its pad is that one's.
- */
-const POINTED: Record<Layout, { pad: { x: number; y: number; w: number; h: number }; pin: string; trace: { x: number; y: number } }> = {
-  wide: { pad: { x: 308, y: 395, w: 8, h: 32 }, pin: 'U1.PA4, U1.pin2', trace: { x: 840, y: 472 } },
-  compact: { pad: { x: 592, y: 307, w: 27, h: 8 }, pin: 'U2.COM, U2.pin9', trace: { x: 900, y: 532 } },
-}
+/** U3's first pad, in the drawing's px, what the app says of it, and how big the drawing is. */
+const U3 = { pad: { x: 1334.1, y: 543.7, w: 13.6, h: 6.8 }, said: 'U3.VOUT1, U3.pin1', net: 'V5' }
+const MEEDEE = { width: 1600, height: 1296.2 }
+/** How the drawing is drawn on the card: as wide as the card, less a margin either side. */
+const TECH_SCALE: Record<Layout, number> = { wide: 548 / MEEDEE.width, compact: 332 / MEEDEE.width }
 
 async function techScript(a: Act<TechState>) {
-  await a.wait(700)
-  await a.move('pad', { duration: 900 })
-  await a.set({ over: 'pad' })
-  await a.wait(1700)
-  await a.set({ over: 'none' })
-  await a.move('trace', { duration: 1000 })
-  await a.set({ over: 'trace' })
-  await a.wait(1900)
-  await a.set({ over: 'none' })
-  await a.move('layer-2')
-  await a.set({ tip: 'layer-2' })
-  await a.wait(500)
-  await a.click()
-  await a.set({ layer: 2, tip: null })
-  await a.wait(2600)
-  await a.move('layer-1', { duration: 400 })
-  await a.click()
-  await a.set({ layer: 1 })
+  await a.wait(800)
+  await a.move('pad', { duration: 1000 })
+  await a.set({ over: true })
   await a.wait(1200)
+  await a.click()
+  await a.set({ xray: true })
+  await a.wait(3200)
+  await a.move('away', { duration: 700 })
+  await a.click()
+  await a.set({ xray: false, over: false })
+  await a.wait(1400)
 }
 
 function Technical() {
   return (
     <Scene<TechState>
       className="pcb-tech"
-      initial={{ over: 'none', layer: 1, tip: null }}
-      poster={{ over: 'trace', layer: 1, tip: null }}
+      initial={{ over: false, xray: false }}
+      poster={{ over: true, xray: true }}
       script={techScript}
-      cursor={{
-        at: { wide: { x: 300, y: 420 }, compact: { x: 200, y: 390 } },
-        still: true,
-      }}
+      cursor={{ at: { wide: { x: 300, y: 470 }, compact: { x: 200, y: 300 } } }}
     >
       {(s, rect, layout) => {
+        const by = TECH_SCALE[layout]
         const pad = rect('pad')
-        const trace = rect('trace')
-        const pointed = POINTED[layout]
         return (
           <>
-            <div className="pcb-tech__view">
-              <div className="pcb-sheet">
-                <div className="pcb-flip" data-over={s.layer === 2 || undefined}>
-                  <div className="pcb-face">
-                    <img src="/board/top.svg" alt="" draggable={false} />
-                    <svg viewBox="0 0 1600 1550" className="pcb-marks">
-                      <polyline
-                        points={V5_TRACE}
-                        className="pcb-lit-trace"
-                        data-on={s.over === 'trace' || undefined}
-                      />
-                      <rect
-                        x={pointed.pad.x - 5}
-                        y={pointed.pad.y - 5}
-                        width={pointed.pad.w + 10}
-                        height={pointed.pad.h + 10}
-                        className="pcb-lit-pad"
-                        data-on={s.over === 'pad' || undefined}
-                      />
-                    </svg>
-                    <Spot name="pad" {...pointed.pad} />
-                    <Spot name="trace" x={pointed.trace.x - 1} y={pointed.trace.y - 1} w={2} h={2} />
-                  </div>
-                  <div className="pcb-face pcb-face--under">
-                    <img src="/board/bottom.svg" alt="" draggable={false} />
-                  </div>
-                </div>
-              </div>
+            <div
+              className="pcb-tech__board"
+              data-xray={s.xray || undefined}
+              style={{ width: MEEDEE.width * by, height: MEEDEE.height * by } as CSSProperties}
+            >
+              <img className="pcb-tech__top" src="/board/meedee/top.svg" alt="" draggable={false} />
+              <img className="pcb-tech__xray" src="/board/meedee/xray.svg" alt="" draggable={false} />
+              <span
+                className="pcb-tech__pad"
+                data-on={s.over || undefined}
+                data-target="pad"
+                data-cursor="pointer"
+                style={{
+                  left: (U3.pad.x - U3.pad.w / 2) * by - 4,
+                  top: (U3.pad.y - U3.pad.h / 2) * by - 4,
+                  width: U3.pad.w * by + 8,
+                  height: U3.pad.h * by + 8,
+                }}
+              />
+              <span className="pcb-tech__away" data-target="away" />
             </div>
             <Label
-              on={s.over === 'pad'}
-              style={{ left: pad.x + pad.width / 2, top: pad.y - 8, transform: 'translate(-50%, -100%)' }}
+              on={s.over}
+              style={{ left: pad.x + pad.width / 2, top: pad.y - 10, transform: 'translate(-50%, -100%)' }}
             >
-              {pointed.pin}
+              {s.xray ? (
+                <>
+                  <div>{U3.net}</div>
+                  <div className="pcb-label__quiet">X-rayed, 4 layers</div>
+                </>
+              ) : (
+                U3.said
+              )}
             </Label>
-            <Label
-              on={s.over === 'trace'}
-              style={{ left: trace.x - 14, top: trace.y + 14, transform: 'translateX(-100%)' }}
-            >
-              <div>V5</div>
-              <div className="pcb-label__quiet">75.7 mm</div>
-            </Label>
-            <BoardButtons as="pcb" layer={s.layer} tip={s.tip} />
+            <span className="pcb-tech__corner">
+              <Round on>
+                <LayersIcon />
+              </Round>
+            </span>
           </>
         )
       }}

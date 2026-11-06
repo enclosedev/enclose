@@ -5,7 +5,7 @@
 //
 // Run from apps/marketing:
 //   npx tsx --tsconfig ../desktop/tsconfig.app.json scripts/boards.ts
-import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -131,4 +131,86 @@ const files = {
 for (const [name, svg] of Object.entries(files)) {
   await writeFile(path.join(OUT, name), svg)
   console.log(name, `${Math.round(svg.length / 1024)} kB`)
+}
+
+// And a board of four layers, of a project of the user's (MEEDEE, a little instrument),
+// for the technical view's card: its top as that view draws it (its other layers under
+// it, faint), and what U3's first pad is joined to, X-rayed as the app does it
+// (board-menu.tsx's XRay): its traces, pads and vias in the colours of their layers, in
+// the drawing's own px, to lie over it. Where that project is not on this machine
+// (MEEDEE_CIRCUIT, its main.circuit.json), what was made of it is left as it is.
+const MEEDEE = process.env.MEEDEE_CIRCUIT
+if (MEEDEE) {
+  const four = JSON.parse(await readFile(MEEDEE, "utf8")) as Circuit
+  const out = path.join(OUT, "meedee")
+  await rm(out, { recursive: true, force: true })
+  await mkdir(out, { recursive: true })
+  /** (to a tenth of a px: a fifth of a tenth of a millimetre) */
+  const tenths = (svg: string) => svg.replace(/-?\d+\.\d{2,}/g, (n) => String(Math.round(Number(n) * 10) / 10))
+  const top = tenths(drawingOf(four, "pcb", colours, true, GROUND, "top"))
+  await writeFile(path.join(out, "top.svg"), top)
+  console.log("meedee/top.svg", `${Math.round(top.length / 1024)} kB`)
+
+  const { inspected, cornersOf } = await import("../../desktop/src/components/pcb/inspect")
+  const { xRayOf, connectionSaid } = await import("../../desktop/src/components/pcb/xray")
+  const { copperColourOf } = await import("../../desktop/shared/theme-format")
+  const board = inspected(four)
+  const pad = board.pads.find((one) => one.names.includes("U3.VOUT1"))!
+  const rayed = xRayOf(board, pad.joined!)
+
+  // The drawing's px for the board's mm: from two of U3's pads, as each is drawn in it.
+  const drawnAt = (name: string) => {
+    const found = new RegExp(`<rect[^>]*x="([\\d.]+)" y="([\\d.]+)" width="([\\d.]+)" height="([\\d.]+)"[^>]*data-pad-name="${name}"`).exec(top)!
+    const [x, y, w, h] = found.slice(1).map(Number)
+    return { x: x + w / 2, y: y + h / 2 }
+  }
+  const padOf = (name: string) => board.pads.find((one) => one.names.includes(name))!
+  const [a, b] = ["U3.VOUT1", "U3.VBAT"].map((name) => ({ mm: padOf(name), px: drawnAt(name) }))
+  const perMm = (b.px.x - a.px.x) / (b.mm.x - a.mm.x)
+  const px = (spot: { x: number; y: number }) => [
+    Math.round((a.px.x + (spot.x - a.mm.x) * perMm) * 10) / 10,
+    Math.round((a.px.y - (spot.y - a.mm.y) * perMm) * 10) / 10,
+  ]
+  const width = Number(/width="([\d.]+)"/.exec(top)![1])
+  const height = Number(/height="([\d.]+)"/.exec(top)![1])
+  const colourOf = (on: string | null) => copperColourOf(colours, (on ?? "top") as never)
+  const lines = rayed.traces
+    .flatMap((trace) => trace.points.slice(1).map((to, index) => ({ from: trace.points[index], to })))
+    .sort((one, other) => Number(one.from.side === "top") - Number(other.from.side === "top"))
+    .map(({ from, to }) => {
+      const [x1, y1] = px(from)
+      const [x2, y2] = px(to)
+      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${colourOf(from.side)}" stroke-width="${Math.max(from.width * perMm, 2).toFixed(1)}" stroke-linecap="round"/>`
+    })
+  const pads = rayed.pads.map((one) => {
+    const fill = colourOf(one.sides.includes("top") ? "top" : one.sides[0])
+    if (one.round) {
+      const [cx, cy] = px(one)
+      return `<circle cx="${cx}" cy="${cy}" r="${((one.w / 2) * perMm).toFixed(1)}" fill="${fill}"/>`
+    }
+    return `<polygon points="${cornersOf(one).map((corner) => px(corner).join(",")).join(" ")}" fill="${fill}"/>`
+  })
+  const vias = rayed.vias.map((via) => {
+    const [cx, cy] = px(via)
+    const r = Math.max((via.w / 2) * perMm, 3)
+    return `<circle cx="${cx}" cy="${cy}" r="${r.toFixed(1)}" fill="${colours["technical-print"]}"/><circle cx="${cx}" cy="${cy}" r="${(r * 0.45).toFixed(1)}" fill="${GROUND}"/>`
+  })
+  const xray = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${[...lines, ...pads, ...vias].join("")}</svg>`
+  await writeFile(path.join(out, "xray.svg"), xray)
+  // and where the pad is, in the drawing's px, and what the app says of it
+  const at = drawnAt("U3.VOUT1")
+  await writeFile(
+    path.join(out, "xray.json"),
+    JSON.stringify(
+      {
+        pad: { x: Math.round(at.x * 10) / 10, y: Math.round(at.y * 10) / 10, w: Math.round(pad.w * perMm * 10) / 10, h: Math.round(pad.h * perMm * 10) / 10 },
+        names: pad.names,
+        net: connectionSaid(board, pad.joined!, null),
+        size: { width, height },
+      },
+      null,
+      2
+    ) + "\n"
+  )
+  console.log("meedee/xray.svg", rayed.traces.length, "traces", `${Math.round(xray.length / 1024)} kB`)
 }

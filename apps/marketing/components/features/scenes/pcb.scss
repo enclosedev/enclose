@@ -134,75 +134,60 @@ $finished: #22c55e;
 
 // ── Technical view ─────────────────────────────────────────────────────────
 .pcb-tech {
-  &__view {
+  // the whole board, in the middle of the card
+  &__board {
     position: absolute;
-    inset: 0;
-    overflow: hidden;
-    perspective: 1800px;
-    --s: 0.7;
-    --x0: 140;
-    --y0: 40;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    img {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      pointer-events: none;
+    }
   }
 
-  // the board, and its bottom on the back of it: turned over about the middle of the view
-  .pcb-flip {
-    position: absolute;
-    inset: 0;
-    transform-style: preserve-3d;
-    transform-origin: calc(300px + var(--x0) * var(--s) * 1px) calc(230px + var(--y0) * var(--s) * 1px);
-    transition: transform 1s $ease;
-
-    &[data-over] { transform: rotateY(180deg); }
-  }
-
-  .pcb-face {
-    position: absolute;
-    inset: 0;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    background: $ground;
-
-    &--under { transform: rotateY(180deg); }
-  }
-
-  .pcb-marks {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-  }
-
-  .pcb-lit-trace {
-    fill: none;
-    stroke: var(--app-fg);
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    // the trace is 0.5 mm, 7 of the drawing's px: lit 4 view px wider all round
-    stroke-width: calc(7px + 6px / var(--s));
+  // X-rayed: the board dimmed under the connection, which is drawn alone over it
+  &__top { transition: opacity 0.45s; }
+  &__xray {
     opacity: 0;
-    transition: opacity 0.18s;
-
-    &[data-on] { opacity: 0.4; }
+    transition: opacity 0.45s;
   }
 
-  .pcb-lit-pad {
-    fill: none;
-    stroke: var(--app-fg);
-    stroke-width: calc(1.5px / var(--s));
+  [data-xray] &__top { opacity: 0.22; }
+  [data-xray] &__xray { opacity: 1; }
+
+  // the pad pointed at, boxed
+  &__pad {
+    position: absolute;
+    border: 1.5px solid var(--app-fg);
+    border-radius: 3px;
     opacity: 0;
     transition: opacity 0.18s;
 
     &[data-on] { opacity: 1; }
   }
-}
 
-[data-layout='compact'] .pcb-tech__view {
-  --s: 0.55;
-  --x0: 380;
-  --y0: 120;
+  // somewhere empty on the board, to click off it
+  &__away {
+    position: absolute;
+    top: 72%;
+    left: 34%;
+    width: 2px;
+    height: 2px;
+  }
 
-  .pcb-flip { transform-origin: calc(180px + var(--x0) * var(--s) * 1px) calc(210px + var(--y0) * var(--s) * 1px); }
+  // the technical view's button, by itself in the corner (fx.tsx's CORNER)
+  &__corner {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+  }
 }
 
 // ── In 3D ──────────────────────────────────────────────────────────────────

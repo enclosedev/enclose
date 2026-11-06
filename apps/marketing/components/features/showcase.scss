@@ -22,6 +22,43 @@
     span { color: var(--muted); }
   }
 
+  // what the group is made with: small, under its heading
+  &__powered {
+    @include type.style('small');
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 20px 0 0;
+    color: var(--muted);
+
+    a {
+      margin-left: 6px;
+      color: var(--fg);
+      text-decoration: underline;
+      text-decoration-color: color-mix(in srgb, var(--fg) 30%, transparent);
+      text-underline-offset: 3px;
+      transition: text-decoration-color 0.2s;
+
+      &:hover { text-decoration-color: currentColor; }
+    }
+  }
+
+  &__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--fg);
+    font-weight: 500;
+
+    img {
+      display: block;
+      width: 20px;
+      height: 20px;
+      border-radius: 5px;
+    }
+  }
+
   // The row of cards, a card at a time in the middle of the screen, under the heading,
   // and one either side, going round for ever (Showcase.tsx).
   &__track {

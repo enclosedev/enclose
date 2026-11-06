@@ -156,6 +156,18 @@ export function Showcase({ group }: { group: Group }) {
         <h2 id={`${group.id}-heading`} className="showcase__heading">
           {group.heading} <span>{group.lede}</span>
         </h2>
+        {group.poweredBy && (
+          <p className="showcase__powered">
+            Powered by
+            <span className="showcase__brand">
+              <img src={group.poweredBy.logo} alt="" width={20} height={20} />
+              {group.poweredBy.name}
+            </span>
+            <a href={group.poweredBy.href} target="_blank" rel="noreferrer">
+              Learn more
+            </a>
+          </p>
+        )}
       </header>
       <ul className="showcase__track" ref={track}>
         {Array.from({ length: ROUNDS }, (_, round) =>
