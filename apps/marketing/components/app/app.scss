@@ -125,11 +125,7 @@ $tool-line: oklch(from var(--axis-z) calc(l + 0.066) calc(c - 0.056) calc(h + 2)
     display: grid;
     grid-template-rows: 1fr;
 
-    &[data-app='later'],
-    &--spread {
-      grid-template-rows: 0fr;
-    }
-    &[data-app='later'] { margin-bottom: -6px; }
+    &--spread { grid-template-rows: 0fr; }
   }
 
   // (what closes up cuts off whatever is outside it, and a card's edge is drawn
@@ -141,8 +137,41 @@ $tool-line: oklch(from var(--axis-z) calc(l + 0.066) calc(c - 0.056) calc(h + 2)
     overflow: hidden;
   }
 
-  [data-app='later'] &__card,
   &__row { opacity: 0; }
+
+  // A group's heading, over its projects: drawn over the view with no card of its own,
+  // its name quiet, a line out to its + and its pin. (A heading under cards has the
+  // room over it the list gives a group.)
+  &__heading {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 196px;
+    height: 24px;
+    color: rgb(255 255 255 / 0.7);
+
+    &:not(:first-child) { margin-top: 6px; }
+
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    i {
+      flex: 1;
+      min-width: 16px;
+      height: 1px;
+      margin: 0 4px;
+      background: rgb(255 255 255 / 0.1);
+    }
+
+    svg {
+      width: 12px;
+      height: 12px;
+      margin: 0 6px;
+    }
+  }
 
   &__project {
     display: flex;
@@ -190,8 +219,7 @@ $tool-line: oklch(from var(--axis-z) calc(l + 0.066) calc(c - 0.056) calc(h + 2)
     gap: 2px;
 
     // it gives way at its far end to the card's news
-    &--news,
-    [data-working] > & {
+    &--news {
       -webkit-mask-image: linear-gradient(
         to right,
         black calc(100% - 108px),
@@ -204,15 +232,6 @@ $tool-line: oklch(from var(--axis-z) calc(l + 0.066) calc(c - 0.056) calc(h + 2)
       );
     }
   }
-
-  // the news of a card whose conversation the scroll has only now set going
-  [data-app='at-work'] {
-    opacity: 0;
-    transition: opacity 0.3s;
-  }
-  [data-working] > [data-app='at-work'] { opacity: 1; }
-  // (when it was last carried on is not said while it is being carried on)
-  [data-working] &__when { opacity: 0; }
 
   &__named {
     display: flex;

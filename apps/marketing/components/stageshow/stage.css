@@ -1,0 +1,264 @@
+/* Stageshow kit: the stage. Tokens, the dark look the cards are in, the still
+   and placing switches, the keyframes, and the guards against host CSS.
+   Imported by stage.tsx; the cursor and the keys import their own files. (Only
+   what this site uses is kept of the kit.) */
+
+@layer stageshow {
+  .ss-fit {
+    position: relative;
+    width: 100%;
+    /* Stopped at its design size in a wider slot, a stage sits in the middle
+       of it, not against its left edge */
+    margin-inline: auto;
+  }
+
+  .ss-stage {
+    /* Surfaces */
+    --ss-canvas: #f6f5f4;
+    --ss-surface: #fff;
+    --ss-chrome: #fff;
+
+    /* Placeholder ink, lightest to darkest. Faux UI lives in these five. */
+    --ss-ink-1: rgba(0, 0, 0, 0.04);
+    --ss-ink-2: rgba(0, 0, 0, 0.06);
+    --ss-ink-3: rgba(0, 0, 0, 0.08);
+    /* ink-3 flattened onto the surface: an opaque fill for shapes that overlap
+       (avatars in a pile), so the overlap never paints darker */
+    --ss-fill: #ebebeb;
+    --ss-ink-4: rgba(0, 0, 0, 0.1);
+    --ss-ink-5: rgba(0, 0, 0, 0.15);
+
+    /* Lines and real text */
+    --ss-line: rgba(0, 0, 0, 0.06);
+    --ss-line-faint: rgba(0, 0, 0, 0.04);
+    /* Opaque, so icons that inherit them are one solid color (a translucent
+       color paints darker wherever strokes meet) */
+    --ss-text: #7a7a7d;
+    --ss-text-strong: #262628;
+    --ss-text-faint: #9a9a9d;
+    /* Icons: opaque, so strokes that overlap or meet never paint darker. Never
+       color an icon with a translucent ink or text token. */
+    --ss-icon: #707074;
+    --ss-icon-faint: #c4c4c7;
+
+    /* One accent, spent on the thing being acted on. Status colors only
+       where status is the subject. */
+    --ss-accent: #3b82f6;
+    --ss-accent-soft: rgba(59, 130, 246, 0.12);
+    --ss-success: #22c55e;
+    --ss-danger: #ef4444;
+    --ss-warning: #f59e0b;
+
+    /* The stage behind a framed shot */
+    --ss-well: #efeeec;
+
+    /* Status tints for diffs, badges and pills: soft fill, strong text */
+    --ss-success-soft: rgba(34, 197, 94, 0.12);
+    --ss-success-text: #15803d;
+    --ss-danger-soft: rgba(239, 68, 68, 0.1);
+    --ss-danger-text: #b91c1c;
+    --ss-warning-soft: rgba(245, 158, 11, 0.14);
+    --ss-warning-text: #b45309;
+    /* A second accent stop, for gradient meters and lines */
+    --ss-accent-2: #8b5cf6;
+    /* The accent as text (a link, a selected label). Darkened so it reads on
+       white; a custom accent gets the same treatment automatically */
+    --ss-accent-text: color-mix(in srgb, var(--ss-accent) 82%, #000);
+
+    /* Depth */
+    --ss-shadow-window: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.08);
+    --ss-shadow-float: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.12), 0 12px 32px rgba(0, 0, 0, 0.08);
+    --ss-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
+    /* Framing depth: the hero window on the stage, satellites over the hero */
+    /* The ring gives every edge a line: the drop falls downward, so the top and
+       a light sidebar on a light ground would otherwise vanish */
+    --ss-shadow-hero: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 30px 60px -12px rgba(50, 50, 93, 0.25), 0 18px 36px -18px rgba(0, 0, 0, 0.3);
+    /* Something picked up and carried (a dragged card) */
+    --ss-shadow-lift: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 12px 28px -6px rgba(50, 50, 93, 0.28), 0 6px 12px -6px rgba(0, 0, 0, 0.16);
+    /* Tight on purpose: a wide blur over a white window reads as a gray smear */
+    --ss-raised: #fff;
+    --ss-shadow-satellite: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 14px 32px -8px rgba(50, 50, 93, 0.24), 0 4px 10px -4px rgba(0, 0, 0, 0.1);
+    /* A small window resting on the stage's ground, not over another window:
+       a hairline and a long, faint fall. The satellite's tight, dark contact
+       shadow reads harsh under a small window on open ground */
+    --ss-shadow-ground: 0 0 0 1px rgba(50, 50, 93, 0.06), 0 24px 48px -24px rgba(50, 50, 93, 0.18);
+
+    --ss-font: system-ui, -apple-system, sans-serif;
+    --ss-mono: "SF Mono", "SFMono-Regular", ui-monospace, Consolas, monospace;
+
+    /* Shape: the radius scale the product's own parts use. A look sets these
+       to its design system's values; each rounded part reads one */
+    --ss-radius-sm: 6px; /* a menu row, a segment's thumb */
+    --ss-radius-md: 8px; /* a field, a segmented track, a drop slot */
+    --ss-radius-lg: 10px; /* a popover, a toast */
+    --ss-radius-window: 12px; /* the product window */
+    --ss-radius-pill: 999px; /* badges and chips */
+
+    /* Density: the heights the parts are built on */
+    --ss-control: 34px; /* a text field */
+    --ss-row: 26px; /* a menu row, a segment */
+
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+    font-family: var(--ss-font);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    /* The baseline every demo is designed against, pinned here so the host
+       page's type (a blog's 15px body, its letter-spacing) never reaches in */
+    font-size: 16px;
+    font-weight: 400;
+    font-style: normal;
+    line-height: normal;
+    letter-spacing: normal;
+    word-spacing: normal;
+    text-align: start;
+    text-indent: 0;
+    text-transform: none;
+    white-space: normal;
+    color: #000;
+  }
+
+  .ss-stage[data-theme="dark"] {
+    --ss-canvas: #111113;
+    --ss-surface: #1a1a1d;
+    --ss-chrome: #1d1d20;
+    --ss-ink-1: rgba(255, 255, 255, 0.05);
+    --ss-ink-2: rgba(255, 255, 255, 0.07);
+    --ss-ink-3: rgba(255, 255, 255, 0.1);
+    /* ink-3 flattened onto the surface: an opaque fill for shapes that overlap
+       (avatars in a pile), so the overlap never paints darker */
+    --ss-fill: #313134;
+    --ss-ink-4: rgba(255, 255, 255, 0.13);
+    --ss-ink-5: rgba(255, 255, 255, 0.2);
+    --ss-line: rgba(255, 255, 255, 0.08);
+    --ss-line-faint: rgba(255, 255, 255, 0.05);
+    --ss-text: #9d9da1;
+    --ss-text-strong: #ececee;
+    --ss-text-faint: #6c6c70;
+    --ss-icon: #9a9aa0;
+    --ss-icon-faint: #4a4a50;
+    --ss-accent-soft: rgba(59, 130, 246, 0.2);
+    --ss-accent-text: color-mix(in srgb, var(--ss-accent) 70%, #fff);
+    --ss-well: #0a0a0b;
+    --ss-success-soft: rgba(34, 197, 94, 0.16);
+    --ss-success-text: #4ade80;
+    --ss-danger-soft: rgba(239, 68, 68, 0.16);
+    --ss-danger-text: #f87171;
+    --ss-warning-soft: rgba(245, 158, 11, 0.18);
+    --ss-warning-text: #fbbf24;
+    --ss-shadow-lift: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 12px 28px -6px rgba(0, 0, 0, 0.6);
+    --ss-shadow-window: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 4px 16px rgba(0, 0, 0, 0.4);
+    --ss-shadow-float: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 4px 16px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.3);
+    --ss-shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --ss-shadow-hero: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 30px 60px -12px rgba(0, 0, 0, 0.6);
+    /* On dark, depth comes mostly from a lighter surface: put satellites on
+       --ss-raised. A wide blur on a dark window barely registers. */
+    --ss-shadow-satellite: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 14px 32px -8px rgba(0, 0, 0, 0.7), 0 4px 10px -4px rgba(0, 0, 0, 0.5);
+    --ss-shadow-ground: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 24px 48px -24px rgba(0, 0, 0, 0.6);
+    --ss-raised: #26262a;
+  }
+
+  /* Transitions off for one patch (act.snap), stage-wide or in one target */
+  .ss-stage [data-instant],
+  .ss-stage[data-instant] *,
+  .ss-stage [data-instant] *,
+  .ss-stage[data-instant] *::before,
+  .ss-stage[data-instant] *::after {
+    transition: none !important;
+  }
+
+  @keyframes ss-spin {
+    to { transform: rotate(1turn); }
+  }
+
+  @keyframes ss-fade-in {
+    from { opacity: 0; filter: blur(2px); transform: translateY(3px); }
+  }
+
+  /* A still (reduced motion, or no script) is the poster, settled: nothing in
+     it transitions or animates, so it never shows a frame caught mid-fade */
+  .ss-stage[data-still] *,
+  .ss-stage[data-still] *::before,
+  .ss-stage[data-still] *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  /* Offscreen resets settle immediately. Pausing keyframes alone leaves
+     newly-created CSS transitions running after the story clock stops.
+     Visible hover exits keep their normal glide; completed once scenes hold. */
+  .ss-stage[data-offscreen],
+  .ss-stage[data-offscreen] *,
+  .ss-stage[data-offscreen] *::before,
+  .ss-stage[data-offscreen] *::after {
+    transition: none !important;
+    animation-play-state: paused !important;
+  }
+
+  /* Settling (first paint, a layout switch): things placed from measurements
+     arrive in place instead of traveling there. Entrance animations still play. */
+  .ss-stage[data-placing] *,
+  .ss-stage[data-placing] *::before,
+  .ss-stage[data-placing] *::after {
+    transition: none !important;
+  }
+
+  .ss-stage *,
+  .ss-stage *::before,
+  .ss-stage *::after {
+    box-sizing: border-box;
+  }
+
+  /* The auto cursor's hit test (stage.tsx): for that one read, everything
+     counts as hittable except the cursor itself */
+  .ss-stage[data-hit] * {
+    pointer-events: auto !important;
+  }
+}
+
+/* Outside the layer, on purpose. Everything above is in @layer stageshow so
+   a demo's own (unlayered) CSS always wins over the kit. These few rules are
+   different: they exist to beat the host page's CSS, and an unlayered host
+   rule (a blog's `p { margin }`, `img { max-width: 100% }`) would beat
+   anything in a layer. So they stay unlayered.
+
+   Their specificity is pitched between the two: three type selectors'
+   worth (`:where()` adds nothing, each `:not(html)`-style test adds one
+   type), so they beat a host's element rules (`p`, `article p`) but lose to
+   any class, which keeps a demo's own class rules winning whatever order the
+   files load in. A bundler can load the kit's CSS again after a demo's (one
+   copy per lazily loaded chunk), so order can't be relied on here. */
+
+/* A host page's element rules (a blog's p margins, link colors, list
+   bullets) roll back to the browser's defaults inside a stage, which is what
+   every demo is designed against. A host that styles prose through a class
+   (.article p) out-ranks this: exclude stages there with
+   :not(:where(.ss-stage *)). */
+:where(.ss-stage) :is(p, h1, h2, h3, h4, h5, h6, ul, ol, li, dl, dt, dd, a, figure, figcaption, blockquote, pre, code, hr, table, th, td, button, input, label):not(html):not(body) {
+  all: revert;
+}
+
+/* A universal reset (Tailwind v3's preflight: `* { border-width: 0;
+   box-sizing: border-box }`) is unlayered, so it would beat the kit's own
+   borders, box model and spacing (a bare `* { padding: 0 }` put window
+   lights flush against the edge on a blog). revert-layer hands each property back to the kit's
+   layer. One type selector's worth, so it beats `*` but not a host's element
+   rules, which the guard above already handles */
+:where(.ss-stage, .ss-stage *, .ss-stage ::before, .ss-stage ::after):not(html) {
+  border-width: revert-layer;
+  border-style: revert-layer;
+  border-color: revert-layer;
+  box-sizing: revert-layer;
+  padding: revert-layer;
+  margin: revert-layer;
+}
+
+/* Hosts often cap images and SVGs at their container (max-width: 100%),
+   which squeezes an icon or ring drawn larger than its slot off-center.
+   Tailwind v3 also aligns them to the middle */
+:where(.ss-stage) :is(svg, img):not(html):not(body) {
+  max-width: none;
+  vertical-align: revert-layer;
+}

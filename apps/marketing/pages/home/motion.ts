@@ -1,16 +1,10 @@
 import { motion } from 'modulato'
 
-// Where the app's window is at each stop of the page's scroll, and where the model
-// is in it. A stop says how wide the window is drawn (`wide`, in widths of the
-// screen), and which point of the window (`ax`, `ay`, in the window's own px, of
-// 1720 by 1000) is put at which point of the screen (`vx`, `vy`, as shares of it).
-// `mx` and `my` are where on the screen the model's middle is (left out, it is in the
-// middle of the window's view), and `far` how far off it is seen from, in its own
-// radius.
+// How the model comes into the window once it has loaded: looked at from here (the
+// app's Front is from -90 round, level with the ground), and brought round to how the
+// window has it, in this long, s.
+
 export default motion({
-  // How the model comes into the window once it has loaded: looked at from here
-  // (the app's Front is from -90 round, level with the ground), and brought round to
-  // how the window has it, in this long, s.
   arrive: {
     azimuth: -90,
     elevation: 0,
@@ -18,57 +12,19 @@ export default motion({
     ease: 'expo.inOut',
     reduced: { duration: 0 },
   },
-  stops: {
-    projects: {
-      wide: 1.5, ax: 0, ay: 0, vx: 0.42, vy: 0.12,
-      // the foot of the cards once they are all there, which is kept on the screen
-      foot: 826, footAt: 0.95,
-      mx: 0.86, my: 0.66, far: 3.9,
-      phone: { wide: 3.3, vx: 0.05, vy: 0.11, footAt: 0.8, mx: 1.2, my: 0.45 },
-    },
-    // The list of parts is up, beside the buttons: the window as the buttons' stop has
-    // it, and the model in what the list leaves of the view. `near` is how far off the
-    // group picked in the list is seen from, in its own radius, once it is on its own.
-    parts: {
-      wide: 1.25, ax: 1720, ay: 500, vx: 0.72, vy: 0.5,
-      mx: 0.18, my: 0.52, far: 4.8, near: 7,
-      phone: { wide: 2.6, vx: 0.985, vy: 0.455, mx: 0.13, my: 0.46, far: 13, near: 19 },
-    },
-    menu: {
-      wide: 1.25, ax: 1720, ay: 500, vx: 0.72, vy: 0.5,
-      mx: 0.34, my: 0.52, far: 4.2, apart: 6.6,
-      phone: { wide: 3, vx: 0.985, vy: 0.45, mx: 0.42, my: 0.46, far: 6, apart: 9 },
-    },
-    chat: {
-      wide: 1.3, ax: 1720, ay: 1000, vx: 0.71, vy: 0.965,
-      mx: 0.16, my: 0.5, far: 3.9,
-      phone: { wide: 3.1, vx: 0.985, vy: 0.82, mx: -0.3, my: 0.45 },
-    },
-    tools: {
-      wide: 1.2, ax: 1720, ay: 500, vx: 0.72, vy: 0.5,
-      mx: 0.25, my: 0.62, far: 7.4,
-      phone: { wide: 2.9, ax: 1690, vx: 0.98, vy: 0.45, mx: 0.46, my: 0.2, far: 10 },
-    },
-    sheets: {
-      wide: 1.1, ax: 0, ay: 500, vx: 0.4, vy: 0.5,
-      mx: 0.7, my: 0.5, far: 3.6,
-      phone: { wide: 2.5, ax: 250, vx: 0, vy: 0.44 },
-    },
-    // The last stop is the page's opening, the other way up: the window as big as it
-    // was then and as far in from either side, but gone up off the top of the screen
-    // by as much as it was down off the foot of it. So what shows is its lower part,
-    // with the page's foot under it.
-    outro: { far: 3.6 },
+  // The headings under the first screen, which rise into place once their top is this
+  // far down the screen: from this far below it, px, over this long, s; their words seen
+  // a word at a time on the way, the next this long after the one before, s.
+  headings: {
+    rise: 43.5,
+    duration: 0.97,
+    stagger: 0.086,
+    ease: 'circ.out',
+    start: 'top 85%',
   },
 })
 
 export const keywords: Record<string, string[]> = {
   arrive: ['model intro', 'front view to perspective', 'on load'],
-  'stops.projects': ['project cards', 'sidebar zoom', 'first stop'],
-  'stops.parts': ['parts list', 'part thumbnails', 'group shown alone'],
-  'stops.menu': ['view buttons', 'explode', 'tool column'],
-  'stops.chat': ['conversation', 'message box', 'thread'],
-  'stops.tools': ['blue panel', 'custom tools', 'arm moving'],
-  'stops.sheets': ['blueprint', 'drawings', 'sheets row'],
-  'stops.outro': ['whole window', 'last stop', 'zoom out'],
+  headings: ['section titles', 'word by word', 'headline reveal', 'words rising on scroll'],
 }

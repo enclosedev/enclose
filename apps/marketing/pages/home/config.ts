@@ -37,6 +37,3 @@ export function meta() {
     ],
   }
 }
-
-// The page is one long scroll that is scrubbed: it always opens at its top.
-export const scroll = { restore: false }

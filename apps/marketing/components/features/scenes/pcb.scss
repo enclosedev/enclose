@@ -1,0 +1,566 @@
+@use '../../../styles/typography' as type;
+
+// The circuit board cards (pcb.tsx). Lengths are the cards' design px (600 square, and
+// 360 square on a phone). A drawing of the board is laid in a `pcb-sheet`, at `--s` of
+// the drawing's own px, with the drawing's (`--x0`, `--y0`) at the view's top left:
+// what is pointed at on it is placed in the drawing's px, times `--s`.
+
+$ease: cubic-bezier(0.32, 0.72, 0, 1);
+// PCB mode's ground, a shade under the model's view
+$ground: #151515;
+$line: rgb(255 255 255 / 0.1);
+$finished: #22c55e;
+
+@mixin shimmer {
+  --spread: calc(3ch + 40px);
+  background-image: linear-gradient(
+    110deg,
+    currentColor calc(50% - var(--spread)),
+    oklch(from currentColor max(0.8, calc(l + 0.4)) c h) 50%,
+    currentColor calc(50% + var(--spread))
+  );
+  background-repeat: no-repeat;
+  background-size: calc(200% + var(--spread) * 2) 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: fx-shimmer 2s linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    background-image: none;
+    -webkit-text-fill-color: currentColor;
+    animation: none;
+  }
+}
+
+.pcb-tech,
+.pcb-3d,
+.pcb-schem,
+.pcb-agent {
+  .ss-stage { background: $ground; }
+}
+
+.pcb-sheet {
+  position: absolute;
+  top: calc(var(--y0) * var(--s) * -1px);
+  left: calc(var(--x0) * var(--s) * -1px);
+  width: calc(1600px * var(--s));
+  height: calc(1550px * var(--s));
+
+  img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    width: 100%;
+    max-width: none;
+    pointer-events: none;
+  }
+}
+
+.pcb-spot {
+  position: absolute;
+}
+
+// ── what is said of what the pointer is over ───────────────────────────────
+.pcb-label {
+  position: absolute;
+  z-index: 3;
+  max-width: 220px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--app-fg);
+  color: #171717;
+  @include type.style('ui');
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+  box-shadow:
+    0 4px 12px rgb(0 0 0 / 0.35),
+    0 0 0 1px rgb(23 23 23 / 0.25);
+  opacity: 0;
+  transition: opacity 0.18s;
+  pointer-events: none;
+
+  &[data-on] { opacity: 1; }
+
+  &__quiet { color: rgb(23 23 23 / 0.65); }
+}
+
+// ── Technical view ─────────────────────────────────────────────────────────
+.pcb-tech {
+  // the whole board, in the middle of the card
+  &__board {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    img {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      pointer-events: none;
+    }
+  }
+
+  // X-rayed: the board dimmed under the connection, which is drawn alone over it
+  &__top { transition: opacity 0.45s; }
+  &__xray {
+    opacity: 0;
+    transition: opacity 0.45s;
+  }
+
+  [data-xray] &__top { opacity: 0.22; }
+  [data-xray] &__xray { opacity: 1; }
+
+  // the pad pointed at, boxed
+  &__pad {
+    position: absolute;
+    border: 1.5px solid var(--app-fg);
+    border-radius: 3px;
+    opacity: 0;
+    transition: opacity 0.18s;
+
+    &[data-on] { opacity: 1; }
+  }
+
+  // somewhere empty on the board, to click off it
+  &__away {
+    position: absolute;
+    top: 72%;
+    left: 34%;
+    width: 2px;
+    height: 2px;
+  }
+
+  // the technical view's button, by itself in the corner (fx.tsx's CORNER)
+  &__corner {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+  }
+}
+
+// ── In 3D ──────────────────────────────────────────────────────────────────
+.pcb-3d {
+  // the board's pictures, one over another, the one of the frame it is at shown
+  &__board {
+    position: absolute;
+
+    // the film over a still of it, for until it is there
+    img,
+    video {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  // a part, where it is on the frame shown: ringed once it is picked
+  &__part {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    margin: -15px 0 0 -15px;
+    border: 1.5px solid var(--app-fg);
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.2s;
+
+    &[data-on] { opacity: 1; }
+  }
+
+  &__grab {
+    position: absolute;
+    top: 470px;
+    left: 140px;
+    width: 2px;
+    height: 2px;
+
+    &--to { left: 440px; }
+  }
+
+  // the 3D view's button, by itself in the corner (fx.tsx's CORNER)
+  &__corner {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+  }
+}
+
+[data-layout='compact'] .pcb-3d__grab {
+  top: 300px;
+  left: 70px;
+
+  &--to { left: 290px; }
+}
+
+.pcb-picked {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 12px;
+  border-radius: 999px;
+  background: rgb(10 10 10 / 0.75);
+  box-shadow:
+    0 4px 12px rgb(0 0 0 / 0.3),
+    0 0 0 1px rgb(250 250 250 / 0.12);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3) brightness(0.55);
+  backdrop-filter: blur(20px) saturate(1.3) brightness(0.55);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-4px, -50%);
+  transition:
+    opacity 0.2s,
+    transform 0.3s $ease;
+  pointer-events: none;
+
+  &[data-on] {
+    opacity: 1;
+    transform: translate(0, -50%);
+  }
+
+  &__said {
+    display: flex;
+    gap: 8px;
+    @include type.style('ui-title');
+
+    span { color: var(--app-muted); font-weight: 400; }
+  }
+
+  &__say {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--app-primary);
+    color: #171717;
+
+    svg {
+      width: 13px;
+      height: 13px;
+    }
+  }
+}
+
+// ── The schematic ──────────────────────────────────────────────────────────
+.pcb-schem {
+  // the microcontroller big, in the middle of the card: it is from 665 to 793 across the
+  // drawing, and from 484 to 637 down
+  &__view {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    --s: 1.5;
+    --x0: 529;
+    --y0: 360;
+  }
+
+  // what is said of it, in the middle of the card, over it, bigger than the app has it
+  .pcb-schem__said {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -48%) scale(1.25);
+    transform-origin: center;
+
+    &[data-on] { transform: translate(-50%, -50%) scale(1.3); }
+  }
+
+  // the schematic's button, by itself in the corner (fx.tsx's CORNER)
+  &__corner {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+  }
+}
+
+[data-layout='compact'] .pcb-schem {
+  &__view {
+    --s: 1;
+    --x0: 549;
+    --y0: 380;
+  }
+
+  .pcb-schem__said {
+    transform: translate(-50%, -48%) scale(0.98);
+
+    &[data-on] { transform: translate(-50%, -50%); }
+  }
+}
+
+.pcb-ring {
+  position: absolute;
+  z-index: 1;
+  border: 1.5px solid var(--app-fg);
+  border-radius: 8px;
+  opacity: 0;
+  transition: opacity 0.18s;
+  pointer-events: none;
+
+  &[data-on] { opacity: 1; }
+}
+
+.pcb-said {
+  position: absolute;
+  z-index: 3;
+  width: 236px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #1f1f1f;
+  box-shadow:
+    0 12px 32px -8px rgb(0 0 0 / 0.6),
+    0 0 0 1px rgb(250 250 250 / 0.1);
+  @include type.style('ui');
+  opacity: 0;
+  transform: translateX(-6px) scale(0.98);
+  transform-origin: left center;
+  transition:
+    opacity 0.2s,
+    transform 0.3s $ease;
+  pointer-events: none;
+
+  &[data-on] {
+    opacity: 1;
+    transform: none;
+  }
+
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 14px 12px;
+    @include type.style('ui-title');
+    font-weight: 400;
+  }
+
+  &__quiet { color: var(--app-muted); }
+
+  &__badge {
+    flex: none;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: rgb(250 250 250 / 0.1);
+    @include type.style('ui');
+    line-height: 22px;
+  }
+
+  dl {
+    margin: 0;
+    padding: 0 14px;
+  }
+
+  dl > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 0;
+    border-top: 1px solid $line;
+  }
+
+  dt,
+  dd { margin: 0; }
+
+  &__link {
+    color: var(--app-muted);
+    text-decoration: underline;
+    text-decoration-color: rgb(161 161 161 / 0.5);
+    text-underline-offset: 3px;
+  }
+
+  &__stock { color: $finished; }
+
+  &__board {
+    position: relative;
+    height: 78px;
+    margin-top: 6px;
+    overflow: hidden;
+    border-top: 1px solid $line;
+    background: $ground;
+
+    // the microcontroller, in the middle: its footprint is at (374, 371) in top.svg
+    img {
+      position: absolute;
+      top: calc(39px - 371px * 0.42);
+      left: calc(118px - 374px * 0.42);
+      width: calc(1600px * 0.42);
+      max-width: none;
+    }
+  }
+}
+
+.pcb-mono {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+// on a phone it opens under the part, where there is the room for it
+[data-layout='compact'] .pcb-said {
+  width: 248px;
+  transform-origin: left top;
+
+  &__board { display: none; }
+}
+
+// ── Made while you talk ────────────────────────────────────────────────────
+.pcb-agent {
+  &__all {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.45s;
+
+    &[data-shown] { opacity: 1; }
+  }
+
+  &__view {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  // routed, the board as it is made comes over the traces drawn in
+  &__made {
+    opacity: 0;
+    transition: opacity 0.8s;
+  }
+
+  [data-done] &__made { opacity: 1; }
+
+  // the step under way, as PCB mode's foot marks it, bigger: a light disc, and in it how far
+  &__foot {
+    position: absolute;
+    bottom: 22px;
+    left: 22px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 22px 8px 8px;
+    border-radius: 999px;
+    background: rgb(10 10 10 / 0.7);
+    box-shadow: 0 0 0 1px rgb(250 250 250 / 0.1);
+    -webkit-backdrop-filter: blur(20px) saturate(1.3) brightness(0.55);
+    backdrop-filter: blur(20px) saturate(1.3) brightness(0.55);
+    opacity: 0;
+    transform: translateY(8px);
+    transition:
+      opacity 0.3s,
+      transform 0.4s $ease;
+
+    &[data-on] {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  &__ring {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--app-fg);
+
+    svg {
+      width: 22px;
+      height: 22px;
+      transform: rotate(-90deg);
+    }
+
+    circle {
+      fill: none;
+      stroke-width: 2;
+      stroke: rgb(23 23 23 / 0.2);
+    }
+
+    circle + circle {
+      stroke: #171717;
+      stroke-linecap: round;
+      stroke-dasharray: var(--share) 1;
+      transition: stroke-dasharray 0.3s;
+    }
+  }
+
+  &__stage {
+    display: flex;
+    flex-direction: column;
+    @include type.style('ui-title');
+    line-height: 1.25;
+
+    b { font-weight: 500; }
+    span {
+      color: var(--app-muted);
+      font-weight: 400;
+      font-variant-numeric: tabular-nums;
+    }
+  }
+}
+
+[data-layout='compact'] .pcb-agent__foot {
+  bottom: 14px;
+  left: 14px;
+  transform-origin: 0 100%;
+  scale: 0.8;
+}
+
+// The traces as they are routed: each tried one way and then another, the tries drawn
+// in and let go, and then the trace drawn in where it goes, and kept.
+.pcb-routes {
+  position: absolute;
+  inset: 0;
+  // (as big as the sheet: not an icon's size, as the cards' other svgs are)
+  .fx & {
+    width: 100%;
+    height: 100%;
+  }
+  overflow: visible;
+
+  polyline {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 1 1;
+    stroke-dashoffset: 1;
+  }
+
+  &__try {
+    stroke: rgb(250 250 250 / 0.55);
+    stroke-width: 4;
+    opacity: 0;
+  }
+
+  [data-state='trying'] &__try {
+    animation: pcb-try 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+
+    & + .pcb-routes__try { animation-delay: 0.28s; }
+  }
+
+  &__run {
+    stroke: #da2020;
+    transition: stroke-dashoffset 0.45s cubic-bezier(0.32, 0.72, 0, 1);
+
+    &[data-layer='bottom'] { stroke: #1170f3; }
+  }
+
+  [data-state='settled'] &__run { stroke-dashoffset: 0; }
+}
+
+@keyframes pcb-try {
+  0% { opacity: 0.9; stroke-dashoffset: 1; }
+  60% { opacity: 0.9; stroke-dashoffset: 0; }
+  100% { opacity: 0; stroke-dashoffset: 0; }
+}

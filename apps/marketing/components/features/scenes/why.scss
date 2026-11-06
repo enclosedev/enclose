@@ -1,0 +1,466 @@
+// Why Enclose's cards (why.tsx). Lengths are the cards' design px (fx.tsx: 600 square,
+// and 360 square on a phone).
+
+.fx-projects {
+  &__view {
+    position: absolute;
+    inset: 0;
+  }
+
+  // The model in the view behind the cards, as big as the app has it: more of it than
+  // the card has room for, its top coming up into the view from its foot, under the
+  // cards (the arm's still is cut close round it; the examples' pictures have room
+  // round them).
+  &__arm {
+    left: 90px;
+    top: 90px;
+    width: 1000px;
+  }
+
+  &__example {
+    left: -253px;
+    top: -162px;
+    width: 1300px;
+  }
+
+  &__sidebar {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+}
+
+// (the stage inside the card says which of its two designs is showing)
+[data-layout='compact'] {
+  .fx-projects__arm {
+    left: 60px;
+    top: 150px;
+    width: 620px;
+  }
+
+  .fx-projects__example {
+    left: -100px;
+    top: 20px;
+    width: 836px;
+  }
+}
+
+// ── what the sidebar has besides cards ─────────────────────────────────────
+// A group's heading: its name small and quiet, a rule, and its + and pin.
+.fx-heading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 196px;
+  height: 22px;
+  padding-left: 2px;
+  color: var(--app-muted);
+
+  span { white-space: nowrap; }
+
+  i {
+    flex: 1;
+    height: 1px;
+    min-width: 16px;
+    margin: 0 4px;
+    background: rgb(255 255 255 / 0.1);
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+    margin: 0 3px;
+  }
+
+  // (a heading under cards has room over it, as the list gives a group)
+  &:not(:first-child) { margin-top: 8px; }
+}
+
+// An earlier conversation, under its project's card, by the arrow back up to it.
+.fx-earlier {
+  display: flex;
+  align-items: center;
+
+  &__back {
+    display: flex;
+    flex: none;
+    justify-content: center;
+    width: 32px;
+    color: var(--app-muted);
+
+    svg {
+      width: 12px;
+      height: 12px;
+    }
+  }
+}
+
+// ── A version for each conversation ────────────────────────────────────────
+.fx-versions {
+  // The list by itself, bigger than the app has it, in the middle across and low down:
+  // its last card only begun at the card's foot, as if there were more under it.
+  &__sidebar {
+    position: absolute;
+    top: calc(50% + 135px);
+    left: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    transform: translate(-50%, -50%) scale(1.55);
+  }
+}
+
+[data-layout='compact'] {
+  .fx-versions__sidebar {
+    top: calc(50% + 85px);
+    transform: translate(-50%, -50%) scale(0.98);
+  }
+}
+
+// ── Projects that go together ──────────────────────────────────────────────
+.fx-groups {
+  &__sidebar {
+    position: absolute;
+    top: 14px;
+    left: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  // each project's model as big as the app has it, under the cards, as in the first card
+  &__example {
+    left: -253px;
+    top: -162px;
+    width: 1300px;
+  }
+
+  &__from {
+    color: var(--app-fg);
+    font-weight: 500;
+  }
+}
+
+[data-layout='compact'] {
+  .fx-groups__example {
+    left: -100px;
+    top: 20px;
+    width: 836px;
+  }
+}
+
+// ── Backed up to GitHub ────────────────────────────────────────────────────
+.fx-github {
+  // the repository, in the card's corner, as GitHub names one
+  &__repo {
+    position: absolute;
+    top: 30px;
+    left: 30px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #f0f6fc;
+    font-size: 21px;
+    line-height: 28px;
+
+    svg {
+      width: 30px;
+      height: 30px;
+    }
+  }
+
+  &__name { font-weight: 600; }
+
+  &__private {
+    padding: 0 10px;
+    border: 1px solid #3d444d;
+    border-radius: 999px;
+    color: #9198a1;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 24px;
+  }
+
+  // the commits, one in front of another, the front one a little under the middle
+  &__stack {
+    position: absolute;
+    top: 300px;
+    left: 50px;
+    width: 500px;
+  }
+}
+
+// A commit, a card of its own in GitHub's dark look, where it is in the stack (its
+// depth): at the front, then each further back higher, smaller and fainter, until it is
+// gone; and, gone, waiting under the front, to rise into it again.
+.fx-commit {
+  position: absolute;
+  inset: 0 0 auto;
+  display: flex;
+  gap: 16px;
+  padding: 22px 24px;
+  border-radius: 18px;
+  background: #0d1117;
+  color: #f0f6fc;
+  box-shadow:
+    0 0 0 1px #30363d,
+    0 16px 32px -12px rgb(0 0 0 / 0.6);
+  transform-origin: 50% 0;
+  transition:
+    transform 0.8s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.6s ease;
+
+  // (further back, only its edge shows, as a notification's under another)
+  > * { transition: opacity 0.4s ease; }
+  &:not([data-depth='0']) > * { opacity: 0; }
+
+  &[data-depth='0'] { z-index: 6; transform: none; }
+  &[data-depth='1'] { z-index: 5; transform: translateY(-30px) scale(0.94); opacity: 0.75; }
+  &[data-depth='2'] { z-index: 4; transform: translateY(-56px) scale(0.88); opacity: 0.45; }
+  &[data-depth='3'] { z-index: 3; transform: translateY(-80px) scale(0.82); opacity: 0.2; }
+  &[data-depth='4'] { z-index: 2; transform: translateY(-100px) scale(0.76); opacity: 0; }
+  &[data-depth='5'] { z-index: 7; transform: translateY(80px); opacity: 0; transition-duration: 0s; }
+
+  &__dot {
+    flex: none;
+    width: 12px;
+    height: 12px;
+    margin-top: 7px;
+    border: 2px solid #9198a1;
+    border-radius: 50%;
+  }
+
+  &__words {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  &__title {
+    overflow: hidden;
+    font-size: 19px;
+    font-weight: 600;
+    line-height: 26px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #9198a1;
+    font-size: 15px;
+    white-space: nowrap;
+  }
+
+  &__branch {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 8px;
+    border-radius: 7px;
+    background: rgb(56 139 253 / 0.15);
+    color: #58a6ff;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 14px;
+    line-height: 24px;
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+}
+
+[data-layout='compact'] {
+  .fx-github__repo {
+    top: 22px;
+    left: 22px;
+    font-size: 17px;
+
+    svg {
+      width: 24px;
+      height: 24px;
+    }
+  }
+
+  .fx-github__stack {
+    top: 190px;
+    left: 18px;
+    width: 324px;
+  }
+
+  .fx-commit__title { font-size: 16px; }
+}
+
+// ── The agent you already pay for ──────────────────────────────────────────
+.fx-agents {
+  // The conversation, the whole of the card: bigger than the app has it, `--up` times,
+  // laid out that much smaller and scaled up to fill it.
+  &__thread {
+    --up: 1.3;
+    inset: 0 auto auto 0;
+    width: calc(100% / var(--up));
+    height: calc(100% / var(--up));
+    border-left: 0;
+    transform: scale(var(--up));
+    transform-origin: 0 0;
+  }
+
+  // in the middle of the card, whatever is under it: the message box only takes up room
+  &__empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 40px;
+    text-align: center;
+    text-wrap: balance;
+
+    strong { font-weight: 500; }
+    span { color: var(--app-muted); }
+  }
+
+  &__foot {
+    position: relative;
+    flex: none;
+    margin-top: auto;
+    padding: 0 14px 14px;
+  }
+
+  // what the line under the message opens, over it: the agents' marks, and the three
+  // choices of the one picked
+  // (it is over the line that opens it, and goes out over the view as far as it needs)
+  &__pop {
+    position: absolute;
+    right: 14px;
+    bottom: calc(100% - 2px);
+    left: 14px;
+    padding: 6px;
+    border-radius: 16px;
+    background: #1f1f1f;
+    box-shadow:
+      0 10px 30px -6px rgb(0 0 0 / 0.5),
+      0 0 0 1px rgb(250 250 250 / 0.08);
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+    transform-origin: 50% 100%;
+    transition:
+      opacity 0.18s,
+      transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+
+    &[data-on] {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  &__marks {
+    display: flex;
+    height: 46px;
+    margin-bottom: 7px;
+    border-bottom: 1px solid rgb(255 255 255 / 0.1);
+  }
+
+  &__mark {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    color: var(--app-fg);
+
+    svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: auto 0 -1px;
+      height: 1px;
+      background: var(--app-fg);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    &[data-on]::after { opacity: 1; }
+  }
+
+  &__choices {
+    display: flex;
+    overflow: hidden;
+    border: 1px solid rgb(255 255 255 / 0.1);
+    border-radius: 12px;
+    background: rgb(250 250 250 / 0.06);
+  }
+
+  &__choice {
+    display: flex;
+    flex: auto;
+    align-items: center;
+    gap: 6px;
+    height: 52px;
+    padding: 0 10px 0 14px;
+    border-left: 1px solid rgb(255 255 255 / 0.1);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    white-space: nowrap;
+
+    &:first-child { border-left: 0; }
+
+    &[data-hover] { background: rgb(250 250 250 / 0.05); }
+
+    svg {
+      width: 18px;
+      height: 18px;
+      color: var(--app-muted);
+      stroke-width: 1.5;
+    }
+  }
+
+  // how hard it thinks, over the choice it is
+  &__efforts {
+    bottom: 64px;
+    left: 110px;
+    transform-origin: 0 100%;
+  }
+
+  &__tick {
+    display: flex;
+    width: 14px;
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+}
+
+[data-layout='compact'] {
+  .fx-agents__thread { --up: 1.08; }
+
+  .fx-agents__efforts { left: 80px; }
+
+  .fx-agents__choice {
+    padding: 0 6px 0 10px;
+    font-size: 13px;
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+}

@@ -19,6 +19,8 @@ export type Look = {
   /** how much of the ground's grid shows, and of the cables, 0 to 1 */
   grid: number
   cables: number
+  /** how dark the model's shadow is on the floor, 0 to 1 (only in a studio: view.ts) */
+  shadow: number
   /**
    * The group that is picked in the list of parts, shown on its own: how much of the
    * rest of the model is there, 1 to 0, and how far the eye has gone in to the group,
@@ -47,7 +49,9 @@ export const REST: Look = {
   y: WINDOW.height / 2,
   apart: 0,
   grid: 0,
-  cables: 1,
+  // (the cables are more than the page needs to show)
+  cables: 0,
+  shadow: 0,
   others: 1,
   alone: 0,
   turn: 0,
