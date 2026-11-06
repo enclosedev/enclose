@@ -7,9 +7,11 @@ import { Window } from '../../components/app/Window'
 import type { Look } from '../../components/app/look'
 import type { Frame, View } from '../../components/app/view'
 import { Download } from '../../components/Download'
+import { Words } from '../../components/Words'
 import { Showcase } from '../../components/features/Showcase'
 import { Footer } from '../../shell/Footer'
 import { GROUPS } from './features'
+import { riseHeadings } from './headings'
 import { runIntro } from './intro'
 import { Tinker } from './Tinker'
 
@@ -30,6 +32,7 @@ export default function Home({ headline, description }: { headline: string; desc
       resize: (width: number, height: number) => view.current?.resize(width, height),
     })
     intro.current = running
+    riseHeadings(gsap, root)
     return () => {
       running.stop()
       intro.current = null
@@ -127,7 +130,10 @@ export default function Home({ headline, description }: { headline: string; desc
       <section className="home__end">
         {/* one paragraph, as each group's heading is (components/features/showcase.scss) */}
         <h2 className="home__last showcase__heading">
-          Make something. <span>Enclose is free and open source, for macOS and Linux.</span>
+          <Words>Make something.</Words>{' '}
+          <span>
+            <Words>Enclose is free and open source, for macOS and Linux.</Words>
+          </span>
         </h2>
         <Download />
       </section>

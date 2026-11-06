@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { Group } from '../../pages/home/features'
+import { Words } from '../Words'
 import { SCENES } from './scenes'
 import './showcase.scss'
 
@@ -154,7 +155,10 @@ export function Showcase({ group }: { group: Group }) {
       <header className="showcase__head">
         {/* one paragraph: what it is, and then, quieter, a line more */}
         <h2 id={`${group.id}-heading`} className="showcase__heading">
-          {group.heading} <span>{group.lede}</span>
+          <Words>{group.heading}</Words>{' '}
+          <span>
+            <Words>{group.lede}</Words>
+          </span>
         </h2>
         {group.poweredBy && (
           <p className="showcase__powered">

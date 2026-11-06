@@ -234,8 +234,9 @@ export function runIntro({
     assemble.fromTo(app, { '--shut': 1 }, { '--shut': 0, duration: 0.8, ease: 'power3.inOut' }, 'talk')
     assemble.fromTo(look, { x: WINDOW.width / 2 }, { x: REST.x, duration: 0.8, ease: 'power3.inOut' }, 'talk')
 
-    // And once the page goes on past it, as the first of what Enclose does comes up from
-    // the foot of the screen, the window fades away.
+    // And once the page goes on past it, as the first of what Enclose does comes half
+    // way up the screen, the window fades away, in its own time (and comes back if the
+    // page is scrolled back up).
     const next = root.querySelector<HTMLElement>('.showcase')
     if (next)
       gsap.fromTo(
@@ -243,8 +244,9 @@ export function runIntro({
         { opacity: 1 },
         {
           opacity: 0,
-          ease: 'none',
-          scrollTrigger: { trigger: next, start: 'top 50%', end: 'top 10%', scrub: true },
+          duration: 0.6,
+          ease: 'power2.out',
+          scrollTrigger: { trigger: next, start: 'top 50%', toggleActions: 'play none none reverse' },
         },
       )
 

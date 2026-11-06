@@ -19,7 +19,7 @@
     @include type.style('section');
     margin: 0;
 
-    span { color: var(--muted); }
+    > span:not(.word) { color: var(--muted); }
   }
 
   // what the group is made with: small, under its heading
