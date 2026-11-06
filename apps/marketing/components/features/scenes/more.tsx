@@ -6,11 +6,11 @@ import {
   SearchIcon,
   XIcon,
 } from 'lucide-react'
-import { useId, type ComponentType, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ComponentType, type CSSProperties, type ReactNode } from 'react'
 import type { Act } from '../../stageshow/act'
 import type { Layout } from '../../stageshow/looks'
 import { ReferenceIcon } from '../../app/icons'
-import { CORNER, Model, Round, Scene } from '../fx'
+import { CORNER, Round, Scene } from '../fx'
 import { CLOCKWORK, HANDS } from './clockwork'
 import './more.scss'
 
@@ -509,141 +509,48 @@ function Tools() {
 }
 
 // ── Seen at its size ───────────────────────────────────────────────────────
-// A counter stool fills the view, as every model does, whatever its size. The
-// Reference button brings up the scenes; Person is picked, and the stool is set
-// beside a man of 5 ft 9, at its size. Picked again, it is taken out.
+// The counter stool, at its size beside the app's own figure of a person (its Person
+// scene), turning round slowly: drawn as the view draws them, the stool in its colours
+// and the figure as a scene is, a tone over the view, lined. A film of it going round,
+// smooth as a picture a frame could not be (public/renders/beside.mp4, made by
+// scripts/renders.ts), and its first frame for before it plays, and for whoever has
+// motion turned down.
 
-type Scenery = 'none' | 'person'
-type ReferenceState = { open: boolean; scene: Scenery }
-
-async function referenceScript(a: Act<ReferenceState>) {
-  await a.wait(1000)
-  await a.click('reference')
-  await a.set({ open: true })
-  await a.wait(700)
-  await a.click('scene-person')
-  await a.set({ scene: 'person' })
-  await a.wait(1400)
-  await a.click('reference')
-  await a.set({ open: false })
-  await a.wait(2800)
-  await a.click('reference')
-  await a.set({ open: true })
-  await a.wait(500)
-  // picked again, the stool is taken out of the scene
-  await a.click('scene-person')
-  await a.set({ scene: 'none' })
-  await a.wait(700)
-  await a.click('reference')
-  await a.set({ open: false })
-  await a.wait(900)
+/**
+ * The film, loaded and played only while it is in sight (and not at all where motion is
+ * turned down: its first frame is under it).
+ */
+function Film({ src, className }: { src: string; className?: string }) {
+  const film = useRef<HTMLVideoElement>(null)
+  useEffect(() => {
+    const playing = film.current
+    if (!playing || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const watching = new IntersectionObserver(([seen]) => {
+      if (seen.isIntersecting) void playing.play().catch(() => {})
+      else playing.pause()
+    })
+    watching.observe(playing)
+    return () => watching.disconnect()
+  }, [])
+  return <video ref={film} className={className} src={src} muted loop playsInline preload="none" aria-hidden />
 }
 
-/** A thing of the scenes', drawn as the app draws them: flat, a tone over the view, lined. */
-function Person({ className, style }: { className?: string; style?: CSSProperties }) {
-  return (
-    <svg className={`mx-figure ${className ?? ''}`} viewBox="0 0 100 400" style={style} aria-hidden>
-      {/* the legs */}
-      <path d="M27 206 L48 206 L46 300 L44 382 L30 382 L29 300 Z" />
-      <path d="M52 206 L73 206 L71 300 L70 382 L56 382 L54 300 Z" />
-      <path d="M26 380 L46 380 L47 392 L20 392 Q20 384 26 380 Z" />
-      <path d="M55 380 L75 380 Q80 384 80 392 L54 392 Z" />
-      {/* the body */}
-      <path d="M22 72 Q24 62 36 60 L64 60 Q76 62 78 72 L76 150 L74 212 L26 212 L24 150 Z" />
-      {/* the arms */}
-      <path d="M22 72 Q14 76 13 92 L11 150 L13 214 L22 214 L24 152 L28 100 Z" />
-      <path d="M78 72 Q86 76 87 92 L89 150 L87 214 L78 214 L76 152 L72 100 Z" />
-      {/* the neck and the head */}
-      <path d="M43 46 L57 46 L57 62 L43 62 Z" />
-      <ellipse cx="50" cy="28" rx="15" ry="20" />
-    </svg>
-  )
-}
-
-function SceneDesk() {
-  return (
-    <svg className="mx-figure" viewBox="0 0 100 100" aria-hidden>
-      <path d="M12 46 L54 30 L90 42 L48 58 Z" />
-      <path d="M12 46 L48 58 L48 62 L12 50 Z" />
-      <path d="M48 58 L90 42 L90 46 L48 62 Z" />
-      <path d="M15 51 L18 52 L18 80 L15 79 Z" />
-      <path d="M45 61 L48 62 L48 90 L45 89 Z" />
-      <path d="M86 47 L89 46 L89 74 L86 75 Z" />
-    </svg>
-  )
-}
-
-function SceneRoom() {
-  return (
-    <svg className="mx-figure" viewBox="0 0 100 100" aria-hidden>
-      <path d="M10 62 L50 46 L90 62 L50 80 Z" />
-      <path d="M10 62 L10 22 L50 8 L50 46 Z" />
-      <path d="M50 46 L50 8 L90 22 L90 62 Z" />
-      <path d="M62 50.8 L62 26 L72 29.6 L72 54.6 Z" />
-    </svg>
-  )
-}
-
-const SCENES: { id: string; name: string; detail: string; picture: ReactNode }[] = [
-  { id: 'table', name: 'Table', detail: 'Desk, 58 × 29 in', picture: <SceneDesk /> },
-  { id: 'room', name: 'Room', detail: '12 × 10 ft', picture: <SceneRoom /> },
-  {
-    id: 'person',
-    name: 'Person',
-    detail: '5 ft 9 in',
-    picture: <Person className="mx-figure--person" />,
-  },
-]
+/**
+ * (the stage plays its script over and over: one that ends at once would go round with
+ * nothing in between, and hold the page up)
+ */
+const still = (a: Act<object>) => a.wait(60_000)
 
 function Reference() {
   return (
-    <Scene<ReferenceState>
-      className="mx-reference"
-      initial={{ open: false, scene: 'none' }}
-      poster={{ open: false, scene: 'person' }}
-      script={referenceScript}
-      cursor={{ at: { wide: { x: 470, y: 420 }, compact: { x: 280, y: 390 } } }}
-    >
-      {(s) => (
+    <Scene<object> className="mx-reference" initial={{}} script={still}>
+      {() => (
         <>
-          <div className="mx-reference__scene" data-on={s.scene === 'person' || undefined}>
-            <svg className="mx-figure mx-reference__floor" viewBox="0 0 400 120" aria-hidden>
-              <path d="M10 60 L200 8 L390 60 L200 112 Z" />
-            </svg>
-            <Person className="mx-reference__person" />
-          </div>
-          <div className="mx-reference__stool" data-small={s.scene === 'person' || undefined}>
-            <Model src="example-stool" className="mx-reference__picture" />
-          </div>
-          <Round
-            on={s.open}
-            target="reference"
-            tip="Reference"
-            keys="⌘/"
-            style={{ position: 'absolute', top: CORNER, right: CORNER }}
-          >
+          <img className="mx-reference__still" src="/renders/beside.webp" alt="" draggable={false} />
+          <Film className="mx-reference__film" src="/renders/beside.mp4" />
+          <Round on style={{ position: 'absolute', top: CORNER, right: CORNER }}>
             <ReferenceIcon />
           </Round>
-          <div className="mx-scenes" data-on={s.open || undefined}>
-            <div className="mx-scenes__title">Reference scene</div>
-            <div className="mx-scenes__list">
-              {SCENES.map((scene) => (
-                <div
-                  key={scene.id}
-                  className="mx-scenes__item"
-                  data-lit={(scene.id === 'person' && s.scene === 'person') || undefined}
-                  data-target={`scene-${scene.id}`}
-                  data-cursor="pointer"
-                >
-                  <span className="mx-scenes__picture">{scene.picture}</span>
-                  <span className="mx-scenes__words">
-                    <span>{scene.name}</span>
-                    <span>{scene.detail}</span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
         </>
       )}
     </Scene>

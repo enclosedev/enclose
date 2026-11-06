@@ -45,8 +45,8 @@ function stage(size: number, line: number) {
   scene.add(new THREE.AmbientLight('#ffffff', 0.55))
   scene.add(new THREE.HemisphereLight('#ffffff', '#7d828c', 0.7))
   const key = new THREE.DirectionalLight('#ffffff', 1.7)
-  const fill = new THREE.DirectionalLight('#ffffff', 0.55)
-  scene.add(key, fill)
+  const fillLight = new THREE.DirectionalLight('#ffffff', 0.55)
+  scene.add(key, fillLight)
 
   const ink = new LineMaterial({
     color: EDGE,
@@ -59,7 +59,7 @@ function stage(size: number, line: number) {
   const box = new THREE.Box3()
 
   /** From where the app's Home looks, the whole of what is in it filling the picture. */
-  const frame = () => {
+  const frame = (fill = FILL) => {
     const middle = box.getCenter(new THREE.Vector3())
     const radius = box.getSize(new THREE.Vector3()).length() / 2
     const camera = new THREE.PerspectiveCamera(FOV, 1, radius * 0.1, radius * 20)
@@ -67,13 +67,13 @@ function stage(size: number, line: number) {
     const around = REST.azimuth * RADIANS
     const above = REST.elevation * RADIANS
     const eye = new THREE.Vector3(Math.cos(around) * Math.cos(above), Math.sin(around) * Math.cos(above), Math.sin(above))
-    const distance = radius / FILL / Math.sin((FOV / 2) * RADIANS)
+    const distance = radius / fill / Math.sin((FOV / 2) * RADIANS)
     camera.position.copy(middle).addScaledVector(eye, distance)
     camera.lookAt(middle)
     // lit from over the eye's left shoulder, and a little from behind on the right (view.ts)
     const right = new THREE.Vector3().crossVectors(eye, camera.up).normalize()
     key.position.copy(eye).multiplyScalar(0.7).addScaledVector(right, 0.5).add(new THREE.Vector3(0, 0, 0.9))
-    fill.position.copy(eye).multiplyScalar(-0.6).addScaledVector(right, -0.7).add(new THREE.Vector3(0, 0, 0.4))
+    fillLight.position.copy(eye).multiplyScalar(-0.6).addScaledVector(right, -0.7).add(new THREE.Vector3(0, 0, 0.4))
     camera.updateMatrixWorld()
     return camera
   }
@@ -582,4 +582,144 @@ export async function drawTurning(
   }
   renderer.dispose()
   return { pictures, marks }
+}
+
+/**
+ * An example beside a reference scene of the app's (kit/scenes/<name>/reference: its
+ * .glb, Y up in metres, and where in it a model stands), turned round frame after frame,
+ * the whole of it, about its middle: the model drawn as `drawExample` draws it, and the
+ * scene as the app draws one (viewport/reference.tsx), in a tone some of the way from the
+ * view's ground to its text, its outline and its creases a stronger one. From where the
+ * app's Home looks, framed for all of it however it is turned.
+ */
+export async function drawBeside(
+  base: string,
+  reference: { url: string; stand: [number, number, number]; against: [number, number] },
+  frames: number,
+  size: number,
+  line: number,
+  tones: { ground: string; ink: string; fill: number; line: number },
+): Promise<string[]> {
+  const manifest = (await (await fetch(`${base}/enclose.model.json`)).json()) as Manifest
+  const loader = new GLTFLoader()
+  const { scene, ink, box, frame, renderer } = stage(size, line)
+  const turning = new THREE.Group()
+  scene.add(turning)
+  const model = new THREE.Box3()
+  await Promise.all(
+    manifest.parts.map(async (part) => {
+      const gltf = await loader.loadAsync(`${base}/${part.file}`)
+      const group = manifest.groups.findIndex((one) => one.id === part.group)
+      const metal = part.finish === 'metal'
+      const colour = metal
+        ? METAL
+        : PALETTE[part.board ? 'green' : (part.color ?? IN_TURN[Math.max(group, 0) % IN_TURN.length])] ?? part.color!
+      const material = surface(colour, metal)
+      gltf.scene.updateMatrixWorld(true)
+      gltf.scene.traverse((node) => {
+        const mesh = node as THREE.Mesh
+        if (!mesh.isMesh) return
+        const skin = new THREE.Mesh(mesh.geometry, material)
+        skin.matrixAutoUpdate = false
+        skin.matrix.copy(TO_MODEL).multiply(mesh.matrixWorld)
+        turning.add(skin)
+        mesh.geometry.computeBoundingBox()
+        model.union(mesh.geometry.boundingBox!.clone().applyMatrix4(skin.matrix))
+      })
+      if (part.edges) {
+        const positions = new Float32Array(await (await fetch(`${base}/${part.edges}`)).arrayBuffer())
+        const drawn = new LineSegments2(new LineSegmentsGeometry().setPositions(positions), ink)
+        drawn.renderOrder = 1
+        turning.add(drawn)
+      }
+    }),
+  )
+
+  // the scene, where the app puts it (lib/reference.ts's `placed`): the place in it where a
+  // model stands under the model, by the side of it the scene says
+  const by = (axis: 0 | 1) => {
+    const side = reference.against[axis]
+    return side < 0 ? model.min.getComponent(axis) : side > 0 ? model.max.getComponent(axis) : model.getCenter(new THREE.Vector3()).getComponent(axis)
+  }
+  const moved = new THREE.Vector3(by(0) - reference.stand[0], by(1) - reference.stand[1], model.min.z - reference.stand[2])
+  // (some of the way, as it is seen: in sRGB, as the app's `toned` goes)
+  const toned = (amount: number) => {
+    const [from, to] = [tones.ground, tones.ink].map((hex) => new THREE.Color(hex).getRGB({ r: 0, g: 0, b: 0 }, THREE.SRGBColorSpace))
+    return new THREE.Color().setRGB(
+      from.r + (to.r - from.r) * amount,
+      from.g + (to.g - from.g) * amount,
+      from.b + (to.b - from.b) * amount,
+      THREE.SRGBColorSpace,
+    )
+  }
+  // (in the tones as they are: not through the view's lens, which lights them up)
+  const fill = new THREE.MeshBasicMaterial({ color: toned(tones.fill), toneMapped: false })
+  const outline = new THREE.MeshBasicMaterial({ color: toned(tones.line), side: THREE.BackSide, toneMapped: false })
+  const lines = new LineMaterial({ color: toned(tones.line), linewidth: line, resolution: new THREE.Vector2(size, size) })
+  const figure = await loader.loadAsync(reference.url)
+  figure.scene.updateMatrixWorld(true)
+  const all = new THREE.Box3().copy(model)
+  figure.scene.traverse((node) => {
+    const mesh = node as THREE.Mesh
+    if (!mesh.isMesh) return
+    const place = new THREE.Matrix4().makeTranslation(moved.x, moved.y, moved.z).multiply(TO_MODEL).multiply(mesh.matrixWorld)
+    const body = new THREE.Mesh(mesh.geometry, fill)
+    body.matrixAutoUpdate = false
+    body.matrix.copy(place)
+    turning.add(body)
+    // its outline: its own back faces, pushed out a little along each face's way, seen
+    // round its edge (the app finds its lines in the picture; this is near enough here)
+    const swollen = mesh.geometry.clone()
+    swollen.computeVertexNormals()
+    const position = swollen.attributes.position
+    const normal = swollen.attributes.normal
+    for (let i = 0; i < position.count; i++)
+      position.setXYZ(
+        i,
+        position.getX(i) + normal.getX(i) * 0.004,
+        position.getY(i) + normal.getY(i) * 0.004,
+        position.getZ(i) + normal.getZ(i) * 0.004,
+      )
+    const rim = new THREE.Mesh(swollen, outline)
+    rim.matrixAutoUpdate = false
+    rim.matrix.copy(place)
+    turning.add(rim)
+    const creases = new LineSegments2(
+      new LineSegmentsGeometry().fromEdgesGeometry(new THREE.EdgesGeometry(mesh.geometry, 70)),
+      lines,
+    )
+    creases.matrixAutoUpdate = false
+    creases.matrix.copy(place)
+    turning.add(creases)
+    mesh.geometry.computeBoundingBox()
+    all.union(mesh.geometry.boundingBox!.clone().applyMatrix4(place))
+  })
+
+  // turned about the middle of all of it, and framed for however it is turned
+  const middle = all.getCenter(new THREE.Vector3())
+  const reach = Math.max(
+    ...[0, 1, 2, 3].map((i) => Math.hypot((i & 1 ? all.max.x : all.min.x) - middle.x, (i & 2 ? all.max.y : all.min.y) - middle.y)),
+  )
+  box.set(
+    new THREE.Vector3(middle.x - reach, middle.y - reach, all.min.z),
+    new THREE.Vector3(middle.x + reach, middle.y + reach, all.max.z),
+  )
+  // (the turning room is round, and what is in it narrower: it is let fill more)
+  const camera = frame(1.2)
+  const pictures: string[] = []
+  for (let index = 0; index < frames; index++) {
+    turning.position.set(0, 0, 0)
+    turning.rotation.set(0, 0, 0)
+    turning.updateMatrix()
+    const turn = (index / frames) * Math.PI * 2
+    turning.matrix
+      .makeTranslation(middle.x, middle.y, 0)
+      .multiply(new THREE.Matrix4().makeRotationZ(turn))
+      .multiply(new THREE.Matrix4().makeTranslation(-middle.x, -middle.y, 0))
+    turning.matrixAutoUpdate = false
+    turning.updateMatrixWorld(true)
+    renderer.render(scene, camera)
+    pictures.push(renderer.domElement.toDataURL('image/webp', 0.82))
+  }
+  return pictures
 }

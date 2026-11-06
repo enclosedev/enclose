@@ -7,7 +7,9 @@
 //
 //   npm run renders                 (from apps/marketing; needs Google Chrome)
 //   npm run renders -- examples     (only the other examples)
-import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { execFileSync } from 'node:child_process'
+import { readFile, writeFile, mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import http from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -19,6 +21,17 @@ import type { Paint } from '../components/app/view'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const PUBLIC = path.resolve(here, '../public')
 const EXAMPLES = path.resolve(here, '../../../examples')
+const KIT = path.resolve(here, '../../../kit')
+/**
+ * The stool beside the app's own figure of a person, turned round, for the card that has
+ * it: so many frames, a turn, played as a film at so many a second (public/renders/
+ * beside.mp4, made from them by ffmpeg, on the card's own ground), and its first as a
+ * still, for before it plays.
+ */
+const BESIDE_FRAMES = 240
+const BESIDE_SIZE = 900
+const BESIDE_RATE = 30
+const BESIDE_GROUND = '171717'
 /** The other examples, and how big each is drawn: a square this many px a side. */
 const OTHERS = ['clock', 'lamp', 'stool']
 const OTHERS_SIZE = 2400
@@ -129,7 +142,7 @@ const theApp: Plugin = {
 const bundled = await build({
   stdin: {
     contents: `export { openView } from './components/app/view'
-export { drawBox, drawExample, drawLayers, drawShape, drawTurning } from './scripts/example-view'
+export { drawBeside, drawBox, drawExample, drawLayers, drawShape, drawTurning } from './scripts/example-view'
 export { grainOf, physicalOf, pictureOf, studioFor } from '../desktop/src/components/viewport/materials'
 export { boardPaint, inOurColours, inShade, keepOutsOf, shadedOf } from '../desktop/src/components/pcb/colours'
 export { materialOf } from '../desktop/shared/materials'`,
@@ -156,7 +169,9 @@ const server = http.createServer(async (request, response) => {
       await readFile(
         file.startsWith('/examples/')
           ? path.join(EXAMPLES, file.slice('/examples/'.length))
-          : file === '/cloque.glb' && CLOQUE
+          : file.startsWith('/kit/')
+            ? path.join(KIT, file.slice('/kit/'.length))
+            : file === '/cloque.glb' && CLOQUE
             ? CLOQUE
             : path.join(PUBLIC, file),
       ),
@@ -403,6 +418,41 @@ export const CLOQUE = ${JSON.stringify({ frames: CLOQUE_FRAMES, marks: drawn.mar
 `,
     )
     console.log('cloque', CLOQUE_FRAMES, 'frames')
+  }
+  {
+    const person = JSON.parse(await readFile(path.join(KIT, 'scenes/person/reference/enclose.reference.json'), 'utf8'))
+    const pictures = (await page.evaluate(
+      async (frames, size, person) =>
+        (window as any).renders.drawBeside(
+          '/examples/stool/build',
+          { url: '/kit/scenes/person/reference/person.glb', stand: person.stand, against: person.against },
+          frames,
+          size,
+          size / 1000,
+          // the view's ground and its text, in the dark; and how far from the one to the
+          // other a scene is drawn, as the app draws one in a small picture (reference.tsx)
+          { ground: '#171717', ink: '#fafafa', fill: 0.12, line: 0.5 },
+        ),
+      BESIDE_FRAMES,
+      BESIDE_SIZE,
+      person,
+    )) as string[]
+    const frames = await mkdtemp(path.join(tmpdir(), 'beside-'))
+    for (const [index, url] of pictures.entries())
+      await writeFile(path.join(frames, `${String(index).padStart(3, '0')}.webp`), Buffer.from(url.split(',')[1], 'base64'))
+    await writeFile(path.join(OUT, 'beside.webp'), Buffer.from(pictures[0].split(',')[1], 'base64'))
+    // each frame on the card's ground, one after another, as a film that goes round for ever
+    execFileSync('ffmpeg', [
+      '-y', '-loglevel', 'error',
+      '-framerate', String(BESIDE_RATE),
+      '-i', path.join(frames, '%03d.webp'),
+      '-filter_complex', `color=c=0x${BESIDE_GROUND}:s=${BESIDE_SIZE}x${BESIDE_SIZE}:r=${BESIDE_RATE}[ground];[ground][0:v]overlay=shortest=1,format=yuv420p`,
+      '-c:v', 'libx264', '-preset', 'slow', '-crf', '26', '-movflags', '+faststart', '-an',
+      path.join(OUT, 'beside.mp4'),
+    ])
+    await rm(frames, { recursive: true, force: true })
+    await rm(path.join(OUT, 'beside'), { recursive: true, force: true })
+    console.log('beside', pictures.length, 'frames')
   }
   if (onlyOthers) process.exit(0)
 
