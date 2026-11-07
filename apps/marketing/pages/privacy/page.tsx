@@ -36,9 +36,9 @@ export default function Privacy() {
           many parts and pictures went with it, and whether a circuit board was on screen;
         </li>
         <li>
-          that a model was looked over, a new version of a project begun, a change turned
-          back, or a model or a circuit board saved, and whether a board was saved from
-          its card or from PCB mode;
+          that a model was looked over, a new version of a project begun, made the main
+          one or discarded, a change turned back, or a model or a circuit board saved, and
+          whether a board was saved from its card or from PCB mode;
         </li>
         <li>
           that a circuit board made in detail in the background was done, stopped or failed:
