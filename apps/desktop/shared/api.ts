@@ -70,9 +70,20 @@ export type ConversationSummary = {
   name: string | null
   /**
    * Which version of the project it is: the how-manyth of the project's conversations
-   * to have begun, from 1. Carrying on an earlier one leaves it as it was.
+   * to have begun, from 1, those discarded counted too. Carrying on an earlier one
+   * leaves it as it was.
    */
   version: number
+  /**
+   * It is the project's main version, where the project has more than one: the one made
+   * so, or else the first to have begun. Its history is the main branch of the project's.
+   */
+  main: boolean
+  /**
+   * It was made the project's main version, and so is the one on the project's card,
+   * however long ago it was carried on (see src/lib/conversations.ts).
+   */
+  onCard: boolean
   /** whose agent it is had with: the one it began with, and is carried on with */
   provider: ProviderId
   status: ThreadStatus
@@ -1255,6 +1266,19 @@ export type CadApi = {
       conversationId: string,
       name: string
     ): Promise<void>
+    /**
+     * Discard a version of the project: its conversation and its copy of the model are
+     * taken away, once the user says yes to it. Not the main version, nor one at work.
+     * Resolves to the conversation to show in its place, or null where it was not
+     * discarded.
+     */
+    discard(projectId: string, conversationId: string): Promise<string | null>
+    /**
+     * Make a version the project's main one: its history becomes the project's main
+     * branch, and the one that was main goes on a branch of its own. Resolves to
+     * whether it was made so.
+     */
+    makeMain(projectId: string, conversationId: string): Promise<boolean>
     answer(
       projectId: string,
       permissionId: string,
@@ -1447,6 +1471,8 @@ export const CHANNEL = {
   threadSendNow: "thread:send-now",
   threadUnqueue: "thread:unqueue",
   threadRename: "thread:rename",
+  threadDiscard: "thread:discard",
+  threadMakeMain: "thread:make-main",
   threadAnswer: "thread:answer",
   threadTell: "thread:tell",
   threadItem: "thread:item",

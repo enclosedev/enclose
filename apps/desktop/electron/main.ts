@@ -603,6 +603,100 @@ function follow() {
   }
 }
 
+/** What a conversation goes by, at the top of it: its name, or which version it is. */
+function versionName(id: string, conversationId: string): string {
+  const one = threads.summaries(id).find((c) => c.id === conversationId)
+  return one ? (one.name ?? `Version ${one.version}`) : "this version"
+}
+
+/**
+ * Discard a version of a project, once the user says yes to it: its conversation, and
+ * the copy of the folder it had. Not the main version, nor one being answered or making
+ * a board, nor where versions are not kept. Where the folder is the one discarded, it is
+ * first put as the main version left it. Its history stays on its branch. Resolves to the
+ * conversation to show in its place, or null where nothing was discarded.
+ */
+async function discardVersion(
+  id: string,
+  conversationId: string
+): Promise<string | null> {
+  const project = projects.get(id)
+  if (!project || !settings.get().versions) return null
+  const summary = threads.summaries(id).find((c) => c.id === conversationId)
+  const main = threads.main(id)
+  if (
+    !summary ||
+    summary.main ||
+    !main ||
+    summary.status !== "idle" ||
+    summary.job
+  )
+    return null
+  if (win && !CAPTURE) {
+    const { response } = await dialog.showMessageBox(win, {
+      type: "warning",
+      message: `Discard “${versionName(id, conversationId)}”?`,
+      detail: `Its conversation and its version of the model will be removed from Enclose. ${
+        project.kept
+          ? "Its history stays in the project’s git history, on a branch of its own."
+          : "This can’t be undone."
+      }`,
+      buttons: ["Discard", "Cancel"],
+      defaultId: 1,
+      cancelId: 1,
+    })
+    if (response !== 0) return null
+  }
+  // the folder is put as the main version left it first, where it is this one's
+  if (versions.on(id) === conversationId) {
+    if (threads.working(id) || builds.has(id)) return null
+    try {
+      await turnTo(id, main)
+    } catch (error) {
+      if (win && !CAPTURE)
+        void dialog.showMessageBox(win, {
+          type: "info",
+          message: "The version could not be discarded",
+          detail: error instanceof Error ? error.message : String(error),
+        })
+      return null
+    }
+    if (versions.on(id) === conversationId) return null
+  }
+  const left = threads.discard(id, conversationId)
+  if (!left) return null
+  for (const picture of left) pictures.drop(id, picture.id)
+  await versions.discard(id, conversationId)
+  if (showing.get(id) === conversationId) showing.set(id, main)
+  if (unturned.get(id) === conversationId) unturned.delete(id)
+  analytics?.record("version discarded")
+  broadcast()
+  return main
+}
+
+/**
+ * Make a version the project's main one: so the app has it, and its history is the
+ * main branch of the project's from now on, where the app keeps that. Whether it is.
+ */
+async function makeMainVersion(
+  id: string,
+  conversationId: string
+): Promise<boolean> {
+  if (!projects.get(id) || !settings.get().versions) return false
+  if (!threads.has(id, conversationId)) return false
+  const was = threads.main(id)
+  if (was === conversationId) return true
+  versions.setMain(id, conversationId)
+  analytics?.record("version made main")
+  broadcast()
+  await backups.madeMain(id, {
+    conversationId,
+    was,
+    titleOf: (one) => versionName(id, one),
+  })
+  return true
+}
+
 // --- questions to the window about its viewport ---------------------------------------
 
 let requests = 0
@@ -2110,6 +2204,16 @@ function wire() {
       threads.rename(String(id), String(conversationId), String(name))
   )
   ipcMain.handle(
+    CHANNEL.threadDiscard,
+    (_, id: string, conversationId: string) =>
+      discardVersion(String(id), String(conversationId))
+  )
+  ipcMain.handle(
+    CHANNEL.threadMakeMain,
+    (_, id: string, conversationId: string) =>
+      makeMainVersion(String(id), String(conversationId))
+  )
+  ipcMain.handle(
     CHANNEL.threadAnswer,
     (_, id: string, permissionId: string, answer: PermissionAnswer) =>
       threads.answer(id, permissionId, answer)
@@ -2486,6 +2590,8 @@ if (!app.requestSingleInstanceLock()) {
       projects,
       changes,
       turnTo,
+      main: (id) => versions.main(id),
+      versionsKept: () => settings.get().versions,
       versioned: async (id) => {
         const project = projects.get(id)
         if (!project || !settings.get().versions) return "off"

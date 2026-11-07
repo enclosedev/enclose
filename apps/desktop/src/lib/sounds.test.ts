@@ -12,6 +12,8 @@ const conversation = (
   title: id,
   name: null,
   version: 1,
+  main: false,
+  onCard: false,
   provider: "claude",
   status: "idle",
   since: null,

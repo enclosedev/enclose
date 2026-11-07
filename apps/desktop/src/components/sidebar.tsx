@@ -36,6 +36,12 @@ import {
 import { RenameGroup } from "@/components/rename-group"
 import { Spinner } from "@/components/ui/spinner"
 import {
+  DISCARD,
+  MAKE_MAIN,
+  MainMark,
+  useVersionActions,
+} from "@/components/version-actions"
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -453,8 +459,15 @@ function ProjectCard({ project, now }: { project: Project; now: number }) {
           <Written conversation={cover}>
             <span className="flex items-baseline justify-between gap-2">
               {/* (it keeps its room while it is written over: the card stays as tall) */}
-              <span className={cn(NAME, renaming && "invisible")}>
-                {project.name}
+              <span
+                className={cn(
+                  "flex min-w-0 items-center gap-1",
+                  renaming && "invisible"
+                )}
+              >
+                <span className={NAME}>{project.name}</span>
+                {/* which of the versions spread out under it is the main one */}
+                {spread && cover?.main && <MainMark />}
               </span>
               {/* makes way for the close button while the pointer is on the card */}
               {cover && !renaming && (
@@ -539,24 +552,33 @@ function ProjectCard({ project, now }: { project: Project; now: number }) {
                 </Button>
               )}
             </span>
-            <button
-              type="button"
-              aria-current={active && open?.id === conversation.id}
-              onClick={() => openConversation(project.id, conversation.id)}
-              className={cn(
-                CARD,
-                "w-49",
-                active && open?.id === conversation.id ? LIT : UNLIT
-              )}
+            <VersionMenu
+              project={project}
+              conversation={conversation}
+              shown={active && open?.id === conversation.id}
             >
-              <Written conversation={conversation}>
-                <span className="flex items-baseline justify-between gap-2">
-                  <span className={NAME}>{conversation.title}</span>
-                  <When conversation={conversation} now={now} />
-                </span>
-                <Said conversation={conversation} otherwise="" />
-              </Written>
-            </button>
+              <button
+                type="button"
+                aria-current={active && open?.id === conversation.id}
+                onClick={() => openConversation(project.id, conversation.id)}
+                className={cn(
+                  CARD,
+                  "w-49",
+                  active && open?.id === conversation.id ? LIT : UNLIT
+                )}
+              >
+                <Written conversation={conversation}>
+                  <span className="flex items-baseline justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-1">
+                      <span className={NAME}>{conversation.title}</span>
+                      {conversation.main && <MainMark />}
+                    </span>
+                    <When conversation={conversation} now={now} />
+                  </span>
+                  <Said conversation={conversation} otherwise="" />
+                </Written>
+              </button>
+            </VersionMenu>
           </div>
         ))}
     </div>
@@ -767,6 +789,53 @@ function ProjectMenu({
             onClick={() => void removeProject(project.id)}
           >
             Remove
+          </ContextMenuItem>
+        </ContextMenuGroup>
+      </ContextMenuContent>
+    </ContextMenu>
+  )
+}
+
+/**
+ * One of the conversations under a card, with what can be done with its version on a
+ * right-click: made the main one, or discarded. As it is, where nothing can.
+ */
+function VersionMenu({
+  project,
+  conversation,
+  shown,
+  children,
+}: {
+  project: Project
+  conversation: ConversationSummary
+  /** the panel shows it */
+  shown: boolean
+  children: React.ReactElement
+}) {
+  const actions = useVersionActions(
+    project.id,
+    conversation,
+    project.conversations,
+    shown
+  )
+  if (!actions) return children
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger render={children} />
+      <ContextMenuContent>
+        <ContextMenuGroup>
+          <ContextMenuItem onClick={actions.makeMain}>
+            {MAKE_MAIN}
+          </ContextMenuItem>
+        </ContextMenuGroup>
+        <ContextMenuSeparator />
+        <ContextMenuGroup>
+          <ContextMenuItem
+            variant="destructive"
+            disabled={!actions.discardable}
+            onClick={actions.discard}
+          >
+            {DISCARD}
           </ContextMenuItem>
         </ContextMenuGroup>
       </ContextMenuContent>

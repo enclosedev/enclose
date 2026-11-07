@@ -59,6 +59,7 @@
   --color-attention: var(--attention);
   --color-unfinished: var(--unfinished);
   --color-finished: var(--finished);
+  --color-main-version: var(--main-version);
   --color-tool: var(--tool);
   --color-tool-panel: var(--tool-panel);
   --color-tool-line: var(--tool-line);
@@ -121,6 +122,8 @@
   --unfinished: oklch(0.62 0.18 45);
   /* one made in detail and ready to be ordered */
   --finished: oklch(0.6 0.16 150);
+  /* the asterisk beside a project's main version */
+  --main-version: oklch(0.78 0.17 85);
   /* the model's three axes, wherever they are drawn */
   --axis-x: #ff0033;
   --axis-y: #74d908;
@@ -246,6 +249,7 @@
   --attention: oklch(0.82 0.15 80);
   --unfinished: oklch(0.76 0.16 55);
   --finished: oklch(0.74 0.17 150);
+  --main-version: oklch(0.86 0.18 92);
   /* (said again for the dark, so that inside it they are of its colours) */
   --tool-panel: oklch(from var(--tool) calc(l - 0.135) c calc(h + 6));
   --tool-line: oklch(

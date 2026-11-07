@@ -20,8 +20,9 @@ export type Stack = {
 
 /**
  * Lay out a project's conversations, given latest first. The card is the latest of them
- * for as long as it is being carried on. Left alone for `settleDays` it settles: it goes
- * under the card with the earlier ones, and the card offers a new one.
+ * for as long as it is being carried on, or the one made the main version, where one
+ * was, ahead of any later. Left alone for `settleDays` they settle: the card's goes under
+ * it with the others, and the card offers a new one.
  */
 export function stackOf(
   conversations: ConversationSummary[],
@@ -34,14 +35,17 @@ export function stackOf(
   const carriedOn =
     latest !== undefined &&
     (latest.status !== "idle" || now - latest.updatedAt < settleDays * DAY)
-  const cover = picked === null || !carriedOn ? null : latest
+  const cover =
+    picked === null || !carriedOn
+      ? null
+      : (conversations.find((c) => c.onCard) ?? latest)
   const chosen =
     typeof picked === "string"
       ? conversations.find((c) => c.id === picked)
       : undefined
   return {
     cover,
-    under: cover ? conversations.slice(1) : conversations,
+    under: cover ? conversations.filter((c) => c !== cover) : conversations,
     open: chosen ?? (picked === null ? null : cover),
   }
 }

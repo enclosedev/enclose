@@ -223,6 +223,101 @@ async function moveTo(git: Git, dir: string, branch: string) {
   await run(git, ["symbolic-ref", "HEAD", `refs/heads/${branch}`], dir)
 }
 
+const branchThere = async (git: Git, dir: string, branch: string) =>
+  (await git(["rev-parse", "--verify", "--quiet", `refs/heads/${branch}`], dir))
+    .code === 0
+
+/** What a repository's config says, or "" where it says nothing. */
+const configOf = async (git: Git, dir: string, key: string) =>
+  (await git(["config", "--get", key], dir)).stdout.trim()
+
+/**
+ * Make a conversation's version of the project its main one, in the project's history
+ * (see backups.ts for which branch each is committed on). Main takes up what the
+ * version's branch holds, in a commit that has both before it: nothing is rewritten, and
+ * a push of it goes through as any other. What main was goes on a branch of its own, for
+ * the conversation that was main (`was`, where the repository does not say which), to
+ * go on committing on. A version that has committed nothing yet commits on main from
+ * now on. HEAD goes with the branch it was on, where that is now called something else.
+ * Whether anything was done: nothing is, where it is main already.
+ */
+export async function makeMain(
+  git: Git,
+  dir: string,
+  {
+    conversationId,
+    was,
+    titleOf,
+    on,
+    message,
+    author,
+  }: {
+    conversationId: string
+    /** the conversation that was the main version, as the app has it */
+    was: string | null
+    /** what a conversation goes by, to name its branch after */
+    titleOf: (conversationId: string) => string
+    /** the conversation the folder is now, where it is one's */
+    on: string | null
+    message: string
+    author: Author
+  }
+): Promise<boolean> {
+  const key = (id: string) => `enclose-version.${id}.branch`
+  /** the branch a conversation had before it was made main, where it had one */
+  const own = (id: string) => `enclose-version.${id}.own`
+  const its = await configOf(git, dir, key(conversationId))
+  if (its === "main") return false
+  const before =
+    (await configOf(git, dir, "enclose.main")) ||
+    (was !== conversationId ? was : null)
+  const mainThere = await branchThere(git, dir, "main")
+  // what main was, on a branch of the conversation's that was main: where it is
+  // known whose it was (the one it had before it was made main, where it had one)
+  const moved =
+    before && before !== conversationId
+      ? (await configOf(git, dir, own(before))) ||
+        branchFor(titleOf(before), before)
+      : null
+  if (moved && mainThere)
+    await run(
+      git,
+      ["update-ref", `refs/heads/${moved}`, "refs/heads/main"],
+      dir
+    )
+  if (its && (await branchThere(git, dir, its))) {
+    if (mainThere) {
+      const tree = (await run(git, ["rev-parse", `${its}^{tree}`], dir)).trim()
+      const commit = (
+        await run(
+          git,
+          ["commit-tree", tree, "-p", "main", "-p", its, "-m", message],
+          dir,
+          {
+            GIT_AUTHOR_NAME: author.name,
+            GIT_AUTHOR_EMAIL: author.email,
+            GIT_COMMITTER_NAME: author.name,
+            GIT_COMMITTER_EMAIL: author.email,
+          }
+        )
+      ).trim()
+      await run(git, ["update-ref", "refs/heads/main", commit], dir)
+    } else await run(git, ["update-ref", "refs/heads/main", its], dir)
+  }
+  if (moved && before) await run(git, ["config", key(before), moved], dir)
+  if (its) await run(git, ["config", own(conversationId), its], dir)
+  await run(git, ["config", key(conversationId), "main"], dir)
+  await run(git, ["config", "enclose.main", conversationId], dir)
+  // HEAD is on the branch of the conversation the folder is: the folder holds what that
+  // branch does, and the two branches that changed hands hold what they did before
+  const head = await onBranch(git, dir)
+  if (head === "main" && moved && on !== conversationId)
+    await run(git, ["symbolic-ref", "HEAD", `refs/heads/${moved}`], dir)
+  else if (head && head === its)
+    await run(git, ["symbolic-ref", "HEAD", "refs/heads/main"], dir)
+  return true
+}
+
 /**
  * Have Git LFS keep the files too big for a repository to keep well: those at least BIG,
  * not ignored, and not kept by it yet. (GitHub takes none bigger than 100 MB in a

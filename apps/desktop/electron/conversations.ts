@@ -1,5 +1,6 @@
 // The conversations had about each project, as they are kept on disk: a folder for each
 // project, and in it a file for each conversation. Nothing here takes one away but
+// `discardConversation`, for a version of the project the user discarded, and
 // `forgetConversations`, which is for a project taken off the list.
 import { randomBytes } from "node:crypto"
 import fs from "node:fs"
@@ -458,6 +459,53 @@ export function readItems(
   const file = path.join(folder(dir, projectId), `${id}.json`)
   if (!fs.existsSync(file)) return null
   return readOrSetAside(file, id)?.items ?? null
+}
+
+/**
+ * A discarded conversation, as it is remembered: what it was known by, and when it
+ * began. Only so that the versions after it keep their numbers (see threads.ts).
+ */
+export type Discarded = { id: string; at: number }
+
+/** Where a project's discarded conversations are remembered (not a conversation: no .json). */
+const discardedOf = (dir: string, projectId: string) =>
+  path.join(folder(dir, projectId), "discarded.index")
+
+/** A project's discarded conversations: none, where none were, or none can be read. */
+export function readDiscarded(dir: string, projectId: string): Discarded[] {
+  try {
+    const read: unknown = JSON.parse(
+      fs.readFileSync(discardedOf(dir, projectId), "utf8")
+    )
+    if (!Array.isArray(read)) return []
+    return read.flatMap((one: unknown) => {
+      const { id, at } = (one ?? {}) as { id?: unknown; at?: unknown }
+      return typeof id === "string" && typeof at === "number" && isFinite(at)
+        ? [{ id, at }]
+        : []
+    })
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Take a conversation away, its file and all: it is remembered only as `discarded`,
+ * with the others discarded before it.
+ */
+export function discardConversation(
+  dir: string,
+  projectId: string,
+  discarded: Discarded
+) {
+  const all = readDiscarded(dir, projectId).filter(
+    (one) => one.id !== discarded.id
+  )
+  fs.mkdirSync(folder(dir, projectId), { recursive: true })
+  writeWhole(discardedOf(dir, projectId), JSON.stringify([...all, discarded]))
+  fs.rmSync(path.join(folder(dir, projectId), `${discarded.id}.json`), {
+    force: true,
+  })
 }
 
 /** Forget everything said about a project. */

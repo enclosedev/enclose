@@ -75,8 +75,10 @@ import { EMPTIED } from "./inspiration"
 import { runOpencode } from "./opencode"
 import type { Arrangement } from "./imports"
 import {
+  discardConversation,
   forgetConversations,
   newConversation,
+  readDiscarded,
   readItems,
   readShelved,
   stampOf,
@@ -86,6 +88,7 @@ import {
   writeSummaries,
   writeSummariesSoon,
   type Conversation,
+  type Discarded,
   type Summed,
 } from "./conversations"
 import { findModel, type Projects } from "./projects"
@@ -333,6 +336,8 @@ type Book = {
   job: Job | null
   /** what waits to be said, the first to go first: kept for as long as the app is open */
   waiting: Waiting[]
+  /** the conversations that were discarded: for the versions after them to keep their numbers */
+  gone: Discarded[]
 }
 
 export type ThreadsDeps = {
@@ -351,6 +356,13 @@ export type ThreadsDeps = {
    * is too much in the project's folder for it to be copied aside.
    */
   versioned: (projectId: string) => Promise<"yes" | "off" | "big">
+  /**
+   * The conversation that was made the main version of a project, if one was (see
+   * versions.ts). Where none was, or it is not there any more, the first to begin is.
+   */
+  main?: (projectId: string) => string | null
+  /** whether versions are kept, as the settings have it: with none, there is no main one */
+  versionsKept?: () => boolean
   /** what to start an agent with: null if it is switched off, or is not installed */
   launch: (provider: ProviderId) => Launch | null
   /** serves the app's own tools to an agent that cannot be handed them in-process */
@@ -1670,6 +1682,10 @@ export const compactedSaid = (tokens?: number) =>
 const lastAt = (conversation: Conversation) =>
   conversation.items.at(-1)?.at ?? 0
 
+/** When a conversation began: one with nothing said in it yet is the latest there is. */
+const begun = (conversation: Conversation) =>
+  conversation.items[0]?.at ?? Infinity
+
 /** The board last made in a conversation in the background, and how that went. */
 function lastJobOf(items: ThreadItem[]): ConversationSummary["lastJob"] {
   const job = items.findLast((item) => item.kind === "job")
@@ -1725,6 +1741,7 @@ export class Threads {
         run: null,
         job: null,
         waiting: [],
+        gone: readDiscarded(this.deps.dir, projectId),
       }
       this.books.set(projectId, book)
     }
@@ -2016,18 +2033,48 @@ export class Threads {
     return lines.join("\n")
   }
 
+  /**
+   * The conversation that is a project's main version: the one made so, where one was
+   * and it is still there; otherwise the first to have begun. Null where it has none.
+   */
+  main(projectId: string): string | null {
+    const { conversations } = this.book(projectId)
+    const made = this.deps.main?.(projectId)
+    if (made && conversations.has(made)) return made
+    return (
+      [...conversations.values()].sort(
+        (a, b) => begun(a) - begun(b) || a.id.localeCompare(b.id)
+      )[0]?.id ?? null
+    )
+  }
+
   /** A project's conversations as the sidebar shows them, the latest first. */
   summaries(projectId: string): ConversationSummary[] {
-    const { conversations, run, waiting, job } = this.book(projectId)
+    const { conversations, run, waiting, job, gone } = this.book(projectId)
     // which version of the project each is, by when it began: one with nothing said in
-    // it yet is the latest, and of two begun at once the order is by id, to stay put
-    const begun = (conversation: Conversation) =>
-      conversation.items[0]?.at ?? Infinity
+    // it yet is the latest, and of two begun at once the order is by id, to stay put.
+    // Those discarded are counted too, so that the ones after them keep their numbers.
     const versions = new Map(
-      [...conversations.values()]
-        .sort((a, b) => begun(a) - begun(b) || a.id.localeCompare(b.id))
-        .map((conversation, index) => [conversation, index + 1])
+      [
+        ...[...conversations.values()].map((conversation) => ({
+          id: conversation.id,
+          at: begun(conversation),
+          conversation,
+        })),
+        ...gone.map((one) => ({ ...one, conversation: null })),
+      ]
+        .sort((a, b) => a.at - b.at || a.id.localeCompare(b.id))
+        .map(({ conversation }, index) => [conversation, index + 1] as const)
+        .filter(
+          (pair): pair is readonly [Conversation, number] => pair[0] !== null
+        )
     )
+    const main =
+      conversations.size > 1 && this.deps.versionsKept?.() !== false
+        ? this.main(projectId)
+        : null
+    // the one made main, where one was: it is on the card
+    const made = main !== null ? this.deps.main?.(projectId) : null
     return [...conversations.values()]
       .sort(
         (a, b) =>
@@ -2046,6 +2093,8 @@ export class Threads {
           title: conversation.name ?? (first ? firstLine(wordsOf(first)) : ""),
           name: conversation.name,
           version: versions.get(conversation)!,
+          main: conversation.id === main,
+          onCard: made === conversation.id,
           provider: conversation.provider,
           status: !running
             ? "idle"
@@ -2213,6 +2262,56 @@ export class Threads {
       name.replace(/\s+/g, " ").trim().slice(0, NAME_LENGTH) || null
     this.write(projectId, conversation)
     this.deps.onSummary()
+  }
+
+  /**
+   * Discard a version of a project: its conversation is taken away, file and all, and
+   * remembered only by when it began. Not one being answered, or making a board, nor a
+   * project's only conversation. Returns the pictures of what waited to be said in it,
+   * which are now nothing's; null where it was not discarded.
+   */
+  discard(projectId: string, conversationId: string): Attached[] | null {
+    const book = this.book(projectId)
+    const conversation = book.conversations.get(conversationId)
+    if (
+      !conversation ||
+      book.conversations.size < 2 ||
+      book.run?.conversation === conversation ||
+      book.job?.conversation === conversation
+    )
+      return null
+    const pictures = book.waiting
+      .filter((one) => one.conversation === conversation)
+      .flatMap((one) => one.item.pictures ?? [])
+    book.waiting = book.waiting.filter(
+      (one) => one.conversation !== conversation
+    )
+    const at = begun(conversation)
+    const discarded = {
+      id: conversationId,
+      // (one with nothing said in it is the latest there is)
+      at: isFinite(at) ? at : Date.now(),
+    }
+    book.gone = [
+      ...book.gone.filter((one) => one.id !== conversationId),
+      discarded,
+    ]
+    clearTimeout(this.saving.get(conversationId))
+    this.saving.delete(conversationId)
+    this.again.delete(conversationId)
+    this.unwritten.delete(conversationId)
+    book.conversations.delete(conversationId)
+    const away = () =>
+      this.safely("conversations", () =>
+        discardConversation(this.deps.dir, projectId, discarded)
+      )
+    away()
+    // and what was being written of it as it was discarded is taken away once it is
+    const writing = this.writing.get(conversationId)
+    if (writing) void writing.then(away)
+    this.sumSoon(projectId)
+    this.deps.onSummary()
+    return pictures
   }
 
   /**

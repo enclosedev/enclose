@@ -1982,6 +1982,60 @@ describe("which version of the project a conversation is", () => {
     ])
   })
 
+  it("has a main version, and keeps the numbers of those after one discarded", async () => {
+    let made: string | null = null
+    const { threads, say, go, idle } = talking(dir, {
+      deps: { main: () => made },
+    })
+    const answered = async (conversation: string) => {
+      await until(() =>
+        threads
+          .items(ID, conversation)
+          .some((item) => item.kind === "assistant")
+      )
+      await idle()
+    }
+    const versions = () =>
+      threads
+        .summaries(ID)
+        .map(({ id, version, main }) => ({ id, version, main }))
+        .sort((a, b) => a.version - b.version)
+    go()
+    const first = say("Make a box", null) as string
+    await answered(first)
+    // one version alone is no main one
+    expect(threads.summaries(ID)[0].main).toBe(false)
+    const second = say("Make a tray", null) as string
+    await answered(second)
+    const third = say("Make a lid", null) as string
+    await answered(third)
+    expect(threads.main(ID)).toBe(first)
+    expect(versions().map(({ main }) => main)).toEqual([true, false, false])
+
+    expect(threads.discard(ID, second)).toEqual([])
+    expect(versions()).toEqual([
+      { id: first, version: 1, main: true },
+      { id: third, version: 3, main: false },
+    ])
+    expect(threads.discard(ID, second)).toBeNull()
+    await threads.saved()
+    const files = fs.readdirSync(path.join(dir, "conversations", ID))
+    expect(files).not.toContain(`${second}.json`)
+
+    // made main, the other can go; the last one left cannot
+    made = third
+    expect(versions().map(({ main }) => main)).toEqual([false, true])
+    expect(threads.discard(ID, first)).toEqual([])
+    expect(threads.discard(ID, third)).toBeNull()
+    expect(versions()).toEqual([{ id: third, version: 3, main: false }])
+
+    // and so it is the next time the app is opened
+    const again = talking(dir).threads
+    expect(
+      again.summaries(ID).map(({ id, version }) => ({ id, version }))
+    ).toEqual([{ id: third, version: 3 }])
+  })
+
   it("has the name it was given, and none again once that is taken away", () => {
     const { threads, say } = talking(dir)
     const into = say("Make a box", null) as string

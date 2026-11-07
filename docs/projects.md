@@ -100,8 +100,9 @@ circuit board and a USB-C socket", "Changed: …", "Fixed: …", "Removed: …")
 cannot be had, it says what was asked. Colours you give parts go in too, a few seconds
 after the last of them ("Recolored parts by hand"), or with the turn the agent is at. Each
 conversation that has [its own version](working-with-the-agent.md#versions) of the project
-has a branch of its own: the first is `main`, and each after it `version/<what it began
-with>`, from where the project was when it began. A commit goes on the branch of the
+has a branch of its own: the [main version](working-with-the-agent.md#the-main-version)'s
+is `main`, and each other's `version/<what it began with>`, from where the project was
+when it began. A commit goes on the branch of the
 conversation whose version the folder holds: turning to another waits for the commit of
 the turn that just ended, and the backup the app makes as it opens goes on the branch of
 the conversation turned to last. With versions off, everything is on `main`. What the build writes

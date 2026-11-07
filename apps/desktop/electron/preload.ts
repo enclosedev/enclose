@@ -182,6 +182,10 @@ const api: CadApi = {
       ipcRenderer.invoke(CHANNEL.threadUnqueue, projectId, queuedId),
     rename: (projectId, conversationId, name) =>
       ipcRenderer.invoke(CHANNEL.threadRename, projectId, conversationId, name),
+    discard: (projectId, conversationId) =>
+      ipcRenderer.invoke(CHANNEL.threadDiscard, projectId, conversationId),
+    makeMain: (projectId, conversationId) =>
+      ipcRenderer.invoke(CHANNEL.threadMakeMain, projectId, conversationId),
     answer: (projectId, permissionId, answer) =>
       ipcRenderer.invoke(CHANNEL.threadAnswer, projectId, permissionId, answer),
     tell: (projectId, questionId, answers) =>

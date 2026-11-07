@@ -45,6 +45,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { MainMark, VersionMenu } from "@/components/version-actions"
 import {
   Tooltip,
   TooltipContent,
@@ -841,6 +842,7 @@ function Name({
         >
           {shown}
         </button>
+        {conversation.main && <MainMark className="ml-0.5 self-center" />}
       </h2>
     )
   // done with once, however it is left: Enter and Esc are both followed by the box
@@ -1098,6 +1100,11 @@ export function Thread({ project }: { project: Project }) {
       <header className="drag flex h-12 shrink-0 items-center justify-between gap-2 pr-3 pl-8">
         <Name key={open?.id} projectId={project.id} conversation={open} />
         <div className="no-drag flex items-center text-muted-foreground">
+          <VersionMenu
+            projectId={project.id}
+            conversation={open}
+            conversations={project.conversations}
+          />
           <Tooltip>
             <TooltipTrigger
               render={

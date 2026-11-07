@@ -23,7 +23,10 @@ import { writeWhole } from "./atomic"
 import { copy, filesOf, hashOf } from "./changes"
 import { Locks } from "./locks"
 
-/** Which conversation a project's folder is, and which it was being put as, if it was. */
+/**
+ * Which conversation a project's folder is, which it was being put as, if it was, and
+ * which was made the project's main version, if one was.
+ */
 type Index = {
   on: string | null
   /**
@@ -31,6 +34,11 @@ type Index = {
    * an app quit in the middle of it can see it through the next time.
    */
   turning: string | null
+  /**
+   * The conversation that was made the main version of the project. Null until one is:
+   * the first to have begun is, then (see threads.ts).
+   */
+  main: string | null
 }
 
 /**
@@ -84,7 +92,7 @@ export class Versions {
   private index(projectId: string): Index {
     let index = this.indexes.get(projectId)
     if (index) return index
-    index = { on: null, turning: null }
+    index = { on: null, turning: null, main: null }
     try {
       const kept = JSON.parse(
         fs.readFileSync(path.join(this.root(projectId), "index.json"), "utf8")
@@ -92,6 +100,7 @@ export class Versions {
       index = {
         on: named(kept?.on) ? kept.on : null,
         turning: named(kept?.turning) ? kept.turning : null,
+        main: named(kept?.main) ? kept.main : null,
       }
     } catch {
       // nothing kept, or nothing that reads as it
@@ -358,6 +367,39 @@ export class Versions {
       const at = path.join(this.root(projectId, conversationId), FILES, name)
       if (fs.existsSync(at)) return false
       await fs.promises.writeFile(at, contents)
+      return true
+    })
+  }
+
+  /** The conversation that was made the main version of a project: null if none was. */
+  main(projectId: string): string | null {
+    return this.index(projectId).main
+  }
+
+  /** Make a conversation the main version of a project. */
+  setMain(projectId: string, conversationId: string) {
+    if (!named(conversationId)) return
+    this.index(projectId).main = conversationId
+    this.save(projectId)
+  }
+
+  /**
+   * A conversation is discarded: the copy it had of the folder goes with it. False where
+   * the folder is that conversation's: it is to be turned to another first.
+   */
+  discard(projectId: string, conversationId: string): Promise<boolean> {
+    return this.queued(projectId, async () => {
+      if (!named(projectId) || !named(conversationId)) return false
+      const index = this.index(projectId)
+      if (index.on === conversationId || index.turning === conversationId)
+        return false
+      const kept = this.root(projectId, conversationId)
+      await fs.promises.rm(`${kept}.new`, { recursive: true, force: true })
+      await fs.promises.rm(kept, { recursive: true, force: true })
+      if (index.main === conversationId) {
+        index.main = null
+        this.save(projectId)
+      }
       return true
     })
   }

@@ -16,6 +16,8 @@ const left = (
   title: `About ${id}`,
   name: null,
   version: 1,
+  main: false,
+  onCard: false,
   provider: "claude",
   status,
   since: null,
@@ -93,6 +95,17 @@ describe("stackOf", () => {
       ["b", "a"],
       null,
     ])
+  })
+
+  it("puts the one made main on the card, ahead of later ones, until all settle", () => {
+    const main = { ...left("a", 9), onCard: true }
+    expect(laid([left("c", 0.1), left("b", 1), main])).toEqual([
+      "a",
+      ["c", "b"],
+      "a",
+    ])
+    expect(laid([left("c", 0.1), main], "c")).toEqual(["a", ["c"], "c"])
+    expect(laid([left("c", 4), main])).toEqual([null, ["c", "a"], null])
   })
 
   it("goes by the card when what was turned to is no longer there", () => {

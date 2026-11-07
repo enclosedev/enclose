@@ -367,7 +367,7 @@ same, and taking a change back leaves it as it is.
 ## Conversations
 
 A project can have any number of conversations, and none of them is deleted while the
-project is in the app. Its card is the one being carried on. A conversation left alone
+project is in the app, unless you [discard its version](#discarding-a-version). Its card is the one being carried on. A conversation left alone
 for three days (the settings say how many) settles: it goes under the card with the
 earlier ones, and the card offers a new session. The edge of the card that shows beneath
 is what spreads them out, and any of them can be opened and carried on where it left
@@ -377,7 +377,7 @@ once.
 At the top of a conversation is which version of the project it is: **Version 1** for the
 first conversation had about it, **Version 2** for the next, and so on, by when each
 began. Click it to give the conversation a name instead; left empty, it goes back to its
-version. Under a project's card, one with no name goes by the first thing said in it.
+version. A discarded version keeps its number taken: the ones after it keep theirs. Under a project's card, one with no name goes by the first thing said in it.
 
 A card says the last of its conversation in two lines: what was asked, while the agent
 is at work on it, and otherwise what was last said, which of a reply is the short part.
@@ -422,6 +422,35 @@ instead.
 The [settings](settings.md) switch this off (Versions). The conversations then all
 change the one model, and turning to one changes nothing. The versions kept until then
 stay as they were, for when it is switched on again.
+
+### The main version
+
+Where a project has more than one version, one of them is its main version, with an
+asterisk (*) beside its name at the top of the conversation, and on the project's card
+or under it while the versions are spread out there. To begin with it is the first. Any other can be made the main version instead:
+**Make main version**, in the menu (…) at the top of its conversation, or on a
+right-click on it under the card. Nothing about the others changes.
+
+A version made main takes the project's card, and keeps it while the others are carried
+on: they go under it, the latest first. Once all of them have been left alone long
+enough to settle, the card offers a new session, as it would otherwise.
+
+Where the app keeps the project's history, the main version's is the `main` branch. A
+version made main has its branch taken into `main`, in a commit that says so, and goes
+on committing there; the one that was main goes on in a branch of its own,
+`version/<what it is called>`. Nothing that was committed is changed, so the project is
+backed up to GitHub as it always is.
+
+### Discarding a version
+
+A version you don't want can be taken away: **Discard version**, in the same menu, and
+yes to what the app asks. Its conversation goes, and the model as it left it. Where the
+folder was that version's, it is put as the main version left it first, and the main
+version is shown. The main version cannot be discarded, nor one the agent is at work in
+or making a board in: make another main first, or wait for the turn to end.
+
+Its history is kept: what it committed stays on its branch, and on GitHub where the
+project is backed up there.
 
 ### Asking for a new version
 

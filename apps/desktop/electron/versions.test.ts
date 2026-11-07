@@ -331,4 +331,29 @@ describe("Versions", () => {
     expect(fs.existsSync(path.join(kept, "p1"))).toBe(false)
     expect(versions.on("p1")).toBeNull()
   })
+
+  it("remembers which conversation was made the main version", () => {
+    const versions = new Versions(kept)
+    expect(versions.main("p1")).toBeNull()
+    versions.setMain("p1", "b")
+    versions.setMain("p1", "../elsewhere")
+    expect(versions.main("p1")).toBe("b")
+    expect(new Versions(kept).main("p1")).toBe("b")
+  })
+
+  it("lets go of a discarded conversation's copy, but not of the folder's own", async () => {
+    const versions = new Versions(kept)
+    await versions.turnTo("p1", "a", folder)
+    write("model.py", "box(20)")
+    await versions.turnTo("p1", "b", folder)
+    versions.setMain("p1", "a")
+    expect(fs.existsSync(path.join(kept, "p1", "a"))).toBe(true)
+    // the folder is b's: it is turned to another before b can go
+    expect(await versions.discard("p1", "b")).toBe(false)
+    expect(await versions.discard("p1", "a")).toBe(true)
+    expect(fs.existsSync(path.join(kept, "p1", "a"))).toBe(false)
+    expect(versions.main("p1")).toBeNull()
+    expect(versions.on("p1")).toBe("b")
+    expect(read("model.py")).toBe("box(20)")
+  })
 })

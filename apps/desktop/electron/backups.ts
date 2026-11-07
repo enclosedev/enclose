@@ -17,6 +17,7 @@ import {
   inRepository,
   isRepository,
   loggedAs,
+  makeMain,
   messageOf,
   noCommandsOfItsOwn,
   setUp,
@@ -436,6 +437,42 @@ export class Backups {
           if (project) await this.push(project)
         })
     }, AGAIN_MS)
+  }
+
+  /**
+   * A conversation's version of the project was made its main one: its history is main
+   * from now on, and the one that was main (`was`) goes on a branch of its own. Pushed
+   * as anything committed is. Resolves once that is done, or could not be.
+   */
+  madeMain(
+    id: string,
+    {
+      conversationId,
+      was,
+      titleOf,
+    }: {
+      conversationId: string
+      was: string | null
+      /** what a conversation goes by, to name its branch after */
+      titleOf: (conversationId: string) => string
+    }
+  ): Promise<unknown> {
+    return this.queue(id, async () => {
+      const project = this.project(id)
+      if (!project || !ours(project) || !this.deps.versioned()) return
+      const changed = await this.hold(project.id, () => {
+        clearStaleLock(project.path)
+        return makeMain(this.deps.git, project.path, {
+          conversationId,
+          was,
+          titleOf,
+          on: this.deps.on?.(project.id) ?? null,
+          message: `Made “${titleOf(conversationId)}” the main version`,
+          author: this.author(),
+        })
+      })
+      if (changed && (await this.pushedOnce(project))) await this.push(project)
+    })
   }
 
   /** The project is called something else now: its repository is too, where it has one. */

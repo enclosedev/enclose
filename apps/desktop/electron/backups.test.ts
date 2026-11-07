@@ -197,6 +197,101 @@ describe("Backups", () => {
     )
   })
 
+  it("makes a version main, and back, without rewriting anything pushed", async () => {
+    let on = "c1"
+    const kept = backups(true, { on: () => on })
+    const titles: Record<string, string> = { c1: "Version 1", c2: "Version 2" }
+    const titleOf = (id: string) => titles[id]
+    write("model.py", "a = 1")
+    await kept.prepare("p1", "Started in Enclose")
+    write("model.py", "a = 2")
+    await kept.record("p1", {
+      what: "One",
+      conversation: null,
+      conversationId: "c1",
+    })
+    on = "c2xxxx"
+    titles.c2xxxx = "Version 2"
+    write("model.py", "a = 3")
+    await kept.record("p1", {
+      what: "Two",
+      conversation: null,
+      conversationId: "c2xxxx",
+    })
+
+    await kept.madeMain("p1", { conversationId: "c2xxxx", was: "c1", titleOf })
+    const branches = () =>
+      show(project.path, "branch", "--format=%(refname:short)")
+    expect(await branches()).toBe(
+      "main\nversion/two-c2xxxx\nversion/version-1-c1"
+    )
+    expect(await show(project.path, "show", "main:model.py")).toBe("a = 3")
+    expect(await show(project.path, "log", "--format=%s", "-1", "main")).toBe(
+      "Made “Version 2” the main version"
+    )
+    expect(
+      await show(
+        project.path,
+        "log",
+        "--format=%s",
+        "version/version-1-c1",
+        "-1"
+      )
+    ).toBe("One")
+    expect(await show(project.path, "symbolic-ref", "--short", "HEAD")).toBe(
+      "main"
+    )
+    // pushed as it is, and nothing GitHub had is gone from it
+    const pushed = path.join(remote, "enclose-lid.git")
+    expect(await show(pushed, "rev-parse", "main")).toBe(
+      await show(project.path, "rev-parse", "main")
+    )
+
+    // each goes on committing where it now is
+    write("model.py", "a = 4")
+    await kept.record("p1", {
+      what: "Three",
+      conversation: null,
+      conversationId: "c2xxxx",
+    })
+    expect(await show(project.path, "log", "--format=%s", "-1", "main")).toBe(
+      "Three"
+    )
+    on = "c1"
+    write("model.py", "a = 5")
+    await kept.record("p1", {
+      what: "Four",
+      conversation: null,
+      conversationId: "c1",
+    })
+    expect(
+      await show(
+        project.path,
+        "log",
+        "--format=%s",
+        "-1",
+        "version/version-1-c1"
+      )
+    ).toBe("Four")
+
+    // and back: the other goes to the branch it had before it was main
+    await kept.madeMain("p1", { conversationId: "c1", was: "c2xxxx", titleOf })
+    expect(await branches()).toBe(
+      "main\nversion/two-c2xxxx\nversion/version-1-c1"
+    )
+    expect(await show(project.path, "show", "main:model.py")).toBe("a = 5")
+    expect(
+      await show(project.path, "show", "version/two-c2xxxx:model.py")
+    ).toBe("a = 4")
+    expect(await show(project.path, "symbolic-ref", "--short", "HEAD")).toBe(
+      "main"
+    )
+    expect(await show(pushed, "rev-parse", "version/two-c2xxxx")).toBe(
+      await show(project.path, "rev-parse", "version/two-c2xxxx")
+    )
+    expect(kept.failures()).toEqual([])
+  })
+
   it("commits once nothing else is being done in the folder, and says when it has", async () => {
     const locks = new Locks()
     const kept = backups(false, {
