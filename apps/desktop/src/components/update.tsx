@@ -97,7 +97,9 @@ export function NewerApp() {
               className="rounded-full px-3.5"
               onClick={() => void window.cad.update.download()}
             >
-              {update.failed ? "Try again" : "Update"}
+              {update.state === "available" && update.failed
+                ? "Try again"
+                : "Update"}
             </Button>
           )}
         </div>
