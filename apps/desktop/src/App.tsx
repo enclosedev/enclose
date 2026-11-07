@@ -13,7 +13,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { UpdateButton } from "@/components/update"
 import { bridge } from "@/components/viewport/bridge"
 import { Viewport } from "@/components/viewport/viewport"
 import { appKey } from "@/lib/app-keys"
@@ -227,7 +226,6 @@ export function App() {
           {/* the top edge of the view is also what the window is dragged by */}
           <div className="drag absolute inset-x-0 top-0 h-3" />
           <Sidebar>
-            <UpdateButton />
             <Tooltip>
               <TooltipTrigger
                 render={

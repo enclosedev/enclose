@@ -1,109 +1,107 @@
-// The app's newer version, where there is one: a button over the one for the settings.
-// Pressed, it fetches that version, and shows how much of it has come round its own
-// edge. Then it is the button that starts the app again, as that version.
-import { cn } from "cn"
-import { DownloadIcon, RotateCwIcon } from "lucide-react"
+// The app's newer version, where there is one: told at the foot of the view, as a newer
+// agent is (newer-agent.tsx), with a button that leaves it be for now and another that
+// fetches it. While it comes, how far along it is; then the button that starts the app
+// again, as that version.
+import * as React from "react"
 
+import { Floating } from "@/components/floating"
+import { Logo } from "@/components/mark"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { useStore } from "@/lib/store"
 import type { Update } from "@shared/api"
 
-/** What the button says it is for, to whoever points at it. */
+/**
+ * What was left be: a version not fetched, or one fetched and not started as (that,
+ * "<version> ready"). Neither is offered here again: the settings still offer both.
+ */
+const PASSED_KEY = "enclose:passed-app-update"
+
+function readPassed(): string | null {
+  try {
+    return localStorage.getItem(PASSED_KEY)
+  } catch {
+    return null
+  }
+}
+
+/** What of an update there is to leave be, as it is kept once it is. */
+function passing(update: Update): string | null {
+  if (update.state === "available") return update.version
+  if (update.state === "ready") return `${update.version} ready`
+  return null
+}
+
+/** What the pill says, with the version in it. */
 function said(update: Exclude<Update, { state: "none" }>): string {
   switch (update.state) {
     case "available":
       return update.failed
-        ? "The update did not download. Try again"
-        : `Download update ${update.version}`
+        ? `Enclose ${update.version} did not download`
+        : `A new version of Enclose is available`
     case "downloading":
-      return `Downloading update: ${Math.round(update.fraction * 100)}%`
+      return `Downloading Enclose ${update.version}… ${Math.round(update.fraction * 100)}%`
     case "ready":
-      return `Restart to update to ${update.version}`
+      return `Enclose ${update.version} is ready`
     case "restarting":
-      return "Restarting"
+      return "Restarting…"
   }
 }
 
-/**
- * How much of a download has come, drawn round the edge of the button it is on: that
- * much of the edge. Until the first of it comes, a length of the edge goes round.
- */
-function Ring({ fraction }: { fraction: number }) {
-  const waiting = fraction === 0
-  return (
-    <svg
-      viewBox="0 0 32 32"
-      // (over the button's own edge, which is outside what it has room for inside)
-      className={cn(
-        "absolute -top-px -left-px size-8",
-        waiting ? "animate-spin" : "-rotate-90"
-      )}
-      aria-hidden
-    >
-      <circle
-        cx="16"
-        cy="16"
-        r="15"
-        fill="none"
-        strokeWidth="2"
-        strokeLinecap="round"
-        pathLength="1"
-        strokeDasharray="1"
-        strokeDashoffset={waiting ? 0.75 : 1 - fraction}
-        // it is told how far along it is about once a second: it goes there evenly
-        className="stroke-foreground transition-[stroke-dashoffset] duration-1000 ease-linear"
-      />
-    </svg>
-  )
-}
-
-export function UpdateButton() {
+export function NewerApp() {
   const update = useStore((state) => state.update)
+  const [passed, setPassed] = React.useState(readPassed)
   if (update.state === "none") return null
-  const { state } = update
-  const here = state === "ready" || state === "restarting"
-  const busy = state === "downloading" || state === "restarting"
+  const leaving = passing(update)
+  if (leaving !== null && leaving === passed) return null
+  const pass = () => {
+    if (leaving === null) return
+    try {
+      localStorage.setItem(PASSED_KEY, leaving)
+    } catch {
+      // (left be until the app is opened again, then)
+    }
+    setPassed(leaving)
+  }
+  const busy = update.state === "downloading" || update.state === "restarting"
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
+    <Floating
+      role="status"
+      className="pointer-events-auto flex items-center gap-2.5 py-1.5 pr-1.5 pl-4"
+    >
+      <Logo size={18} className="shrink-0" />
+      <span className="mr-1 truncate tabular-nums">{said(update)}</span>
+      {busy ? (
+        <Spinner className="m-2 text-muted-foreground" />
+      ) : (
+        <div className="flex items-center gap-1">
           <Button
-            variant="outline"
-            size="icon-sm"
-            // not to be pressed while it is at work, and still there to be pointed at
-            disabled={busy}
-            focusableWhenDisabled
-            className={cn(
-              "relative animate-in bg-background shadow-sm duration-200 zoom-in-90 fade-in",
-              busy && "cursor-default active:translate-y-0",
-              here &&
-                "border-transparent bg-attention text-background hover:bg-attention/85 hover:text-background"
-            )}
-            onClick={() =>
-              void (here
-                ? window.cad.update.restart()
-                : window.cad.update.download())
-            }
-          />
-        }
-      >
-        {state === "restarting" ? (
-          <Spinner />
-        ) : here ? (
-          <RotateCwIcon />
-        ) : (
-          <DownloadIcon className={cn(busy && "opacity-50")} />
-        )}
-        {state === "downloading" && <Ring fraction={update.fraction} />}
-        <span className="sr-only">{said(update)}</span>
-      </TooltipTrigger>
-      <TooltipContent side="right">{said(update)}</TooltipContent>
-    </Tooltip>
+            variant="secondary"
+            size="sm"
+            className="rounded-full px-3.5"
+            onClick={pass}
+          >
+            Not now
+          </Button>
+          {update.state === "ready" ? (
+            <Button
+              size="sm"
+              className="rounded-full px-3.5"
+              onClick={() => void window.cad.update.restart()}
+            >
+              Restart
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className="rounded-full px-3.5"
+              onClick={() => void window.cad.update.download()}
+            >
+              {update.failed ? "Try again" : "Update"}
+            </Button>
+          )}
+        </div>
+      )}
+    </Floating>
   )
 }

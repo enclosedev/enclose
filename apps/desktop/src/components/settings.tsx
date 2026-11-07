@@ -1119,7 +1119,7 @@ function Licenses() {
  * The version the app is, and beside it the button that brings it up to date: one that
  * looks for a newer version, where none is known of yet, and says what came of that;
  * then one that fetches the newer version, how far along that is, and the one that
- * starts the app again as it, as the button over the settings does.
+ * starts the app again as it, as the pill at the foot of the view does (update.tsx).
  */
 function Version() {
   const update = useStore((state) => state.update)

@@ -19,6 +19,7 @@ import { Floating } from "@/components/floating"
 import { InspirationMode } from "@/components/inspiration/inspiration-mode"
 import { LookingAtPictures, NotingHint } from "@/components/inspiration/looking"
 import { NewerAgent } from "@/components/newer-agent"
+import { NewerApp } from "@/components/update"
 import { TrustSettings } from "@/components/trust-settings"
 import { Options } from "@/components/blueprint/options"
 import { Logo } from "@/components/mark"
@@ -2025,9 +2026,10 @@ function Model({ project }: { project: Project }) {
       {/* at the foot of the view, in the middle: what the app has to tell, and what to
           do with the parts picked out together and with the scene the model is set in,
           over how far apart the parts are pulled. Each is a pill floating over the model;
-          a newer agent, a folder's settings to trust, and what was just done, are told
+          a newer version of the app or of an agent, a folder's settings to trust, and what was just done, are told
           with no model there as well */}
       <div className="pointer-events-none absolute inset-x-0 bottom-5 flex flex-col items-center gap-2.5">
+        <NewerApp />
         <NewerAgent />
         <TrustSettings project={project} />
         <BackingUp />

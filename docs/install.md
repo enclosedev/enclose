@@ -88,11 +88,11 @@ which agents the app found, and takes the path to one it did not find.
 ## A new version
 
 Enclose looks for a newer version of itself when it is opened, and every few hours
-after. When there is one, a download button appears above the settings button, at the
-bottom left of the window. Press it and the new version is downloaded, with a ring round
-the button that shows how far along it is. The button then turns orange: press it and
-Enclose starts again as the new version. Your projects and conversations are not in the
-app, and stay as they were.
+after. When there is one, it says so at the bottom of the window, in the middle, as it
+does for a newer version of an agent. **Update** downloads it, and shows how far along
+that is; then **Restart** starts Enclose again as the new version. **Not now** puts it
+away, and it is not offered there again (the settings still offer it). Your projects and
+conversations are not in the app, and stay as they were.
 
 About, in the settings, says which version you have, with a button beside it that does
 the same: **Check for updates** looks for a newer version now, and says whether you are up
