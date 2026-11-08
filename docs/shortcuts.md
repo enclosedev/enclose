@@ -29,8 +29,9 @@ is Ctrl off a Mac.
 | I | Show what is picked out [on its own](selecting.md#on-its-own-close-to-out-of-sight) |
 | H | Put what is picked out out of sight, or bring everything back |
 | B | [Blueprint](blueprints.md) |
-| A | [Assembly guides](working-with-the-agent.md#assembly-guides) |
+| Left, Right | With a blueprint's [sheets](blueprints.md#the-sheets) come up to the view, the sheet before and the one after |
 | Shift+P | [Circuit boards](working-with-the-agent.md#circuit-boards), to open one in PCB mode |
+| A | [Assembly guides](working-with-the-agent.md#assembly-guides) |
 | Shift+I | The [inspiration board](working-with-the-agent.md#the-inspiration-board) |
 | Cmd+F | [Search](parts.md#search) |
 | T | [Tools of the project's own](project-tools.md) |
@@ -42,10 +43,11 @@ is Ctrl off a Mac.
 
 | | |
 |---|---|
-| 1 | The board's [technical view](working-with-the-agent.md#circuit-boards) |
-| 2 | The board in 3D |
-| 3 | Its schematic |
-| S | Its bottom side, turned over as it is seen from under the board, and back |
+| T | The board's [technical view](working-with-the-agent.md#circuit-boards) |
+| 1 to 8 | In the technical view, its layers of copper: 1 is the top, and the last the bottom, turned over as it is seen from under the board |
+| B | The board in 3D |
+| H | In 3D, the board on the palm of a hand, to see how big it is |
+| S | Its schematic |
 | P | The parts on the board |
 | Cmd+F | Search the board for parts, pins and nets by name, in the technical view and in 3D |
 | Cmd+1 to 7 | In 3D, the same set views as the model's: the view it opens with, front, back, top, bottom, right, left |
@@ -149,5 +151,6 @@ still does what it did, so the parts list is still P and the settings still Cmd+
 - T is there only in a project with tools of its own, and B and Cmd+F only once there
   is a model. Cmd+B and Cmd+. need a project to be open.
 - In a reference scene there is no view from below, so Cmd+5 does nothing.
+- In PCB mode a number for a layer the board has not got does nothing.
 - No key of the view works with Settings open, or while the agent looks over files that
   were just opened. Cmd+N, Cmd+O, Cmd+B and Cmd+. wait for Settings to be closed too.
