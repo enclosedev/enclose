@@ -127,11 +127,17 @@ function fakeUpdater() {
 function setUp() {
   const fake = fakeUpdater()
   const told: Update[] = []
+  // what it wrote down
+  const written: string[] = []
   const updates = new Updates({
     updater: fake.updater,
     onChange: (update) => told.push(update),
+    log: {
+      info: (message) => void written.push(String(message)),
+      warn: (message) => void written.push(String(message)),
+    },
   })
-  return { ...fake, updates, told }
+  return { ...fake, updates, told, written }
 }
 
 /** As far as a newer version having been found. */
@@ -326,28 +332,115 @@ describe("Updates", () => {
 
   it("starts the app again only with a version that is here", async () => {
     const { updates, emit, asked } = await found()
-    updates.restart()
+    expect(await updates.restart()).toBe(false)
     updates.download()
-    updates.restart()
+    expect(await updates.restart()).toBe(false)
     expect(asked).not.toContain("install")
 
     emit("update-downloaded", { version: "0.0.2" })
-    updates.restart()
-    updates.restart()
+    expect(await Promise.all([updates.restart(), updates.restart()])).toEqual([
+      true,
+      false,
+    ])
     expect(asked.filter((what) => what === "install")).toHaveLength(1)
     expect(updates.get()).toEqual({ state: "restarting", version: "0.0.2" })
+    updates.close()
   })
 
   it("offers the download again when what was fetched will not go in", async () => {
     const { updates, emit } = await found()
     updates.download()
     emit("update-downloaded", { version: "0.0.2" })
-    updates.restart()
+    await updates.restart()
     emit("error", new Error("code signature did not match"))
     expect(updates.get()).toEqual({
       state: "available",
       version: "0.0.2",
       failed: true,
+    })
+    updates.close()
+  })
+
+  describe("a restart", () => {
+    const STALLED = 60 * 1000
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+    async function ready() {
+      const made = await found()
+      made.updates.download()
+      made.emit("update-downloaded", { version: "0.0.2" })
+      return made
+    }
+    const installs = (asked: string[]) =>
+      asked.filter((what) => what === "install")
+
+    it("is said to be under way at once, and done once what is under way is over", async () => {
+      const { updates, asked } = await ready()
+      let over = () => {}
+      const going = updates.restart(
+        () => new Promise<void>((resolve) => (over = resolve))
+      )
+      expect(updates.get()).toEqual({ state: "restarting", version: "0.0.2" })
+      await Promise.resolve()
+      expect(installs(asked)).toHaveLength(0)
+      over()
+      expect(await going).toBe(true)
+      expect(installs(asked)).toHaveLength(1)
+    })
+
+    it("goes ahead where seeing to what was under way went wrong", async () => {
+      const { updates, asked, written } = await ready()
+      expect(
+        await updates.restart(() => Promise.reject(new Error("stuck")))
+      ).toBe(true)
+      expect(installs(asked)).toHaveLength(1)
+      expect(written).toContainEqual(
+        expect.stringMatching(/^Restarting all the same: Error: stuck/)
+      )
+    })
+
+    it("does not go ahead with a version found wanting meanwhile", async () => {
+      const { updates, emit, asked } = await ready()
+      const going = updates.restart(async () => {
+        emit("error", new Error("code signature did not match"))
+      })
+      expect(await going).toBe(false)
+      expect(installs(asked)).toHaveLength(0)
+      expect(updates.get()).toMatchObject({ state: "available", failed: true })
+    })
+
+    it("is offered again with the app still here a while after", async () => {
+      const { updates, asked, written } = await ready()
+      await updates.restart()
+      await vi.advanceTimersByTimeAsync(STALLED - 1)
+      expect(updates.get()).toMatchObject({ state: "restarting" })
+      await vi.advanceTimersByTimeAsync(1)
+      expect(updates.get()).toEqual({ state: "ready", version: "0.0.2" })
+      expect(written.at(-2)).toMatch(/^Still here 60 s after restarting/)
+      // and can be asked for again
+      expect(await updates.restart()).toBe(true)
+      expect(installs(asked)).toHaveLength(2)
+      updates.close()
+    })
+
+    it("writes down where the update is as that changes, and each restart", async () => {
+      const { updates, emit, written } = await found()
+      updates.download()
+      emit("download-progress", { percent: 50 })
+      emit("update-downloaded", { version: "0.0.2" })
+      await updates.restart()
+      expect(written).toEqual([
+        "Update available (0.0.2)",
+        "Update downloading (0.0.2)",
+        "Update ready (0.0.2)",
+        "Update restarting (0.0.2)",
+        "Restarting as 0.0.2",
+      ])
+      updates.close()
     })
   })
 

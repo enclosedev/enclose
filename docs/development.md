@@ -321,7 +321,12 @@ ENCLOSE_UPDATES_URL=http://127.0.0.1:8123/ ./release/Enclose-<version>-x86_64.Ap
 [`electron/update.ts`](../apps/desktop/electron/update.ts) keeps where an update is, for
 the window to show. A download that fails with a 5xx answer, or no answer at all, is
 asked for once more after five seconds before the window says it did not download.
-What electron-updater does goes to `updates.log` in the app's logs folder
+**Restart** says it is restarting at once, sees to what is under way in the app, then
+hands over to electron-updater's `quitAndInstall`; still running a minute later, the app
+offers **Restart** again. Quitting instead puts the downloaded version in as well (Squirrel
+installs it as the app goes), without starting the app again. What electron-updater
+does, and each change of where an update is, each restart and each quit, goes to
+`updates.log` in the app's logs folder
 (`~/Library/Logs/Enclose` on a Mac, `~/.config/Enclose/logs` on Linux), since an
 installed app's own output is read by no one: look there first when an update does not
 come.

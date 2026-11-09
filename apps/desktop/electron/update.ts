@@ -48,6 +48,8 @@ export type UpdatesDeps = {
   updater: Updater
   /** told where things are, each time that changes */
   onChange: (update: Update) => void
+  /** where what it does is written down, beside what the updater says (logIn, below) */
+  log?: Pick<Log, "info" | "warn">
 }
 
 /** How long it is between one look for a newer version and the next, in ms. */
@@ -58,6 +60,13 @@ const EVERY = 4 * 60 * 60 * 1000
  * for once more, in ms.
  */
 const AGAIN_AFTER = 5 * 1000
+
+/**
+ * How long the app may still be here after it was told to start again as the new
+ * version, before that is given up on and offered again, in ms. (Its window is gone
+ * by then, where it went as it should; a Mac may first ask for a password.)
+ */
+const STALLED_AFTER = 60 * 1000
 
 /**
  * Whether what stopped a download was the server's doing or the connection's, and so may
@@ -121,7 +130,10 @@ export function logIn(file: string, most = LOG_MOST): Log {
 export class Updates {
   private readonly updater: Updater
   private readonly onChange: (update: Update) => void
+  private readonly log: UpdatesDeps["log"]
   private update: Update = { state: "none" }
+  /** a restart that has not happened yet, to be given up on (STALLED_AFTER) */
+  private stalled: ReturnType<typeof setTimeout> | undefined
   /** a newer version is being looked for now: whether that gets through, once it has */
   private looking: Promise<boolean> | null = null
   private again: ReturnType<typeof setInterval> | undefined
@@ -129,6 +141,7 @@ export class Updates {
   constructor(deps: UpdatesDeps) {
     this.updater = deps.updater
     this.onChange = deps.onChange
+    this.log = deps.log
     const { updater } = this
     updater.autoDownload = false
     updater.on("update-available", ({ version }) => {
@@ -170,6 +183,7 @@ export class Updates {
 
   close() {
     clearInterval(this.again)
+    clearTimeout(this.stalled)
   }
 
   /**
@@ -219,13 +233,38 @@ export class Updates {
     }
   }
 
-  /** Start the app again as the version that was fetched. */
-  restart() {
+  /**
+   * Start the app again as the version that was fetched: said to be under way at once,
+   * and done once `first` (what is under way in the app, seen to its end) is over, even
+   * where that went wrong. Resolves to whether it went ahead. Still here a while after,
+   * the app offers it again, rather than say it is restarting for ever.
+   */
+  async restart(first?: () => Promise<unknown>): Promise<boolean> {
     const now = this.update
-    if (now.state !== "ready") return
+    if (now.state !== "ready") {
+      this.log?.warn(`Not restarting: the update is ${now.state}`)
+      return false
+    }
     this.set({ state: "restarting", version: now.version })
+    try {
+      await first?.()
+    } catch (error) {
+      this.log?.warn(`Restarting all the same: ${format(error)}`)
+    }
+    // (the new version found wanting meanwhile, it is offered again instead)
+    if (this.update.state !== "restarting") return false
+    this.log?.info(`Restarting as ${now.version}`)
+    clearTimeout(this.stalled)
+    this.stalled = setTimeout(() => {
+      if (this.update.state !== "restarting") return
+      this.log?.warn(
+        `Still here ${STALLED_AFTER / 1000} s after restarting as ${now.version}: offered again`
+      )
+      this.set({ state: "ready", version: now.version })
+    }, STALLED_AFTER)
     // (not always at once: a Mac may still be putting the new version where it goes)
     this.updater.quitAndInstall()
+    return true
   }
 
   /** What was asked for did not come, or would not go in: it can be asked for again. */
@@ -236,7 +275,13 @@ export class Updates {
   }
 
   private set(update: Update) {
+    const was = this.update
     this.update = update
+    // (written down as it changes, how far along a download is aside)
+    if (update.state !== was.state)
+      this.log?.info(
+        `Update ${update.state}${"version" in update ? ` (${update.version})` : ""}`
+      )
     this.onChange(update)
   }
 }

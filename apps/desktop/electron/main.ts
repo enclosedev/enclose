@@ -148,7 +148,7 @@ import {
   saveTheme,
 } from "./themes"
 import { ToolServer } from "./tools"
-import { logIn, onThisMachine, Updates } from "./update"
+import { logIn, onThisMachine, Updates, type Log } from "./update"
 import { tryOtherApp } from "./github"
 
 const HERE = import.meta.dirname
@@ -266,6 +266,8 @@ const guideServer = new GuideServer(path.join(HERE, "guide"), (id) => {
 })
 /** the app's newer versions: none are looked for when it is run from a checkout */
 let updates: Updates | null = null
+/** where the updates, and the restarts and quits that put one in, are written down */
+let updatesLog: Log | null = null
 /** GitHub, as projects are backed up to it, and backing them up */
 let connection: Connection
 let backups: Backups
@@ -2443,12 +2445,29 @@ function wire() {
   })
   ipcMain.handle(CHANNEL.updateRestart, async () => {
     // Starting again stops whatever is under way, an agent in the middle of a turn
-    // with it: that is asked about first, and what it did is kept before it goes.
-    if (leaving !== null || !(await mayLeave("Restart"))) return
-    leaving = "asked"
-    await settle()
-    leaving = "now"
-    updates?.restart()
+    // with it: that is asked about first, and what it did is kept before it goes (the
+    // window says it is restarting meanwhile). On the way out already, asked to quit
+    // and agreed to, it goes as the new version rather than not at all. Each step is
+    // written down, as a Restart that does nothing is otherwise known of by no one.
+    updatesLog?.info(
+      `Restart asked for${leaving ? ` (leaving: ${leaving})` : ""}`
+    )
+    if (leaving === "asked") return
+    if (leaving === null && !(await mayLeave("Restart"))) {
+      updatesLog?.info("Restart not agreed to")
+      return
+    }
+    await updates?.restart(async () => {
+      if (leaving === null) {
+        leaving = "asked"
+        try {
+          await settle()
+        } finally {
+          leaving = "now"
+        }
+      }
+      leaving = "now"
+    })
   })
 
   ipcMain.on(CHANNEL.viewportResponse, (_, response: ViewportResponse) => {
@@ -2798,10 +2817,12 @@ if (!app.requestSingleInstanceLock()) {
       if (UPDATES_FROM)
         updater.setFeedURL({ provider: "generic", url: UPDATES_FROM })
       // (what it does, to a file: ~/Library/Logs/Enclose/updates.log on a Mac)
-      updater.logger = logIn(path.join(app.getPath("logs"), "updates.log"))
+      updatesLog = logIn(path.join(app.getPath("logs"), "updates.log"))
+      updater.logger = updatesLog
       updates = new Updates({
         updater,
         onChange: (update) => send(CHANNEL.updateChanged, update),
+        log: updatesLog,
       })
       updates.start()
     }
@@ -2858,19 +2879,28 @@ if (!app.requestSingleInstanceLock()) {
   // back and committed, before the app goes. (Not for long: a turn that has not seen
   // to that in QUIT_WAIT_MS is left as it is.)
   app.on("before-quit", (event) => {
+    // (a quit puts in an update that is ready, without starting the app again)
+    updatesLog?.info(`Quit asked for${leaving ? ` (leaving: ${leaving})` : ""}`)
     if (leaving === "now") return letGo()
     event.preventDefault()
     if (leaving === "asked") return
     leaving = "asked"
-    void mayLeave("Quit").then(async (yes) => {
-      if (!yes) {
-        leaving = null
-        return
-      }
-      await settle()
-      leaving = "now"
-      app.quit()
-    })
+    // (what goes wrong asking, or seeing to what is under way, does not keep the app
+    // from going: left "asked", it could not be quit at all after)
+    void mayLeave("Quit")
+      .catch((error: unknown) => {
+        console.error("[quit]", error)
+        return true
+      })
+      .then(async (yes) => {
+        if (!yes) {
+          leaving = null
+          return
+        }
+        await settle().catch((error: unknown) => console.error("[quit]", error))
+        leaving = "now"
+        app.quit()
+      })
   })
 }
 

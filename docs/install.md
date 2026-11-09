@@ -102,7 +102,9 @@ Enclose again as it (**Restart to update**).
 
 A download that the server or the connection lets down is tried once more on its own.
 If that fails too, Enclose says the version did not download, and **Try again** asks for
-it again. What Enclose did to update itself, and why a download failed, is written to
+it again. A version that has downloaded is also put in when you quit Enclose: it opens
+as the new version the next time. What Enclose did to update itself, and why a download
+or a restart failed, is written to
 `updates.log`: in `~/Library/Logs/Enclose` on a Mac, and `~/.config/Enclose/logs` on
 Linux.
 
