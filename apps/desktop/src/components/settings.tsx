@@ -1145,7 +1145,9 @@ function Version() {
   }
   const said =
     update.state === "available"
-      ? `${update.version} is available`
+      ? update.failed
+        ? `${update.version} did not download`
+        : `${update.version} is available`
       : update.state === "none"
         ? looked === "current"
           ? "Up to date"

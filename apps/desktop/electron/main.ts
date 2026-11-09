@@ -148,7 +148,7 @@ import {
   saveTheme,
 } from "./themes"
 import { ToolServer } from "./tools"
-import { onThisMachine, Updates } from "./update"
+import { logIn, onThisMachine, Updates } from "./update"
 import { tryOtherApp } from "./github"
 
 const HERE = import.meta.dirname
@@ -2797,6 +2797,8 @@ if (!app.requestSingleInstanceLock()) {
           : electronUpdater.autoUpdater
       if (UPDATES_FROM)
         updater.setFeedURL({ provider: "generic", url: UPDATES_FROM })
+      // (what it does, to a file: ~/Library/Logs/Enclose/updates.log on a Mac)
+      updater.logger = logIn(path.join(app.getPath("logs"), "updates.log"))
       updates = new Updates({
         updater,
         onChange: (update) => send(CHANNEL.updateChanged, update),

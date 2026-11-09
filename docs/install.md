@@ -100,6 +100,12 @@ the same: **Check for updates** looks for a newer version now, and says whether 
 to date; once there is one, it downloads it (**Update to** that version), and then starts
 Enclose again as it (**Restart to update**).
 
+A download that the server or the connection lets down is tried once more on its own.
+If that fails too, Enclose says the version did not download, and **Try again** asks for
+it again. What Enclose did to update itself, and why a download failed, is written to
+`updates.log`: in `~/Library/Logs/Enclose` on a Mac, and `~/.config/Enclose/logs` on
+Linux.
+
 On Linux only the AppImage updates itself this way, in place. A deb, pacman package or
 rpm is updated by downloading the newer one and installing it as before.
 

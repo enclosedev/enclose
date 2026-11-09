@@ -1,9 +1,73 @@
 import { EventEmitter } from "node:events"
+import fs from "node:fs"
+import os from "node:os"
+import path from "node:path"
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { Update } from "../shared/api"
-import { onThisMachine, Updates, type Updater } from "./update"
+import { logIn, mayPass, onThisMachine, Updates, type Updater } from "./update"
+
+/** An error as electron-updater makes one of an answer it did not want. */
+const answered = (statusCode: number) =>
+  Object.assign(new Error(`HTTP error: ${statusCode}`), { statusCode })
+
+describe("mayPass", () => {
+  it("is what the server or the connection did, and nothing else", () => {
+    expect(mayPass(answered(504))).toBe(true)
+    expect(mayPass(answered(502))).toBe(true)
+    expect(mayPass(answered(429))).toBe(true)
+    expect(mayPass(answered(404))).toBe(false)
+    expect(mayPass(answered(403))).toBe(false)
+    expect(mayPass(new Error("net::ERR_CONNECTION_RESET"))).toBe(true)
+    expect(mayPass(new Error("Request timed out"))).toBe(true)
+    expect(mayPass(new Error("sha512 checksum mismatch, expected x"))).toBe(
+      false
+    )
+    expect(mayPass(new Error("ZIP file not provided: []"))).toBe(false)
+    expect(mayPass("offline")).toBe(false)
+  })
+})
+
+describe("logIn", () => {
+  let folder: string
+  beforeEach(() => {
+    folder = fs.mkdtempSync(path.join(os.tmpdir(), "enclose-log-"))
+  })
+  afterEach(() => {
+    fs.rmSync(folder, { recursive: true, force: true })
+  })
+
+  it("writes what it is told a line at a time, in a folder it makes", () => {
+    const file = path.join(folder, "Logs", "updates.log")
+    const log = logIn(file)
+    log.info("Checking for update")
+    log.error(answered(504))
+    const written = fs.readFileSync(file, "utf8")
+    expect(written).toMatch(
+      /^\d{4}-\d\d-\d\dT[\d:.]+Z info Checking for update\n/
+    )
+    // an error with where it came from
+    expect(written).toContain(" error Error: HTTP error: 504\n    at ")
+  })
+
+  it("puts aside a log that has grown large", () => {
+    const file = path.join(folder, "updates.log")
+    fs.writeFileSync(file, "x".repeat(20))
+    logIn(file, 10).info("new")
+    expect(fs.readFileSync(path.join(folder, "updates.old.log"), "utf8")).toBe(
+      "x".repeat(20)
+    )
+    expect(fs.readFileSync(file, "utf8")).toMatch(/Z info new\n$/)
+  })
+
+  it("does not stop anything when it cannot be written", () => {
+    // (a folder where the file would go)
+    const file = path.join(folder, "updates.log")
+    fs.mkdirSync(file)
+    expect(() => logIn(file).warn("lost")).not.toThrow()
+  })
+})
 
 describe("onThisMachine", () => {
   it("is an address on this machine, and nothing else", () => {
@@ -187,6 +251,68 @@ describe("Updates", () => {
     updates.download()
     expect(asked.filter((what) => what === "download")).toHaveLength(2)
     expect(updates.get()).toMatchObject({ state: "downloading", fraction: 0 })
+  })
+
+  describe("a download the server or the connection let down", () => {
+    const AFTER = 5 * 1000
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["setTimeout"] })
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+    const downloads = (asked: string[]) =>
+      asked.filter((what) => what === "download")
+
+    it("is asked for once more, after a while", async () => {
+      const { updates, emit, done, asked } = await found()
+      updates.download()
+      await done(answered(504))
+      // on its way still, meanwhile
+      expect(updates.get()).toMatchObject({ state: "downloading" })
+      expect(downloads(asked)).toHaveLength(1)
+      await vi.advanceTimersByTimeAsync(AFTER)
+      expect(downloads(asked)).toHaveLength(2)
+      emit("update-downloaded", { version: "0.0.2" })
+      await done()
+      expect(updates.get()).toEqual({ state: "ready", version: "0.0.2" })
+    })
+
+    it("is said not to have come, let down twice", async () => {
+      const { updates, done, asked } = await found()
+      updates.download()
+      await done(answered(504))
+      await vi.advanceTimersByTimeAsync(AFTER)
+      await done(new Error("net::ERR_CONNECTION_RESET"))
+      expect(updates.get()).toEqual({
+        state: "available",
+        version: "0.0.2",
+        failed: true,
+      })
+      await vi.advanceTimersByTimeAsync(10 * AFTER)
+      expect(downloads(asked)).toHaveLength(2)
+    })
+
+    it("is not asked for again where it would only fail again", async () => {
+      for (const error of [answered(404), new Error("ZIP file not provided")]) {
+        const { updates, done, asked } = await found()
+        updates.download()
+        await done(error)
+        expect(updates.get()).toMatchObject({ failed: true })
+        await vi.advanceTimersByTimeAsync(AFTER)
+        expect(downloads(asked)).toHaveLength(1)
+      }
+    })
+
+    it("is not asked for again once it is here, and a Mac refuses it", async () => {
+      const { updates, emit, done, asked } = await found()
+      updates.download()
+      emit("update-downloaded", { version: "0.0.2" })
+      await done(new Error("net::ERR_FAILED"))
+      expect(updates.get()).toMatchObject({ state: "available", failed: true })
+      await vi.advanceTimersByTimeAsync(AFTER)
+      expect(downloads(asked)).toHaveLength(1)
+    })
   })
 
   it("does not look for another while one is on its way, or here", async () => {

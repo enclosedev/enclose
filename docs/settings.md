@@ -27,7 +27,7 @@ click on the app puts them away.
 | Connections | **GitHub**: **Connect** backs every project up to [private repositories on your GitHub account](projects.md#history-and-backup). A dialog shows a code to enter on GitHub's site (**Copy code and open GitHub**), where an account can be made on the way, and then asks for Enclose to be installed on the account; Esc or **Cancel** stops. Once connected it says which account, and **Disconnect** forgets it: what is on GitHub stays there. Where a project's history could not be kept or pushed the last time, it says which project and why, in red, until that next works |
 | Appearance | Beside the section's name, the look: **System**, **Light** or **Dark** |
 | | **Theme**: the app's own colours, or those of one of the [themes](#themes) beside them, each shown as the window would be drawn in it in the look chosen (light and dark side by side, for **System**) |
-| About | The app's version, and beside it a button to [update the app](install.md): **Check for updates**, **Update to** a newer version once there is one, and **Restart to update** once it is downloaded |
+| About | The app's version, and beside it a button to [update the app](install.md): **Check for updates**, **Update to** a newer version once there is one, **Try again** where it did not download, and **Restart to update** once it is downloaded |
 
 ## Themes
 

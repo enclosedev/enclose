@@ -3,6 +3,10 @@
 // Nothing is fetched until it is asked for, and what was fetched is what the app is once
 // it has been started again. electron-updater does all of that: this keeps where things
 // are with it, for the window to show.
+import fs from "node:fs"
+import path from "node:path"
+import { format } from "node:util"
+
 import type { Update } from "../shared/api"
 
 /** What is used of electron-updater's `autoUpdater`. */
@@ -49,6 +53,71 @@ export type UpdatesDeps = {
 /** How long it is between one look for a newer version and the next, in ms. */
 const EVERY = 4 * 60 * 60 * 1000
 
+/**
+ * How long a download the server or the connection let down waits before it is asked
+ * for once more, in ms.
+ */
+const AGAIN_AFTER = 5 * 1000
+
+/**
+ * Whether what stopped a download was the server's doing or the connection's, and so may
+ * well not happen a moment later: an answer of 5xx (or 408, or 429), or no answer at all.
+ * (The releases' server has answered some of the asks for a file with a 504, for a few
+ * minutes at a time, as 0.0.19 came out.)
+ */
+export function mayPass(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  const { statusCode } = error as Error & { statusCode?: unknown }
+  if (typeof statusCode === "number")
+    return statusCode >= 500 || statusCode === 408 || statusCode === 429
+  return /^net::ERR_|timed out|aborted by the server|ECONNRESET|ETIMEDOUT|EPIPE|socket hang up/i.test(
+    error.message
+  )
+}
+
+/** What electron-updater writes what it does to. */
+export type Log = {
+  info(message?: unknown): void
+  warn(message?: unknown): void
+  error(message?: unknown): void
+  debug(message: string): void
+}
+
+/** How large the log grows before it is put aside and another started, in bytes. */
+const LOG_MOST = 1024 * 1024
+
+/**
+ * What electron-updater does, written to a file: an installed app's own output is read
+ * by no one, and why an update did not come is otherwise not known after. Grown large,
+ * it is put aside as `<name>.old.log` (the one before it, gone) as the app starts. Nothing
+ * that goes wrong writing it gets in the way of the update.
+ */
+export function logIn(file: string, most = LOG_MOST): Log {
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    if (fs.statSync(file).size > most)
+      fs.renameSync(file, file.replace(/(\.log)?$/, ".old.log"))
+  } catch {
+    // (not there yet)
+  }
+  const write = (level: string) => (message?: unknown) => {
+    try {
+      fs.appendFileSync(
+        file,
+        `${new Date().toISOString()} ${level} ${format(message)}\n`
+      )
+    } catch {
+      // (not kept, then)
+    }
+  }
+  return {
+    info: write("info"),
+    warn: write("warn"),
+    error: write("error"),
+    debug: write("debug"),
+  }
+}
+
 export class Updates {
   private readonly updater: Updater
   private readonly onChange: (update: Update) => void
@@ -81,10 +150,11 @@ export class Updates {
       this.set({ state: "ready", version })
     )
     // A look that came to nothing is nothing to show: there is no newer version that
-    // is known of, as before. Anything else that goes wrong is with one being fetched,
-    // or put in.
+    // is known of, as before. A download that fails is heard of where it was asked for,
+    // which may ask for it again (fetch, below). Anything else that goes wrong is with
+    // one being put in.
     updater.on("error", () => {
-      if (!this.looking) this.failed()
+      if (!this.looking && this.update.state !== "downloading") this.failed()
     })
   }
 
@@ -129,7 +199,24 @@ export class Updates {
     const now = this.update
     if (now.state !== "available") return
     this.set({ state: "downloading", version: now.version, fraction: 0 })
-    this.updater.downloadUpdate().catch(() => this.failed())
+    void this.fetch()
+  }
+
+  /**
+   * Fetch it, and where the server or the connection let that down, once more after a
+   * while, before it is said not to have come. (Fetched, a Mac may still refuse it, once
+   * it is ready: that is not asked again.)
+   */
+  private async fetch(tries = 2): Promise<void> {
+    try {
+      await this.updater.downloadUpdate()
+    } catch (error) {
+      if (tries > 1 && this.update.state === "downloading" && mayPass(error)) {
+        await new Promise((resolve) => setTimeout(resolve, AGAIN_AFTER))
+        return this.fetch(tries - 1)
+      }
+      this.failed()
+    }
   }
 
   /** Start the app again as the version that was fetched. */
