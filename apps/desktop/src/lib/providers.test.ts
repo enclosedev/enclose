@@ -189,6 +189,10 @@ describe("standing", () => {
     expect(
       standing(provider("codex", { status: { path: null } }))
     ).toMatchObject({ tone: "bad", headline: "Not installed" })
+    // by the name of what is run, where that is not the agent's own: not the Claude app
+    expect(
+      standing(provider("claude", { status: { path: null } }))
+    ).toMatchObject({ tone: "bad", headline: "Claude Code not installed" })
   })
 
   it("is quiet about one that is not in use, or is still being looked at", () => {

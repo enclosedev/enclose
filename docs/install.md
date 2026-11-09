@@ -5,7 +5,8 @@ Enclose is for macOS, 13 (Ventura) or newer, and for Linux (x86_64 and aarch64).
 ## What it needs
 
 - An agent it can put your messages to, installed and signed in:
-  [Claude Code](https://code.claude.com/docs/en/overview),
+  [Claude Code](https://code.claude.com/docs/en/overview) (the Claude app is not
+  enough on its own: Claude Code is what is run, from Terminal),
   [Codex](https://learn.chatgpt.com/docs/codex/cli), [Grok](https://x.ai/cli) or
   [opencode](https://opencode.ai/docs). Enclose has no login of its own: the
   conversation is with the agent on your machine. Claude is switched on to begin with,

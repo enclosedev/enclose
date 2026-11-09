@@ -497,9 +497,10 @@ function Command({ text }: { text: string }) {
 
 /** How one that is not on the machine is put there: in a terminal, or as its makers say. */
 function Install({ provider }: { provider: Provider }) {
-  const { name, install, docs } = PROVIDER_WORDS[provider.id]
+  const { name, install, docs, notTheApp } = PROVIDER_WORDS[provider.id]
   return (
     <div className="flex flex-col gap-3 text-sm text-muted-foreground">
+      {notTheApp && <p>{notTheApp}</p>}
       <div className="flex flex-col items-start gap-2">
         <p>Open Terminal and type</p>
         <Command text={install} />

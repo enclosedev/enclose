@@ -24,6 +24,11 @@ export const PROVIDER_WORDS: Record<
     docs: string
     /** what to say where it needs no account at all, in place of who is signed in */
     noAccount?: string
+    /**
+     * What is said where it is not found, of what it is taken for that is not it: an
+     * app of the same name, which is no command a terminal can run.
+     */
+    notTheApp?: string
   }
 > = {
   claude: {
@@ -33,6 +38,8 @@ export const PROVIDER_WORDS: Record<
     signIn: "claude auth login",
     install: "curl -fsSL https://claude.ai/install.sh | bash",
     docs: "https://code.claude.com/docs/en/setup",
+    notTheApp:
+      "Enclose runs Claude Code, which is used from Terminal. The Claude app is not enough on its own.",
   },
   codex: {
     name: "Codex",
@@ -160,13 +167,15 @@ function using(account: string | null): string {
 }
 
 export function standing(provider: Provider): Standing {
-  const { cli, signIn, noAccount } = PROVIDER_WORDS[provider.id]
+  const { name, cli, signIn, noAccount } = PROVIDER_WORDS[provider.id]
   const { status, settings } = provider
   if (!status) return { tone: "wait", headline: "Checking…", detail: null }
   if (!status.path)
     return {
       tone: settings.enabled ? "bad" : "off",
-      headline: "Not installed",
+      // by the name of what is run, where the agent goes by another: it is Claude Code
+      // that is not there, and not the Claude app that may well be
+      headline: cli === name ? "Not installed" : `${cli} not installed`,
       detail: settings.binary
         ? `Nothing to run was found at ${settings.binary}.`
         : `Install ${cli}, then check again.`,
