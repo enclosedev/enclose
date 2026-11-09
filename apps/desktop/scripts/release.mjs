@@ -5,6 +5,9 @@
 //           notarizes the app for both kinds of Mac, sees that a Mac will take it,
 //           tags the commit, pushes it, and publishes the release with what an
 //           installed app updates itself from, and the source of the git it carries.
+//           Then it waits for GitHub to make the Linux installers and put them on the
+//           release (.github/workflows/linux-installers.yml runs the Linux flow), and
+//           sees they are there.
 //   Linux   builds the Linux installers for the machine's own kind and attaches them
 //           to a release the Mac has already published, with `gh release upload`. It
 //           gives the app no version, makes no tag, pushes nothing and creates no
@@ -102,11 +105,11 @@ const pkg = () =>
 
 // --- Linux: attach the installers to the release the Mac made --------------------------
 
-/** Build the Linux installers and put them on an already-published release. */
-async function attachLinux() {
-  // The names the Linux installers go up under, by the kind of machine they are made
-  // on (scripts/dist.mjs names them so, and names the feed for the arch).
-  const arch = process.arch === "arm64" ? "arm64" : "x64"
+/**
+ * The files a version's Linux installers go up as, for the kind of machine they are
+ * made on (scripts/dist.mjs names them so, and names the feed for the arch).
+ */
+function linuxFiles(version, arch) {
   const names = {
     x64: {
       appimage: "x86_64",
@@ -123,6 +126,18 @@ async function attachLinux() {
       feed: "latest-linux-arm64.yml",
     },
   }[arch]
+  return [
+    `Enclose-${version}-${names.appimage}.AppImage`,
+    `Enclose-${version}-${names.deb}.deb`,
+    `Enclose-${version}-${names.pacman}.pacman`,
+    `Enclose-${version}-${names.rpm}.rpm`,
+    names.feed,
+  ]
+}
+
+/** Build the Linux installers and put them on an already-published release. */
+async function attachLinux() {
+  const arch = process.arch === "arm64" ? "arm64" : "x64"
 
   // The tag to attach to: the one asked for, or the newest release's. Which release is
   // newest is a Mac's to say, so on Linux it is only read.
@@ -186,13 +201,7 @@ async function attachLinux() {
     `[release] ready: the tree is clean, ${tag} is checked out, and it is there to attach to`
   )
 
-  const files = [
-    `Enclose-${version}-${names.appimage}.AppImage`,
-    `Enclose-${version}-${names.deb}.deb`,
-    `Enclose-${version}-${names.pacman}.pacman`,
-    `Enclose-${version}-${names.rpm}.rpm`,
-    names.feed,
-  ]
+  const files = linuxFiles(version, arch)
   if (dry) {
     console.log(
       `[release] (dry) would test, see that a tool is shut in, build, and upload ${files.join(", ")} to ${tag}, changing nothing`
@@ -359,7 +368,7 @@ async function publishMac() {
   }
   if (dry) {
     console.log(
-      `[release] (dry) would test, see that a tool is shut in, ${resumed ? "" : `commit "chore: ${next}", `}build and notarize, tag ${tag}, push, and publish, listing the commits since ${before}`
+      `[release] (dry) would test, see that a tool is shut in, ${resumed ? "" : `commit "chore: ${next}", `}build and notarize, tag ${tag}, push, and publish, listing the commits since ${before}, and wait for GitHub to put the Linux installers on it`
     )
     return
   }
@@ -578,5 +587,76 @@ async function publishMac() {
     notes,
   ])
 
-  console.log(`\n[release] Enclose ${next} is out.`)
+  // The Linux installers are built on GitHub's own Linux machines, one of each kind of
+  // processor, once the release is published (.github/workflows/linux-installers.yml),
+  // and attached to it. A release is not out until they are on it, so it waits for them.
+  step("the Linux installers, made on GitHub: this takes about ten minutes")
+  await linuxOn(tag, next)
+
+  console.log(`\n[release] Enclose ${next} is out, for Mac and Linux.`)
+  // What is left can only be seen later: installed apps look for a new version as they
+  // start and every four hours after, and only then is it counted.
+  console.log(
+    `[release] Still to see, within a day: that PostHog has events of ${next} (app_version "${next}", packaged "true").`
+  )
+}
+
+/** Wait for GitHub to make the Linux installers of a release, and see they are on it. */
+async function linuxOn(tag, version) {
+  const again = `To make them again: gh workflow run linux-installers.yml -f tag=${tag} (Actions > Linux installers > Run workflow).`
+  // (the run starts a few seconds after the release is published)
+  let id = ""
+  for (let tries = 0; tries < 24 && !id; tries++) {
+    if (tries > 0) await new Promise((done) => setTimeout(done, 5000))
+    id = run(
+      "gh",
+      [
+        "run",
+        "list",
+        "--workflow",
+        "linux-installers.yml",
+        "--branch",
+        tag,
+        "--event",
+        "release",
+        "--limit",
+        "1",
+        "--json",
+        "databaseId",
+        "--jq",
+        ".[0].databaseId // empty",
+      ],
+      { quiet: true }
+    ).said
+  }
+  if (!/^\d+$/.test(id))
+    stop(`GitHub did not start making the Linux installers of ${tag}.`, again)
+  const where = must(
+    "gh",
+    ["run", "view", id, "--json", "url", "--jq", ".url"],
+    { quiet: true }
+  )
+  console.log(`[release] ${where}`)
+  if (
+    !run("gh", ["run", "watch", id, "--exit-status", "--interval", "30"], {
+      quiet: true,
+    }).ok
+  )
+    stop(
+      `The Linux installers of ${tag} could not be made: see ${where}`,
+      again
+    )
+
+  const attached = new Set(
+    must(
+      "gh",
+      ["release", "view", tag, "--json", "assets", "--jq", ".assets[].name"],
+      { quiet: true }
+    ).split("\n")
+  )
+  const missing = ["x64", "arm64"]
+    .flatMap((arch) => linuxFiles(version, arch))
+    .filter((file) => !attached.has(file))
+  if (missing.length > 0)
+    stop(`${tag} has no ${missing.join(", ")}: see ${where}`, again)
 }

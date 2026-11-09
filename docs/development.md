@@ -209,9 +209,11 @@ APPLE_KEYCHAIN_PROFILE=<profile> npm run release
 one can be made: nothing uncommitted, on main with all the remote has, the version one
 nobody has, the tests passing, and a project's tool shut in (`npm run sandbox`, under
 [Checks](#checks)). It asks before it goes on (`-- --yes` has it not ask), and publishes
-nothing until the app is built and a Mac has been seen to take it. `-- --dry` only sees
-that everything is ready. If it stops after the version was committed, run it again with
-that version and it goes on from there. It also says how far behind tscircuit's newest
+nothing until the app is built and a Mac has been seen to take it. Once the release is
+published it waits for GitHub to put the Linux installers on it, and is not done until
+every one of them is there. `-- --dry` only sees that everything is ready. If it stops
+after the version was committed, run it again with that version and it goes on from
+there. It also says how far behind tscircuit's newest
 release the version boards are built with is (`TSCIRCUIT` in `kit/board.mjs`). That is
 kept at one version so that boards build alike from day to day, and moved on by hand when
 there is a reason to: a fix or a better router that is wanted, or about once a month.
@@ -253,8 +255,20 @@ What it does, a step at a time, which can also be done by hand:
    anyone whose first contribution it is is named under the list ("**New
    contributors**: @login made their first contribution in #7"). (The script does both,
    and puts a link under them to where the two versions are set side by side.)
+7. Wait for the Linux installers. Publishing the release starts
+   [`linux-installers.yml`](../.github/workflows/linux-installers.yml), which runs the
+   Linux step below on GitHub's own Linux machines, one of each kind of processor, and
+   puts what they make on the release: an AppImage, a deb, a pacman package and an rpm
+   of each, and `latest-linux.yml` and `latest-linux-arm64.yml`. It takes about ten
+   minutes (`gh run watch`). If it fails, `gh workflow run linux-installers.yml -f
+   tag=v<version>` runs it again.
+8. See that installed apps take it. They look for a new version as they start and every
+   four hours after, so within a day PostHog has events with `app_version` the new
+   version and `packaged` true. See too that what the release adds is counted, in
+   [usage data](usage-data.md).
 
-Then, on Linux, one command puts the Linux installers on that release:
+On a Linux machine of your own, one command does what GitHub does, for that machine's
+kind:
 
 ```
 npm run release                    # onto the latest release the Mac made

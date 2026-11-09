@@ -54,7 +54,7 @@ import { checkBoard, mendOrder, passedAll, said } from "./board-check.mjs"
 import { letteringOf } from "./board-lettering.mjs"
 
 /** The tscircuit it builds with: the one the app is known to work with. */
-const TSCIRCUIT = "tscircuit@0.0.3068"
+const TSCIRCUIT = "tscircuit@0.0.3128"
 
 /**
  * What tscircuit is run with. All of it comes from npm's registry, none from git, so
