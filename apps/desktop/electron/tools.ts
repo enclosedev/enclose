@@ -405,7 +405,7 @@ export function projectTools(
       : []),
     appTool(
       "start",
-      "Start a new project, when the user asks for one: a project of its own in the app's list, beside this one, which is left as it is. It begins empty, or with a copy of this project's files, to be made from the whole of this model or from some of its parts. Call it before you change anything, and once in a turn. When this turn ends, the app makes the project, as it makes any new one, opens a conversation there with your brief as the user's own message, takes the user to it, and the work goes on there. Called again in the same turn, it takes the place of what the turn asked for before.",
+      "Start a new project, when the user asks for one, or says yes to one you offered: a project of its own, in this project's group beside it, as another part of the same thing; this one is left as it is. It begins empty, or with a copy of this project's files, to be made from the whole of this model or from some of its parts. Call it before you change anything, and once in a turn. When this turn ends, the app makes the project, as it makes any new one, opens a conversation there with your brief as the user's own message, takes the user to it, and the work goes on there. Called again in the same turn, it takes the place of what the turn asked for before.",
       {
         brief: z
           .string()

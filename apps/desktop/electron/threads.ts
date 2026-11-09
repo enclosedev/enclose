@@ -979,15 +979,25 @@ export function versionAsked(brief: string): string {
 
 /**
  * What an agent is told of new projects: that one is nothing it makes by hand, but a
- * project the app makes, with what the user asked for said there as their own; and how
- * it differs from a new version.
+ * project the app makes, with what the user asked for said there as their own; that it
+ * goes in this project's group, as another part of the same thing; how it differs from a
+ * new version; and that the agent may offer one where it would help, but starts none
+ * the user has not said yes to: asked with the form for it, where the agent has that
+ * (`canAsk`), and otherwise in what it says.
  */
 export function projecting(
-  tool: (set: string, name: string) => string
+  tool: (set: string, name: string) => string,
+  canAsk: boolean
 ): string[] {
+  const start = tool(PROJECTS, "start")
+  const offer = canAsk
+    ? `ask first, with AskUserQuestion, before you change anything for it: say what the project would be, and whether it would begin from this model, from some of its parts or empty, and give the choices to start it ("Start a new project") or to go on here ("Keep it here"). On a yes, call ${start}`
+    : `ask first, at the end of your reply, in a sentence: what the project would be, and whether it would begin from this model, from some of its parts or empty. Call ${start} once they say yes`
   return [
-    `- When the user asks for a new project (a project of its own in the app's list, and not one more version of this one): to make one of the parts of this model on its own, to start from the whole of this model and go another way, or to make something else altogether, never make one by hand: make no folder, copy no file, and change nothing here. Call ${tool(PROJECTS, "start")} before anything else, with a brief of what they want made there: with copy where it is made from this model, and the ids of the parts where it is made from some of them alone (all the parts of each object they picked out). The app makes the project as it makes any new one, begins a conversation there with your brief as the user's own message and takes them to it, and the work goes on there, knowing nothing of this conversation but the brief.`,
-    "- Once that call has gone through, this turn is over: say in a few words that the work goes on in the new project, and do nothing more here. Where it did not go through, tell the user why, as it says. Never start a project unasked: where the user may mean a new version of this one, ask which they want.",
+    `- When the user asks for a new project (a project of its own, and not one more version of this one): to make one of the parts of this model on its own, to start from the whole of this model and go another way, or to make something else altogether, never make one by hand: make no folder, copy no file, and change nothing here. Call ${start} before anything else, with a brief of what they want made there: with copy where it is made from this model, and the ids of the parts where it is made from some of them alone (all the parts of each object they picked out). The app makes the project as it makes any new one, begins a conversation there with your brief as the user's own message and takes them to it, and the work goes on there, knowing nothing of this conversation but the brief.`,
+    `- A project started from here goes in this project's group, beside it, as another part of the same thing: with its own folder, conversations and history, and told of this one as this one is told of it. So "a new project in this group", "a project of its own for the stand" and the like are asked of ${start} too. The user can move it to another group.`,
+    `- You may offer a new project unasked, where it would plainly help: where the user turns to a thing of its own that goes with this one but is no part of its model (a stand for it, a box it is kept in, a dock that charges it), or where one part of this model has grown into a design of its own that the conversation keeps going back to, and would be easier to get right by itself. Not for a change that fits here, and not for what another project of the group is already for: work for that one is handed over to it. Never start one out of nowhere: ${offer}. Where they say no, or answer nothing, do what was asked here, and offer it no more in this conversation unless something changes.`,
+    "- Once that call has gone through, this turn is over: say in a few words that the work goes on in the new project, and do nothing more here. Where it did not go through, tell the user why, as it says. Never start a project the user has neither asked for nor said yes to: where they may mean a new version of this one, ask which they want.",
   ]
 }
 
@@ -1224,7 +1234,7 @@ function guide(
     ...(trying ? wiring(tool, kit, canAsk) : []),
     ...(job ? locked(tool, job) : []),
     ...(trying ? versioning(tool) : []),
-    ...(trying ? projecting(tool) : []),
+    ...(trying ? projecting(tool, canAsk) : []),
     ...(group ? grouping(tool, group) : []),
     ...keepingHistory(history),
     ...SIZES,

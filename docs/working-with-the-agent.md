@@ -60,7 +60,8 @@ one of their controls, so that it can try what it made and look at the model bef
 says it is done. It has one that an [assembly guide](#assembly-guides) is written with:
 the agent gives the guide, and the app checks it against the model and files it. And it
 has one that begins [a new version](#asking-for-a-new-version) of the project, and one
-that starts [a new project](#asking-for-a-new-project), when you ask for one.
+that starts [a new project](#asking-for-a-new-project), when you ask for one or say yes
+to one it offers.
 
 ## What the agent has just made
 
@@ -474,8 +475,9 @@ is none to begin: the agent says so, and changes nothing.
 ### Asking for a new project
 
 A new project can be asked for in the same way: "make the lid a project of its own", "start
-a new project from this one, as a wall clock", or "start a new project for a phone
-stand". The agent changes nothing where you asked. It sums up what you asked for, and once
+a new project from this one, as a wall clock", or "start a new project in this group for
+a phone stand". It goes in the [group](projects.md#groups) of the project you asked in,
+as another part of the same thing. The agent changes nothing where you asked. It sums up what you asked for, and once
 its turn is over the app makes the project as the New Project button does, under a
 stand-in name that the model renames once it is built, with its own history. For one made
 from this model, or from some of its parts, the new project starts as a copy of this one's
@@ -488,6 +490,15 @@ in was.
 
 The project you asked in is left as it was, and its conversation says that a new project
 was created from there. Stop the agent before its turn is over, and none is made.
+
+The agent can offer a new project too, where it would plainly help: when you turn to a
+thing of its own that goes with this one (a stand for it, a box it is kept in), or when
+one part of the model has grown into a design of its own that the conversation keeps
+coming back to. It asks before it starts one, and changes nothing meanwhile: Claude with
+a short form in the conversation, to start the project or to keep the work where it is,
+and the other agents at the end of what they say. Say no, or leave it unanswered, and
+the work goes on where you are, and it is not offered again in that conversation unless
+something changes.
 
 ## Replies
 

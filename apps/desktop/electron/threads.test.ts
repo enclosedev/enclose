@@ -2216,15 +2216,32 @@ describe("a new version the agent is asked for", () => {
 })
 
 describe("projecting", () => {
-  const lines = projecting((set, name) => `${set}__${name}`).join("\n")
+  const tool = (set: string, name: string) => `${set}__${name}`
+  const lines = projecting(tool, true).join("\n")
+  const said = projecting(tool, false).join("\n")
 
   it("names the tool a new project is started with as the agent knows it", () => {
     expect(lines).toContain("Call projects__start before anything else")
   })
 
-  it("has none made by hand, and none started unasked", () => {
+  it("puts a project started from here in this one's group", () => {
+    expect(lines).toContain("goes in this project's group")
+    expect(lines).toContain('"a new project in this group"')
+  })
+
+  it("has none made by hand, and none started that was not asked for or agreed to", () => {
     expect(lines).toContain("make no folder, copy no file")
-    expect(lines).toContain("Never start a project unasked")
+    expect(lines).toContain(
+      "Never start a project the user has neither asked for nor said yes to"
+    )
+  })
+
+  it("offers one where it would help, asking first with the form where there is one", () => {
+    expect(lines).toContain("You may offer a new project unasked")
+    expect(lines).toContain("ask first, with AskUserQuestion")
+    expect(said).toContain("You may offer a new project unasked")
+    expect(said).toContain("ask first, at the end of your reply")
+    expect(said).not.toContain("AskUserQuestion")
   })
 })
 
