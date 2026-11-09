@@ -48,7 +48,7 @@ import type { CopperLayer } from "./drawing"
 import { DRAWN } from "./ground"
 import { contoursOf } from "@/components/viewport/contours"
 import { EDGE } from "@/components/viewport/paint"
-import { onlyWhereItTurns, Underlight } from "@/components/viewport/scene"
+import { Lights, onlyWhereItTurns } from "@/components/viewport/scene"
 import { bridge } from "@/components/viewport/bridge"
 import { flatZoom, FOV, PINCH, REACH, Rig } from "@/components/viewport/rig"
 import { disposeBoard, loadBoard } from "./pictures"
@@ -1596,10 +1596,6 @@ function InThreeD({
           position: [radius * 3, radius * 3, radius * 3],
         }}
       >
-        <ambientLight intensity={0.55} />
-        <hemisphereLight args={["#ffffff", "#7d828c", 0.7]} />
-        <directionalLight position={[180, 320, 220]} intensity={1.7} />
-        <directionalLight position={[-240, 160, -180]} intensity={0.55} />
         <primitive object={shown.holder} />
         {/* (framed afresh for another board, and not for the same one built again) */}
         <Rig
@@ -1612,9 +1608,9 @@ function InThreeD({
           bridged={false}
         />
         {palm && <Hand geometry={palm} board={shown.box} />}
-        {/* the light from under it, as the model has: out while it is looked down on,
-          and coming up as the camera goes under it (after the camera has moved) */}
-        <Underlight />
+        {/* lit as the model is, by lights that go round with the camera (after the
+          camera has moved, which they go by) */}
+        <Lights around={seen} />
         <Sweeping
           sweep={shown.sweep}
           seen={shown.seen}

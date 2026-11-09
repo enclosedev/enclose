@@ -22,7 +22,7 @@ import * as THREE from "three"
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js"
 
-import { UNDER_FROM, underlit } from "@/components/viewport/light"
+import { lighting } from "@/components/viewport/light"
 import { EDGE, finish, skinColour } from "@/components/viewport/paint"
 import { readModel, type Model, type Part } from "@/lib/model"
 import type { Looks, Vec3 } from "@shared/api"
@@ -322,16 +322,9 @@ export async function stageOf(
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
   const scene = new THREE.Scene()
-  scene.add(new THREE.AmbientLight("#ffffff", 0.55))
-  scene.add(new THREE.HemisphereLight("#ffffff", "#7d828c", 0.7))
-  const sun = new THREE.DirectionalLight("#ffffff", 1.7)
-  sun.position.set(180, 320, 220)
-  const fill = new THREE.DirectionalLight("#ffffff", 0.55)
-  fill.position.set(-240, 160, -180)
-  // and from under it, once it is looked up at from below (see light.ts)
-  const under = new THREE.DirectionalLight("#ffffff", 0)
-  under.position.set(...UNDER_FROM)
-  scene.add(sun, fill, under)
+  // lit as the view lights the model, by lights that go round with the camera
+  const { lights, follow } = lighting()
+  scene.add(...lights)
   // everything in here is in the model's own measure, mm with Z up
   const root = new THREE.Group()
   root.rotation.set(-Math.PI / 2, 0, 0)
@@ -516,7 +509,7 @@ export async function stageOf(
     camera.quaternion.setFromRotationMatrix(
       new THREE.Matrix4().makeBasis(right, up, back)
     )
-    under.intensity = underlit(camera)
+    follow(camera)
     renderer.render(scene, camera)
   }
 

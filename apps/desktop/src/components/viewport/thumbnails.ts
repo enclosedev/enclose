@@ -7,7 +7,7 @@ import * as THREE from "three"
 import { create } from "zustand"
 
 import { useThemeColors } from "@/lib/css-color"
-import { UNDER_FROM, underlit } from "./light"
+import { lighting } from "./light"
 import type { LoadedModel, LoadedPart, Skin } from "./load"
 import { drawingOf, EDGE, finish, skinColour } from "./paint"
 import { HOME_DIRECTION, MODEL_TO_WORLD, toWorld } from "./rig"
@@ -74,23 +74,10 @@ function largestPiece(gl: WebGLRenderingContext | WebGL2RenderingContext) {
  */
 export function stage() {
   const scene = new THREE.Scene()
-  const sun = new THREE.DirectionalLight("#ffffff", 1.7)
-  sun.position.set(180, 320, 220)
-  const fill = new THREE.DirectionalLight("#ffffff", 0.55)
-  fill.position.set(-240, 160, -180)
-  // and from under it, as strong as where each picture is drawn from makes it
-  const under = new THREE.DirectionalLight("#ffffff", 0)
-  under.position.set(...UNDER_FROM)
-  scene.onBeforeRender = (_renderer, _scene, camera) => {
-    under.intensity = underlit(camera)
-  }
-  scene.add(
-    new THREE.AmbientLight("#ffffff", 0.55),
-    new THREE.HemisphereLight("#ffffff", "#7d828c", 0.7),
-    sun,
-    fill,
-    under
-  )
+  // turned to come from where they do for each picture's camera
+  const { lights, follow } = lighting()
+  scene.onBeforeRender = (_renderer, _scene, camera) => follow(camera)
+  scene.add(...lights)
   const root = new THREE.Group()
   root.rotation.set(...MODEL_TO_WORLD)
   scene.add(root)

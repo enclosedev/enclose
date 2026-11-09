@@ -22,7 +22,7 @@ import { ARRIVAL, lightAt, wayAcross, type Arriving } from "./arriving"
 import { bridge } from "./bridge"
 import { FoundTags, namesOf, Place, type Named } from "./found-tags"
 import { Ground } from "./ground"
-import { UNDER_FROM, underlit } from "./light"
+import { lighting, UNDER_FROM, underlit } from "./light"
 import type { LoadedModel, LoadedPart } from "./load"
 import { DRAG_FROM, Marquee } from "./marquee"
 import { EDGE, finish, skinColour } from "./paint"
@@ -1952,8 +1952,44 @@ function Picker({
   return null
 }
 
-/** The light from under the model, as strong as where the camera is makes it (see light.ts). */
-export function Underlight() {
+/**
+ * The lights the model is drawn with but in Render, which go round with the camera (see
+ * light.ts). `around` is all there is to see, in the model's frame.
+ */
+export function Lights({ around }: { around: THREE.Box3 }) {
+  const { lights, follow } = React.useMemo(() => lighting(), [])
+  const middle = React.useMemo(
+    () => toWorld(around.getCenter(new THREE.Vector3())),
+    [around]
+  )
+  useFrame(({ camera }) => follow(camera, middle))
+  return lights.map((light) => <primitive key={light.uuid} object={light} />)
+}
+
+/**
+ * Render's lights, which stay where they are as the camera goes round: a sun to one side,
+ * a fainter light from the other, and the sky.
+ */
+function RenderLights() {
+  return (
+    <>
+      <hemisphereLight layers={EVERY} args={["#ffffff", "#7d828c", 0.15]} />
+      <directionalLight
+        layers={EVERY}
+        position={[180, 320, 220]}
+        intensity={0.8}
+      />
+      <directionalLight
+        layers={EVERY}
+        position={[-240, 160, -180]}
+        intensity={0.15}
+      />
+    </>
+  )
+}
+
+/** Render's light from under the model, as strong as where the camera is makes it (see light.ts). */
+function Underlight() {
   const light = React.useRef<THREE.DirectionalLight>(null)
   useFrame(({ camera }) => {
     if (light.current) light.current.intensity = underlit(camera)
@@ -2352,23 +2388,9 @@ export function Scene({
         gl.localClippingEnabled = true
       }}
     >
-      {/* In Render the studio lights it, all round, with less of the lights of the
-          other looks: enough of them still for a model's shape to read. */}
-      <ambientLight layers={EVERY} intensity={rendering ? 0 : 0.55} />
-      <hemisphereLight
-        layers={EVERY}
-        args={["#ffffff", "#7d828c", rendering ? 0.15 : 0.7]}
-      />
-      <directionalLight
-        layers={EVERY}
-        position={[180, 320, 220]}
-        intensity={rendering ? 0.8 : 1.7}
-      />
-      <directionalLight
-        layers={EVERY}
-        position={[-240, 160, -180]}
-        intensity={rendering ? 0.15 : 0.55}
-      />
+      {/* In Render the studio lights it, all round, with a few lights that stay where
+          they are: enough of them for a model's shape to read. */}
+      {rendering && <RenderLights />}
       {rendering && <Studio />}
       {rendering && !reference && floor && <Floor {...floor} />}
       {anyGlass && <Glass layers={glassLayers} />}
@@ -2403,8 +2425,8 @@ export function Scene({
         more={reference && hasFigure(reference.scene) ? "a figure" : null}
         ground={ground}
       />
-      {/* after the camera has been moved for the frame: it goes by where that is */}
-      <Underlight />
+      {/* after the camera has been moved for the frame: they go by where that is */}
+      {rendering ? <Underlight /> : <Lights around={stage} />}
       {named.length > 0 && <FoundTags named={named} onShow={onShow} />}
       <Cut plane={plane} section={view.section} />
       <Picker

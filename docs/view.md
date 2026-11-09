@@ -83,10 +83,20 @@ view turns the model over sideways, not end over end.
 
 ## Light
 
-The model is lit from above. Looked at from below it would be in its own shadow, so a
-light under it comes up as the camera goes below the level: from straight below, what
-faces down is as light as what faces up is from straight above. From above nothing is
-changed by it.
+The lights go round with the camera, the way they do in a CAD program. The main one is a
+lamp over your left shoulder, so whichever way the model is turned, what faces up and
+to the left on the screen is lit, what faces you a little less, and what faces down and
+away is in shade. A box shows its three sides in three tones, from below as well as from
+above. The lamp is about as far from the model as the camera is, so a flat face is a
+little lighter toward the lamp than away from it.
+
+Render lights the model as a photograph would: from above, with lights that stay where
+they are. Looked at from below it would be in its own shadow, so a light under it comes
+up as the camera goes below the level. From straight below, what faces down is as light
+as what faces up is from straight above. From above nothing is changed by it.
+
+The parts list, the assembly guide and a circuit board's 3D view are lit the same way
+as the view.
 
 ## Shading
 
