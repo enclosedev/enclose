@@ -1874,47 +1874,63 @@ function wire() {
         if (picked.canceled || !picked.filePath) return false
         into = picked.filePath
       }
-      const read = new Map<string, Float32Array>()
-      const triangles = async (part: (typeof parts)[number]) => {
-        let found = read.get(part.id)
-        if (!found) {
-          const source = resolveInside(from, part.file)
-          if (!source)
-            throw new Error(`"${part.file}" is not in the model's folder`)
-          const matrix = Array.isArray(part.matrix)
-            ? (part.matrix as number[])
-            : null
-          found = trianglesOf(await fs.promises.readFile(source), matrix)
-          read.set(part.id, found)
+      // Made once where it goes is known: what goes wrong on the way is told, as the
+      // file is otherwise just not there, with nothing said.
+      let saved: number
+      try {
+        const read = new Map<string, Float32Array>()
+        const triangles = async (part: (typeof parts)[number]) => {
+          let found = read.get(part.id)
+          if (!found) {
+            const source = resolveInside(from, part.file)
+            if (!source)
+              throw new Error(`"${part.file}" is not in the model's folder`)
+            const matrix = Array.isArray(part.matrix)
+              ? (part.matrix as number[])
+              : null
+            found = trianglesOf(await fs.promises.readFile(source), matrix)
+            read.set(part.id, found)
+          }
+          return found
         }
-        return found
-      }
-      const files = []
-      for (const set of wanted)
-        files.push({
-          name: set.name,
-          data: meshFile(
-            format as MeshFormat,
-            await Promise.all(
-              set.parts.map(async (part) => ({
-                label: part.label ?? part.id,
-                triangles: await triangles(part),
-              }))
-            )
-          ),
-        })
-      if (how === "file") await fs.promises.writeFile(into, files[0].data)
-      else if (how === "zip") await fs.promises.writeFile(into, zipOf(files))
-      else {
-        const folder = makeFolder(into, name.replace(/^\.+/, "") || "parts")
-        for (const file of files)
-          await fs.promises.writeFile(path.join(folder, file.name), file.data)
+        const files = []
+        for (const set of wanted)
+          files.push({
+            name: set.name,
+            data: meshFile(
+              format as MeshFormat,
+              await Promise.all(
+                set.parts.map(async (part) => ({
+                  label: part.label ?? part.id,
+                  triangles: await triangles(part),
+                }))
+              )
+            ),
+          })
+        if (how === "file") await fs.promises.writeFile(into, files[0].data)
+        else if (how === "zip") await fs.promises.writeFile(into, zipOf(files))
+        else {
+          const folder = makeFolder(into, name.replace(/^\.+/, "") || "parts")
+          for (const file of files)
+            await fs.promises.writeFile(path.join(folder, file.name), file.data)
+        }
+        saved = files.length
+      } catch (error) {
+        console.error("Could not save the model as meshes", error)
+        if (!CAPTURE)
+          void dialog.showMessageBox(win, {
+            type: "error",
+            message: `The ${String(format).toUpperCase()} file could not be saved`,
+            detail: error instanceof Error ? error.message : String(error),
+            buttons: ["OK"],
+          })
+        return false
       }
       saving.savedIn(how === "folder" ? into : path.dirname(into))
       analytics?.record("model saved", {
         as: "files",
         format: String(format),
-        files: files.length,
+        files: saved,
       })
       return true
     }

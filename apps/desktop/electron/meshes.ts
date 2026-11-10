@@ -251,7 +251,8 @@ export function objOf(parts: Meshed[]): string {
     for (let i = 0; i < triangles.length; i += 9)
       faces.push(`f ${corner(i)} ${corner(i + 3)} ${corner(i + 6)}`)
     written += known.size
-    lines.push(...faces)
+    // (one at a time: a part of many triangles is more than a call can be handed)
+    for (const face of faces) lines.push(face)
   }
   return `${lines.join("\n")}\n`
 }

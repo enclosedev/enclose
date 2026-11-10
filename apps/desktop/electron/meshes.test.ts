@@ -149,6 +149,18 @@ describe("objOf", () => {
     )
   })
 
+  it("writes a part of more triangles than a call can be handed", () => {
+    // (a speaker's part ran to this many, and the file was never written)
+    const count = 200_000
+    const triangles = new Float32Array(count * 9)
+    for (let i = 0; i < count; i++)
+      triangles.set([i, 0, 0, i, 1, 0, i, 0, 1], i * 9)
+    const file = objOf([{ label: "grille", triangles }])
+    expect(
+      file.split("\n").filter((line) => line.startsWith("f "))
+    ).toHaveLength(count)
+  })
+
   it("is what is written for a format, as STL is", () => {
     const parts = [{ label: "a", triangles: square }]
     expect(meshFile("obj", parts).toString("utf8")).toBe(objOf(parts))
