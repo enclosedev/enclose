@@ -5,8 +5,8 @@ installed app sends that count to [PostHog](https://posthog.com). Run from a che
 it sends nothing.
 
 The app needs no account, and what it sends is tied to none, even when you are signed in
-to one. It goes under a name made
-up for your installation, a random one, the first time the app is run.
+to an Enclose account. It goes under a name made up for your installation, a random one,
+the first time the app is run.
 
 ## What is sent
 

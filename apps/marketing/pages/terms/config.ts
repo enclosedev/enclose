@@ -5,7 +5,7 @@ export function meta() {
     path: '/terms',
     title: 'Terms of Use: Enclose',
     description:
-      'The terms the Enclose website and app are offered under: open source under the AGPL, your projects yours, and agents on your own subscription.',
+      'The terms the Enclose website, app and Enclose Cloud are offered under: open source under the AGPL, your projects yours, and agents on your own subscription.',
   })
 }
 
