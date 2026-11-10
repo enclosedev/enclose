@@ -12,6 +12,11 @@
 // cookie while the person is at Google or Apple, and once they are back, at
 // /sign-in/done, the plugin has left what the page hands the app in a cookie of its own.
 //
+// Where the browser is signed in already (from signing in before), the page offers that
+// account to the app at a click, "Continue", through the electron plugin's transfer: a
+// click, and not of itself, so that a link someone else made the page with does not sign
+// their app in as you unseen.
+//
 // On the server people use, the page has Cloudflare's Turnstile check that whoever asks
 // for a code is a person (src/turnstile.ts), unseen unless Cloudflare is unsure.
 
@@ -94,12 +99,13 @@ const asked = new URLSearchParams(location.search)
 const pass = new URLSearchParams()
 for (const key of ["client_id", "state", "code_challenge"]) pass.set(key, asked.get(key) || "")
 const $ = (id) => document.getElementById(id)
-const show = (id) => { for (const step of ["email-step", "code-step", "done-step", "lost-step"]) $(step).hidden = step !== id }
+const show = (id) => { for (const step of ["account-step", "email-step", "code-step", "done-step", "lost-step"]) $(step).hidden = step !== id }
 const say = (text) => { $("trouble").textContent = text || "" }
 const back = location.pathname === "/sign-in/done"
 let email = ""
 
-if (!back && (pass.get("client_id") !== ${JSON.stringify(CLIENT_ID)} || !pass.get("state") || !pass.get("code_challenge"))) show("lost-step")
+const lost = !back && (pass.get("client_id") !== ${JSON.stringify(CLIENT_ID)} || !pass.get("state") || !pass.get("code_challenge"))
+if (lost) show("lost-step")
 
 // Turnstile's token, that this is a person: one for each code asked for
 const NOT_A_PERSON = "We couldn't tell you're a person. Reload the page and try again."
@@ -188,6 +194,37 @@ function handOver(token) {
   location.href = ${JSON.stringify(SCHEME)} + "://auth/callback#token=" + token
 }
 
+/** Signed in already, in this browser: that account offered, where nothing is begun yet. */
+async function alreadyIn() {
+  let data = null
+  try {
+    const response = await fetch("/api/auth/get-session", { cache: "no-store" })
+    if (response.ok) data = await response.json()
+  } catch {
+    return
+  }
+  if (!data || !data.user || $("email-step").hidden || $("email").value) return
+  $("as").textContent = data.user.email
+  show("account-step")
+  $("continue").focus()
+}
+
+/** The account this browser is signed in to, handed to the app. */
+async function continueAs() {
+  const button = $("continue")
+  button.disabled = true
+  say("")
+  try {
+    const data = await post("/electron/transfer-user?" + pass.toString(), {})
+    const identifier = data && data.electron_authorization_code
+    if (!identifier) throw new Error("Enclose could not be told. Start again from Enclose.")
+    handOver(linkFor(identifier).token)
+  } catch (error) {
+    say(error.message)
+    button.disabled = false
+  }
+}
+
 /** To Google or Apple, with what the app asked for kept (by the electron plugin) till back. */
 async function withProvider(button) {
   button.disabled = true
@@ -237,6 +274,9 @@ async function signIn(event) {
 }
 
 if (back) cameBack()
+else if (!lost) alreadyIn()
+$("continue").addEventListener("click", continueAs)
+$("another").addEventListener("click", () => { say(""); show("email-step"); $("email").focus() })
 for (const button of document.querySelectorAll("[data-provider]")) button.addEventListener("click", () => withProvider(button))
 $("email-form").addEventListener("submit", sendCode)
 $("code-form").addEventListener("submit", signIn)
@@ -271,6 +311,14 @@ export function signInPage(
 <body>
 <main>
   <div class="mark">Enclose</div>
+  <section id="account-step" hidden>
+    <h1>Sign in to Enclose</h1>
+    <p>You're signed in on this browser as <strong id="as"></strong>.</p>
+    <form>
+      <button id="continue" type="button">Continue</button>
+      <button id="another" class="quiet" type="button">Use another account</button>
+    </form>
+  </section>
   <section id="email-step">
     <h1>Sign in to Enclose</h1>
     <p>${providers.length ? "Continue with your account, or get a code by email." : "We'll email you a code. No password needed."}</p>${ways}

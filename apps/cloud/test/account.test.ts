@@ -144,6 +144,54 @@ describe("signing in from the app", () => {
     expect(response.status).toBe(400)
   })
 
+  it("hands the app the account the browser is signed in to already", async () => {
+    // signed in on the page before, which the browser keeps a cookie of
+    const email = "again@example.com"
+    await call("/api/auth/email-otp/send-verification-otp", {
+      method: "POST",
+      headers: PAGE,
+      body: JSON.stringify({ email, type: "sign-in" }),
+    })
+    const before = await call("/api/auth/sign-in/email-otp", {
+      method: "POST",
+      headers: PAGE,
+      body: JSON.stringify({ email, otp: outbox.get(email) }),
+    })
+    const cookie = before.headers
+      .getSetCookie()
+      .map((line) => line.split(";")[0])
+      .join("; ")
+    expect(cookie).toContain("session_token")
+
+    // what the page asks first, to say who
+    const session = await call("/api/auth/get-session", {
+      headers: { cookie },
+    })
+    expect(await session.json()).toMatchObject({ user: { email } })
+
+    // and, at "Continue", for the app
+    const asked = await pkce()
+    const query = new URLSearchParams({
+      client_id: "electron",
+      state: asked.state,
+      code_challenge: asked.challenge,
+    })
+    const transfer = (headers: Record<string, string>) =>
+      call(`/api/auth/electron/transfer-user?${query}`, {
+        method: "POST",
+        headers: { ...PAGE, ...headers },
+        body: "{}",
+      })
+    expect((await transfer({})).status).toBe(401)
+    const handed = await transfer({ cookie })
+    expect(handed.status).toBe(200)
+    const { electron_authorization_code: identifier } =
+      (await handed.json()) as { electron_authorization_code: string }
+    const app = await exchange(identifier, asked.state, asked.verifier)
+    expect(app.status).toBe(200)
+    expect(await app.json()).toMatchObject({ user: { email } })
+  })
+
   it("gives a session once for each sign-in, and no more", async () => {
     const asked = await pkce()
     const identifier = await throughPage("once@example.com", asked)

@@ -435,7 +435,8 @@ How signing in goes:
    `/sign-in`, with a digest of it. The page asks for an email, has the server send a
    code to it, and signs in with the code. Or it sends the person to Google or Apple,
    and they come back to `/sign-in/done`, where Better Auth has left what step 2 hands
-   over in a cookie.
+   over in a cookie. Where the browser is signed in already, from before, the page offers
+   that account at a click instead (**Continue**: the plugin's `/electron/transfer-user`).
 2. The server, through Better Auth's [Electron plugin](https://better-auth.com/docs/integrations/electron),
    gives the page something for the app to sign in with, which the page hands to the
    app as `enclose://auth/callback#token=…`, and shows as a code to paste.
