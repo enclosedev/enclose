@@ -23,7 +23,10 @@ npm run dev
 ```
 
 The [docs](docs/README.md) say how the app works, and
-[docs/development.md](docs/development.md) where things are.
+[docs/development.md](docs/development.md) where things are. Signing in to an account
+(Settings, Account) needs Enclose's server running beside the app: `npm install` and
+`npm run dev` in `apps/cloud`
+([The account server](docs/development.md#the-account-server)).
 
 ## Before you open a pull request
 

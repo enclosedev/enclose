@@ -100,6 +100,10 @@ function feedFor(arch) {
 const shared = {
   appId: "dev.enclose.desktop",
   copyright: "Copyright © 2026 Glauber",
+  // The links the app is opened by: enclose://auth/callback, which the sign-in page
+  // hands an Enclose account back to the app with (electron/account.ts). A Mac knows of
+  // them from the app's Info.plist, a Linux desktop from its entry.
+  protocols: [{ name: "Enclose", schemes: ["enclose"] }],
   directories: { output: "release" },
   // The build, and of the icons the ones a window is given. Of node_modules, what the
   // Electron side loads as it runs comes along by itself: the package's dependencies,
@@ -251,9 +255,10 @@ try {
           // installed app updates from, and nothing else has to find them.
           artifactName: "Enclose-${version}-${arch}.${ext}",
           // The entry the desktop shows the app under. `desktopName` in package.json
-          // names the entry, so a running window is linked to it. (No `MimeType`: the
-          // app does not open a CAD file handed to it by the file manager, so it does
-          // not claim to.)
+          // names the entry, so a running window is linked to it. (Of `MimeType`, only
+          // the enclose:// links, which electron-builder adds from `protocols`: the app
+          // does not open a CAD file handed to it by the file manager, so it does not
+          // claim to.)
           desktop: {
             entry: {
               Name: "Enclose (Alpha)",

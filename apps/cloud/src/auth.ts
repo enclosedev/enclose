@@ -1,0 +1,79 @@
+// Accounts, as Better Auth keeps them in the server's D1 database: signed in to with a
+// code sent by email (no password), and from the app through the sign-in page, which
+// hands the app what it signs in with by way of an enclose:// link (the electron
+// plugin). The app then sends that session's token with each request (the bearer plugin).
+import { electron } from "@better-auth/electron"
+import { betterAuth } from "better-auth"
+import { bearer } from "better-auth/plugins/bearer"
+import { emailOTP } from "better-auth/plugins/email-otp"
+
+import { sendCode } from "./email"
+
+/** What the app signs in as, through the sign-in page: the electron plugin's own. */
+export const CLIENT_ID = "electron"
+/** The link the app is handed back by, which it alone answers: `enclose://`. */
+export const SCHEME = "enclose"
+
+const DAY = 24 * 60 * 60
+
+/**
+ * The secret Better Auth signs what it hands out with. On your own machine there is one
+ * anybody can read, which is all a server with nobody's account in it needs; the server
+ * people use has its own, set apart from the code.
+ */
+const LOCAL_SECRET = "enclose-local-secret-not-for-the-server-people-use"
+
+function secretOf(env: Env): string {
+  if (env.BETTER_AUTH_SECRET) return env.BETTER_AUTH_SECRET
+  if (env.STAGE === "production")
+    throw new Error("BETTER_AUTH_SECRET is not set.")
+  return LOCAL_SECRET
+}
+
+function make(env: Env) {
+  return betterAuth({
+    appName: "Enclose",
+    baseURL: env.BASE_URL,
+    basePath: "/api/auth",
+    secret: secretOf(env),
+    database: env.DB,
+    // Better Auth would otherwise tell its makers about the server
+    telemetry: { enabled: false },
+    // the app's requests come with the app's scheme as their origin
+    trustedOrigins: [`${SCHEME}://`],
+    session: {
+      // the app stays signed in while it is used: every day it is, the session goes on
+      expiresIn: 90 * DAY,
+      updateAge: DAY,
+    },
+    // counted in the database, so that it holds across all of Cloudflare's machines
+    rateLimit: { enabled: true, storage: "database" },
+    advanced: { ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] } },
+    // Deleting an account takes a session begun in the last day (Better Auth's
+    // `freshAge`), so a token taken from an old sign-in cannot do it.
+    user: { deleteUser: { enabled: true } },
+    plugins: [
+      emailOTP({
+        otpLength: 6,
+        expiresIn: 10 * 60,
+        // (the code is checked against what is kept, and nobody reading the database
+        // can sign in with it)
+        storeOTP: "hashed",
+        sendVerificationOTP: ({ email, otp }) => sendCode(env, email, otp),
+      }),
+      bearer(),
+      electron({ clientID: CLIENT_ID }),
+    ],
+  })
+}
+
+export type Auth = ReturnType<typeof make>
+
+/**
+ * Better Auth, for one request. It is made again for each: one kept from an earlier
+ * request waits there on what that request began (its setup, read from the database),
+ * and the Workers runtime never lets another request see that finish, so it hangs.
+ */
+export function authFor(env: Env): Auth {
+  return make(env)
+}

@@ -143,6 +143,35 @@ describe("SettingsStore", () => {
     ])
   })
 
+  it("keeps the Enclose account signed in to on each server, its token sealed", () => {
+    const vault = {
+      seal: (text: string) => Buffer.from(text).toString("hex"),
+      unseal: (sealed: string) => Buffer.from(sealed, "hex").toString(),
+    }
+    const store = new SettingsStore(file, DEFAULTS, vault)
+    const ada = { email: "ada@example.com", name: "Ada", token: "session-1" }
+    expect(store.setAccount("https://cloud.enclose.dev", ada)).toBe(true)
+    store.setAccount("http://localhost:8787", { ...ada, token: "session-2" })
+    expect(fs.readFileSync(file, "utf8")).not.toContain("session-1")
+
+    const again = new SettingsStore(file, DEFAULTS, vault)
+    expect(again.account("https://cloud.enclose.dev")).toEqual(ada)
+    expect(again.account("http://localhost:8787")?.token).toBe("session-2")
+    expect(again.account("https://elsewhere.example")).toBeNull()
+
+    // signed out on one server, still in on the other
+    again.setAccount("http://localhost:8787", null)
+    expect(again.account("http://localhost:8787")).toBeNull()
+    expect(again.account("https://cloud.enclose.dev")).toEqual(ada)
+    // and none kept where nothing can seal it
+    const open = new SettingsStore(
+      path.join(path.dirname(file), "o.json"),
+      DEFAULTS
+    )
+    expect(open.setAccount("https://cloud.enclose.dev", ada)).toBe(false)
+    expect(open.account("https://cloud.enclose.dev")).toBeNull()
+  })
+
   it("keeps no key in the open where the system has nowhere to keep it", () => {
     const store = new SettingsStore(file, DEFAULTS)
     expect(() =>

@@ -27,7 +27,9 @@ npm run format      # .ts and .tsx only
 ```
 
 The first three run on each pull request and each push to main, on Linux
-([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)).
+([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)), with the server's own
+(`npm run typecheck` and `npm test` in `apps/cloud`, see [The account
+server](#the-account-server)).
 
 One check is of the app itself, and not of its code, so it is no part of `npm test`:
 
@@ -60,6 +62,8 @@ apps/
                reference scenes, and the examples' archives
     icons/     the app's icon, in the sizes each system asks for
     installer/ the picture behind the window the installer opens
+  cloud/       Enclose's server, for accounts: a Cloudflare Worker (see The account
+               server, below)
   marketing/   the website, a Modulato site with its own README
 docs/          how the app works, a page to a subject
 examples/      projects to open and try things on: a table clock, with a tool and
@@ -394,6 +398,81 @@ The app is registered on GitHub (Settings, Developer settings, GitHub Apps) with
 [`electron/backups.ts`](../apps/desktop/electron/backups.ts) when, and what goes to
 GitHub, [`electron/github.ts`](../apps/desktop/electron/github.ts) and
 [`electron/connection.ts`](../apps/desktop/electron/connection.ts) the signing in.
+
+## The account server
+
+Settings, Account signs in to an Enclose account, kept by Enclose's server in
+[`apps/cloud`](../apps/cloud): a [Cloudflare Worker](https://developers.cloudflare.com/workers/)
+with its accounts in a D1 database, kept by [Better Auth](https://better-auth.com). It
+runs on your own machine with nothing more than its `npm install`, and no Cloudflare
+account:
+
+```
+cd apps/cloud
+npm install
+npm run dev          # the server, at http://localhost:8787
+npm run typecheck
+npm test             # in the Workers runtime, as it runs on Cloudflare
+```
+
+Its database is kept in `apps/cloud/.wrangler`, and made or brought up to date from
+[`migrations/`](../apps/cloud/migrations) each time `npm run dev` starts. A sign-in code
+is not sent from there: it is written in the terminal the server runs in (`[sign-in]
+the code for you@example.com is 123456`), to be typed on the page as if it had come by
+email. Any email will do.
+
+Run from a checkout, the app signs in on that server; another is tried with
+`ENCLOSE_CLOUD_URL=<url> npm run dev`. The installed app signs in on Enclose's own, at
+`cloud.enclose.dev` (`ENCLOSE_SERVER` in
+[`electron/account.ts`](../apps/desktop/electron/account.ts)), and on no other. Each is
+signed in to apart: an account on one is nothing on the other.
+
+How signing in goes:
+
+1. The app makes a secret of its own (a PKCE verifier) and opens the sign-in page,
+   `/sign-in`, with a digest of it. The page asks for an email, has the server send a
+   code to it, and signs in with the code.
+2. The server, through Better Auth's [Electron plugin](https://better-auth.com/docs/integrations/electron),
+   gives the page something for the app to sign in with, which the page hands to the
+   app as `enclose://auth/callback#token=…`, and shows as a code to paste.
+3. The app sends that, with its secret, to `/api/auth/electron/token`, and is given the
+   session's token. It keeps it sealed in its settings, and sends it with each request
+   after (`Authorization: Bearer …`).
+
+Only the installed app is opened by `enclose://` links (the `protocols` it is packaged
+with, in [`scripts/dist.mjs`](../apps/desktop/scripts/dist.mjs)). One run from a checkout
+is not, so as not to take the installed app's: there, the link goes to the installed app,
+which lets it be, and the code the page shows is pasted into the app's dialog instead.
+
+The app's half is [`electron/account.ts`](../apps/desktop/electron/account.ts), and the
+page in Settings is [`src/components/account.tsx`](../apps/desktop/src/components/account.tsx).
+The server's is [`src/auth.ts`](../apps/cloud/src/auth.ts) (Better Auth, and how it is
+set up), [`src/page.ts`](../apps/cloud/src/page.ts) (the sign-in page) and
+[`src/index.ts`](../apps/cloud/src/index.ts) (what is answered where).
+
+[`migrations/0001_accounts.sql`](../apps/cloud/migrations/0001_accounts.sql) is the
+tables Better Auth asks for with the plugins it is set up with. A change to those, or
+to Better Auth's version, can ask for others: `getMigrations` from
+`better-auth/db/migration`, run in Node with the same options and a `node:sqlite`
+database, says which, as SQL to put in a new migration.
+
+### Running it for everyone
+
+The server people use is on Enclose's Cloudflare account, as `wrangler.jsonc` has it under
+`env.production`. Setting it up once:
+
+```
+npx wrangler d1 create enclose                          # its id goes in wrangler.jsonc
+npx wrangler secret put BETTER_AUTH_SECRET --env production    # openssl rand -base64 32
+npx wrangler secret put RESEND_API_KEY --env production
+```
+
+The sign-in codes are sent through [Resend](https://resend.com), from
+`sign-in@enclose.dev`: enclose.dev is a sending domain on Enclose's Resend account,
+with the records Resend asks for in its DNS on Cloudflare (DNS only, not proxied).
+Then `npm run deploy` brings the database up to date and puts the server up. A fork
+that hosts its own puts its own database and address in `env.production`, and the
+address in `ENCLOSE_SERVER` for its app.
 
 ## Formats a project is read by
 

@@ -1,0 +1,46 @@
+// Enclose's server: accounts for now, and later what is kept of people's projects. See
+// docs/development.md ("The account server"). As it is here, with no environment named,
+// it is the server run on your own machine (`npm run dev`), with its database kept in
+// .wrangler/ and the sign-in codes it would send written in the terminal instead.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "enclose-cloud",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  // Better Auth keeps what each request is about with AsyncLocalStorage, Node's
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "STAGE": "local",
+    "BASE_URL": "http://localhost:8787"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "enclose",
+      "database_id": "local",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "observability": { "enabled": true },
+  "env": {
+    // Enclose's own, on its Cloudflare account. A fork that hosts a server of its own
+    // puts its own database and address here. BETTER_AUTH_SECRET and RESEND_API_KEY are
+    // set apart from this file (`wrangler secret put <name> --env production`).
+    "production": {
+      "vars": {
+        "STAGE": "production",
+        "BASE_URL": "https://cloud.enclose.dev"
+      },
+      "routes": [{ "pattern": "cloud.enclose.dev", "custom_domain": true }],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "enclose",
+          // made with `wrangler d1 create enclose`, on Enclose's account
+          "database_id": "018e7e62-5a9f-4e4d-94f2-41b3d04f4d29",
+          "migrations_dir": "migrations"
+        }
+      ]
+    }
+  }
+}

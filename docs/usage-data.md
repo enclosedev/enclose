@@ -4,7 +4,8 @@ Enclose counts how it is used, so that what is worked on next is what people use
 installed app sends that count to [PostHog](https://posthog.com). Run from a checkout,
 it sends nothing.
 
-The app needs no account, and what it sends is tied to none. It goes under a name made
+The app needs no account, and what it sends is tied to none, even when you are signed in
+to one. It goes under a name made
 up for your installation, a random one, the first time the app is run.
 
 ## What is sent
@@ -38,6 +39,9 @@ Each thing counted is an event: its name, and a few words and numbers that say w
 | `provider updated` | Which agent, and what came of it: updated, the same as it was, failed, or not answering after |
 | `update checked` | Of a look for a newer version asked for in the settings: whether one was found, and whether the look failed |
 | `update fetched` | The version |
+| `account signed in` | |
+| `account signed out` | |
+| `account deleted` | |
 | `github connected` | |
 | `github disconnected` | |
 

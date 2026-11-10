@@ -1,0 +1,24 @@
+{
+  "name": "enclose-cloud",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler d1 migrations apply DB --local && wrangler dev",
+    "deploy": "wrangler d1 migrations apply DB --remote --env production && wrangler deploy --env production",
+    "types": "wrangler types",
+    "typecheck": "wrangler types && tsc --noEmit",
+    "test": "wrangler types && vitest run"
+  },
+  "dependencies": {
+    "@better-auth/electron": "1.7.19",
+    "better-auth": "1.7.19",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.6.1",
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.0",
+    "wrangler": "^4.159.0"
+  }
+}

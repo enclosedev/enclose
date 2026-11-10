@@ -243,6 +243,17 @@ const api: CadApi = {
     disconnect: () => ipcRenderer.invoke(CHANNEL.githubDisconnect),
     onChange: (listener) => on(CHANNEL.githubChanged, listener),
   },
+  account: {
+    get: () => ipcRenderer.invoke(CHANNEL.accountGet),
+    signIn: () => ipcRenderer.invoke(CHANNEL.accountSignIn),
+    openPage: () => ipcRenderer.invoke(CHANNEL.accountOpenPage),
+    paste: (code) => ipcRenderer.invoke(CHANNEL.accountPaste, code),
+    cancel: () => ipcRenderer.invoke(CHANNEL.accountCancel),
+    refresh: () => ipcRenderer.invoke(CHANNEL.accountRefresh),
+    signOut: () => ipcRenderer.invoke(CHANNEL.accountSignOut),
+    remove: () => ipcRenderer.invoke(CHANNEL.accountRemove),
+    onChange: (listener) => on(CHANNEL.accountChanged, listener),
+  },
   update: {
     get: () => ipcRenderer.invoke(CHANNEL.updateGet),
     check: () => ipcRenderer.invoke(CHANNEL.updateCheck),

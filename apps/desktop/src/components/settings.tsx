@@ -12,6 +12,7 @@ import {
 
 import type { Settings as AppSettings } from "@shared/api"
 import { DEFAULT_THEME, type Theme } from "@shared/theme-format"
+import { ACCOUNT_DIALOGS, AccountPage } from "@/components/account"
 import { ConnectGitHub } from "@/components/connect-github"
 import { GitHubIcon } from "@/components/icons"
 import { Logo } from "@/components/mark"
@@ -63,6 +64,7 @@ const SECTIONS = [
   { id: "navigation", label: "Navigation" },
   { id: "shortcuts", label: "Shortcuts" },
   { id: "providers", label: "Providers" },
+  { id: "account", label: "Account" },
   { id: "connections", label: "Connections" },
   { id: "appearance", label: "Appearance" },
   { id: "about", label: "About" },
@@ -1233,6 +1235,7 @@ const PAGES: Record<SectionId, () => React.ReactNode> = {
   navigation: Navigation,
   shortcuts: Shortcuts,
   providers: Providers,
+  account: AccountPage,
   connections: Connections,
   about: About,
 }
@@ -1260,7 +1263,12 @@ export function Settings() {
     const key = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return
       // a dialog over the settings is put away first, by itself
-      if (document.querySelector('[data-slot="connect-github"]')) return
+      if (
+        document.querySelector(
+          `[data-slot="connect-github"], ${ACCOUNT_DIALOGS}`
+        )
+      )
+        return
       // before anything under the settings hears it
       event.stopPropagation()
       event.preventDefault()
