@@ -468,6 +468,24 @@ to Better Auth's version, can ask for others: `getMigrations` from
 `better-auth/db/migration`, run in Node with the same options and a `node:sqlite`
 database, says which, as SQL to put in a new migration.
 
+### Backing projects up on Enclose Cloud
+
+An account backs its projects up on the server, in R2 (the `FILES` bucket), from
+[`electron/cloud.ts`](../apps/desktop/electron/cloud.ts) in the app and
+[`src/backup.ts`](../apps/cloud/src/backup.ts) on the server. A project's files are those
+its repository has (`git ls-files`, so what its `.gitignore` leaves out, as its build, is
+left out), each hashed with SHA-256. The app asks which hashes the server has not got
+(`POST /v1/backup/missing`), sends each of those once (`PUT /v1/backup/files/<hash>`,
+which R2 keeps only if it is that hash), and then each project as it is, its files'
+paths and hashes (`POST /v1/backup/snapshots`). A project unchanged since its last
+snapshot makes no new one. Each account may keep 5 GB (`STORAGE_LIMIT`), and all of them
+together `SERVICE_LIMIT`, in [`src/account.ts`](../apps/cloud/src/account.ts); no file
+over 95 MB is taken, since one request carries it. Deleting the account deletes
+everything it keeps in R2.
+
+Run on your own machine, R2 is kept beside the database in `apps/cloud/.wrangler`, as
+`npm run dev` has it: nothing reaches Cloudflare.
+
 ### Running it for everyone
 
 The server people use is on Enclose's Cloudflare account, as `wrangler.jsonc` has it under
@@ -478,6 +496,7 @@ npx wrangler d1 create enclose                          # its id goes in wrangle
 npx wrangler secret put BETTER_AUTH_SECRET --env production    # openssl rand -base64 32
 npx wrangler secret put RESEND_API_KEY --env production
 npx wrangler secret put TURNSTILE_SECRET --env production
+npx wrangler r2 bucket create enclose-files              # R2 turned on for the account first
 ```
 
 The sign-in codes are sent through [Resend](https://resend.com), from

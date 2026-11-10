@@ -6,12 +6,16 @@ export function Group({
   title,
   children,
 }: {
-  title?: string
+  title?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
     <section className="flex flex-col gap-2">
-      {title && <h2 className="px-1 text-sm text-muted-foreground">{title}</h2>}
+      {title && (
+        <h2 className="flex items-center gap-1.5 px-1 text-sm text-muted-foreground">
+          {title}
+        </h2>
+      )}
       <div className="divide-y divide-border/60 rounded-2xl bg-card ring-1 ring-foreground/10">
         {children}
       </div>

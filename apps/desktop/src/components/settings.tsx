@@ -64,9 +64,9 @@ const SECTIONS = [
   { id: "navigation", label: "Navigation" },
   { id: "shortcuts", label: "Shortcuts" },
   { id: "providers", label: "Providers" },
-  { id: "account", label: "Account" },
   { id: "connections", label: "Connections" },
   { id: "appearance", label: "Appearance" },
+  { id: "account", label: "Account" },
   { id: "about", label: "About" },
 ] as const satisfies { id: string; label: string }[]
 

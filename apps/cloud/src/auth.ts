@@ -9,6 +9,7 @@ import { bearer } from "better-auth/plugins/bearer"
 import { emailOTP } from "better-auth/plugins/email-otp"
 
 import { appleSecret, hasApple } from "./apple"
+import { removeAll } from "./backup"
 import { sendCode } from "./email"
 
 /** What the app signs in as, through the sign-in page: the electron plugin's own. */
@@ -87,7 +88,13 @@ function make(env: Env, sending: Sending, apple: string | null) {
     advanced: { ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] } },
     // Deleting an account takes a session begun in the last day (Better Auth's
     // `freshAge`), so a token taken from an old sign-in cannot do it.
-    user: { deleteUser: { enabled: true } },
+    // (and what the account keeps on Enclose Cloud goes with it)
+    user: {
+      deleteUser: {
+        enabled: true,
+        beforeDelete: (user) => removeAll(env, user.id),
+      },
+    },
     plugins: [
       emailOTP({
         otpLength: 6,

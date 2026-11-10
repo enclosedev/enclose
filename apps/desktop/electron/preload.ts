@@ -254,6 +254,12 @@ const api: CadApi = {
     remove: () => ipcRenderer.invoke(CHANNEL.accountRemove),
     onChange: (listener) => on(CHANNEL.accountChanged, listener),
   },
+  cloud: {
+    get: () => ipcRenderer.invoke(CHANNEL.cloudGet),
+    backUp: () => ipcRenderer.invoke(CHANNEL.cloudBackUp),
+    stop: () => ipcRenderer.invoke(CHANNEL.cloudStop),
+    onChange: (listener) => on(CHANNEL.cloudChanged, listener),
+  },
   update: {
     get: () => ipcRenderer.invoke(CHANNEL.updateGet),
     check: () => ipcRenderer.invoke(CHANNEL.updateCheck),

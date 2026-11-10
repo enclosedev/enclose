@@ -6,6 +6,7 @@
 // otherwise.)
 import { STORAGE_LIMIT, type AccountReply } from "./account"
 import { authFor, providersOf } from "./auth"
+import { backedUp, backup, usedBy } from "./backup"
 import { SITE, signInPage, signedInPage } from "./page"
 import { isPerson } from "./turnstile"
 
@@ -86,6 +87,13 @@ export default {
     )
       return page(env)
 
+    if (url.pathname.startsWith("/v1/backup/")) {
+      const { auth } = await authFor(env)
+      const session = await auth.api.getSession({ headers: request.headers })
+      if (!session) return json({ message: "Not signed in." }, 401)
+      return backup(request, env, url.pathname, session.user.id)
+    }
+
     if (url.pathname === "/v1/account" && request.method === "GET") {
       const { auth } = await authFor(env)
       const session = await auth.api.getSession({
@@ -93,6 +101,10 @@ export default {
       })
       if (!session) return json({ message: "Not signed in." }, 401)
       const { user } = session
+      const [used, backed] = await Promise.all([
+        usedBy(env, user.id),
+        backedUp(env, user.id),
+      ])
       const reply: AccountReply = {
         user: {
           id: user.id,
@@ -100,8 +112,8 @@ export default {
           name: user.name,
           image: user.image ?? null,
         },
-        // nothing is kept of anybody's projects yet
-        storage: { used: 0, limit: STORAGE_LIMIT },
+        storage: { used, limit: STORAGE_LIMIT },
+        backup: backed,
       }
       return json(reply)
     }

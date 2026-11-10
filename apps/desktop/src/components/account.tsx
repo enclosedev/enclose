@@ -1,7 +1,8 @@
 import * as React from "react"
 import { Dialog } from "@base-ui/react/dialog"
+import { Lock } from "lucide-react"
 
-import type { AccountState } from "@shared/api"
+import type { AccountState, CloudState } from "@shared/api"
 import { Logo } from "@/components/mark"
 import { Group, Row } from "@/components/setting"
 import { Button } from "@/components/ui/button"
@@ -93,8 +94,6 @@ function SignedIn({
   account: Extract<AccountState, { state: "in" }>
 }) {
   const [deleting, setDeleting] = React.useState(false)
-  const { storage } = account
-  const share = storage ? Math.min(1, storage.used / storage.limit) : 0
   return (
     <>
       <div className="flex min-h-24.5 items-center gap-5 rounded-2xl bg-card pr-7 pl-8 ring-1 ring-foreground/10">
@@ -128,38 +127,11 @@ function SignedIn({
           Sign out
         </Button>
       </div>
-      <Group title="Storage">
-        <Row
-          title={
-            storage
-              ? `${sizeOf(storage.used)} of ${sizeOf(storage.limit)} used`
-              : "Storage"
-          }
-          detail="What your account keeps of your projects counts against this."
-        >
-          {storage ? (
-            <div
-              role="meter"
-              aria-label="Storage used"
-              aria-valuemin={0}
-              aria-valuemax={storage.limit}
-              aria-valuenow={storage.used}
-              className="h-1.5 w-32 overflow-hidden rounded-full bg-muted"
-            >
-              <div
-                className="h-full rounded-full bg-primary"
-                style={{ width: `${share * 100}%` }}
-              />
-            </div>
-          ) : (
-            <Spinner className="size-4 text-muted-foreground" />
-          )}
-        </Row>
-      </Group>
+      <YourFiles account={account} />
       <Group>
         <Row
           title="Delete account"
-          detail="Deletes your account from Enclose's server. Your projects on this computer stay as they are."
+          detail="Your files are safe on this computer."
         >
           <Button
             variant="destructive"
@@ -172,6 +144,195 @@ function SignedIn({
       </Group>
       <DeleteAccount open={deleting} onClose={() => setDeleting(false)} />
     </>
+  )
+}
+
+/** So many, as a person reads them: "1,204". */
+const many = (count: number) => count.toLocaleString("en-US")
+
+/** A bar, so far along of the whole. */
+function Bar({
+  done,
+  total,
+  label,
+}: {
+  done: number
+  total: number
+  label: string
+}) {
+  const share = total > 0 ? Math.min(1, done / total) : 0
+  return (
+    <div
+      role="meter"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={total}
+      aria-valuenow={done}
+      className="h-1.5 w-32 shrink-0 overflow-hidden rounded-full bg-muted"
+    >
+      <div
+        className="h-full rounded-full bg-primary transition-[width] duration-300"
+        style={{ width: `${share * 100}%` }}
+      />
+    </div>
+  )
+}
+
+/**
+ * The projects on Enclose Cloud: before the first backup, an offer to back them up;
+ * after, how much of the account's room they take. Meanwhile, how far a backup has got,
+ * or what stopped it (cloud.ts).
+ */
+function YourFiles({
+  account,
+}: {
+  account: Extract<AccountState, { state: "in" }>
+}) {
+  const cloud = useStore((state) => state.cloud)
+  const { storage, backup } = account
+  const backedUp = Boolean(backup?.at)
+  const title = backedUp ? (
+    <>
+      <Lock aria-hidden className="size-3.5" />
+      Your files
+    </>
+  ) : (
+    "Back up on Enclose Cloud"
+  )
+  const backUp = () => void window.cad.cloud.backUp()
+  const stop = (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => void window.cad.cloud.stop()}
+    >
+      Stop
+    </Button>
+  )
+  return (
+    <Group title={title}>
+      <FilesRow
+        cloud={cloud}
+        storage={storage}
+        backedUp={backedUp}
+        known={backup !== null}
+        backUp={backUp}
+        stop={stop}
+      />
+    </Group>
+  )
+}
+
+function FilesRow({
+  cloud,
+  storage,
+  backedUp,
+  known,
+  backUp,
+  stop,
+}: {
+  cloud: CloudState
+  storage: { used: number; limit: number } | null
+  backedUp: boolean
+  /** whether the server has said yet what the account has backed up */
+  known: boolean
+  backUp: () => void
+  stop: React.ReactNode
+}) {
+  switch (cloud.state) {
+    case "uploading":
+      return (
+        <Row
+          title={`Uploading ${many(cloud.files.done)} of ${many(cloud.files.total)} files`}
+          detail={`${sizeOf(cloud.bytes.done)} of ${sizeOf(cloud.bytes.total)}`}
+        >
+          <div className="flex items-center gap-4">
+            <Bar
+              done={cloud.bytes.done}
+              total={cloud.bytes.total}
+              label="Uploaded"
+            />
+            {stop}
+          </div>
+        </Row>
+      )
+    case "waiting":
+      return (
+        <Row
+          title="Waiting for a connection"
+          detail={`${many(cloud.files.done)} of ${many(cloud.files.total)} files uploaded. It goes on by itself once you're back online.`}
+        >
+          {stop}
+        </Row>
+      )
+    case "failed":
+      return (
+        <Row title="Backing up didn't finish" detail={cloud.trouble}>
+          <Button size="sm" onClick={backUp}>
+            Try again
+          </Button>
+        </Row>
+      )
+    case "full":
+      return (
+        <Row
+          title="Not enough room"
+          detail={`There's ${sizeOf(cloud.needed)} to upload, and ${sizeOf(Math.max(0, cloud.limit - cloud.used))} left of your ${sizeOf(cloud.limit)}.`}
+        >
+          <Button variant="outline" size="sm" onClick={backUp}>
+            Try again
+          </Button>
+        </Row>
+      )
+    case "preparing":
+      // (backed up before: looking for what changed, quietly, in its usual place)
+      if (!backedUp)
+        return (
+          <Row
+            title="Getting your files ready"
+            detail={`${many(cloud.files)} files looked at`}
+          >
+            <div className="flex items-center gap-4">
+              <Spinner className="size-4 text-muted-foreground" />
+              {stop}
+            </div>
+          </Row>
+        )
+  }
+  if (!known || !storage)
+    return (
+      <Row title="Your files" detail="Asking Enclose Cloud…">
+        <Spinner className="size-4 text-muted-foreground" />
+      </Row>
+    )
+  if (!backedUp)
+    return (
+      <Row
+        title="Keep a copy of your projects"
+        detail={`Back them up on Enclose Cloud, free up to ${sizeOf(storage.limit)}.`}
+      >
+        <Button size="sm" onClick={backUp}>
+          Back up
+        </Button>
+      </Row>
+    )
+  const tooBig = cloud.state === "idle" ? cloud.tooBig : 0
+  return (
+    <Row
+      title={`${sizeOf(storage.used)} of ${sizeOf(storage.limit)} used`}
+      detail={
+        "Your projects are backed up on Enclose Cloud for free." +
+        (tooBig
+          ? ` ${many(tooBig)} ${tooBig === 1 ? "file is" : "files are"} too big to back up.`
+          : "")
+      }
+    >
+      {cloud.state === "preparing" ? (
+        <Spinner className="size-4 text-muted-foreground" />
+      ) : (
+        <Bar done={storage.used} total={storage.limit} label="Storage used" />
+      )}
+    </Row>
   )
 }
 
@@ -298,8 +459,8 @@ function DeleteAccount({
             Delete your account?
           </Dialog.Title>
           <Dialog.Description className="text-sm text-balance text-muted-foreground">
-            Your account and everything kept with it on Enclose's server are
-            deleted for good. Your projects on this computer stay as they are.
+            Your account and your backups on Enclose Cloud are deleted for good.
+            Your files are safe on this computer.
           </Dialog.Description>
           <ConfirmDelete onDone={onClose} />
         </Dialog.Popup>

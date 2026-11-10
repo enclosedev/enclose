@@ -912,9 +912,31 @@ export type AccountState =
       email: string
       name: string
       storage: { used: number; limit: number } | null
+      /** its projects on Enclose Cloud: how many, and when last backed up (ms) */
+      backup: { projects: number; at: number | null } | null
       trouble: string | null
       server: string | null
     }
+
+/** So many of something done, of so many. */
+export type Progress = { done: number; total: number }
+
+/**
+ * Backing the projects up on Enclose Cloud (electron/cloud.ts). idle: nothing under
+ * way; where the last time left files out for being too big, how many. preparing: the
+ * projects' files being looked at (so many so far). uploading: the files the server has
+ * not got, being sent, so many of them and so many bytes. waiting: the server out of
+ * reach, tried again by itself in a while, from where it was. failed: what went wrong.
+ * full: the account has no room for what there is to send (`needed` more bytes, with
+ * `used` of `limit` kept).
+ */
+export type CloudState =
+  | { state: "idle"; tooBig: number }
+  | { state: "preparing"; files: number }
+  | { state: "uploading"; files: Progress; bytes: Progress }
+  | { state: "waiting"; files: Progress; bytes: Progress }
+  | { state: "failed"; trouble: string }
+  | { state: "full"; needed: number; used: number; limit: number }
 
 /**
  * Where the app is with a newer version of itself. There is none that it knows of; or
@@ -1434,6 +1456,14 @@ export type CadApi = {
     remove(): Promise<string | null>
     onChange(listener: (state: AccountState) => void): () => void
   }
+  cloud: {
+    get(): Promise<CloudState>
+    /** back the projects up now (and from then on, by itself): how it goes is heard of */
+    backUp(): Promise<void>
+    /** stop backing up: what was sent is kept, and not sent again */
+    stop(): Promise<void>
+    onChange(listener: (state: CloudState) => void): () => void
+  }
   update: {
     get(): Promise<Update>
     /**
@@ -1564,6 +1594,10 @@ export const CHANNEL = {
   accountSignOut: "account:sign-out",
   accountRemove: "account:remove",
   accountChanged: "account:changed",
+  cloudGet: "cloud:get",
+  cloudBackUp: "cloud:back-up",
+  cloudStop: "cloud:stop",
+  cloudChanged: "cloud:changed",
   viewportRequest: "viewport:request",
   viewportResponse: "viewport:response",
 } as const

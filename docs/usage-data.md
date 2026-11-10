@@ -42,6 +42,7 @@ Each thing counted is an event: its name, and a few words and numbers that say w
 | `account signed in` | |
 | `account signed out` | |
 | `account deleted` | |
+| `cloud backup` | How a backup of the projects on Enclose Cloud went (done, stopped, out of reach, failed, or no room left); how many projects, how many files were sent, how many megabytes, and how long it took, in seconds |
 | `github connected` | |
 | `github disconnected` | |
 

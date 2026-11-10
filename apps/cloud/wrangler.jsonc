@@ -23,6 +23,9 @@
       "migrations_dir": "migrations"
     }
   ],
+  // what projects backed up on Enclose Cloud keep (src/backup.ts): kept on your own
+  // machine as the database is
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "enclose-files" }],
   "observability": { "enabled": true },
   "env": {
     // Enclose's own, on its Cloudflare account. A fork that hosts a server of its own
@@ -45,7 +48,9 @@
           "database_id": "018e7e62-5a9f-4e4d-94f2-41b3d04f4d29",
           "migrations_dir": "migrations"
         }
-      ]
+      ],
+      // made with `wrangler r2 bucket create enclose-files`, on Enclose's account
+      "r2_buckets": [{ "binding": "FILES", "bucket_name": "enclose-files" }]
     }
   }
 }

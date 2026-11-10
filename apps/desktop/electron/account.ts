@@ -56,6 +56,7 @@ const base64url = (bytes: Buffer) => bytes.toString("base64url")
 type Reply = {
   user: { email: string; name: string }
   storage: { used: number; limit: number }
+  backup?: { projects: number; at: number | null }
 }
 
 export class Account {
@@ -80,6 +81,7 @@ export class Account {
           email: this.kept.email,
           name: this.kept.name,
           storage: null,
+          backup: null,
           trouble: null,
           server: this.shownServer,
         }
@@ -88,6 +90,11 @@ export class Account {
 
   get state(): AccountState {
     return this.now
+  }
+
+  /** What signs in to the server, where the app is signed in: for backing up (cloud.ts). */
+  get token(): string | null {
+    return this.now.state === "in" ? (this.kept?.token ?? null) : null
   }
 
   private set(next: AccountState) {
@@ -281,6 +288,7 @@ export class Account {
       email: kept.email,
       name: kept.name,
       storage: null,
+      backup: null,
       trouble: null,
       server: this.shownServer,
     })
@@ -331,6 +339,7 @@ export class Account {
       email: fresh.email,
       name: fresh.name,
       storage: { used: reply.storage.used, limit: reply.storage.limit },
+      backup: reply.backup ?? { projects: 0, at: null },
       trouble: null,
       server: this.shownServer,
     })

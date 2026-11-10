@@ -87,6 +87,7 @@ import { zipOf } from "./zip"
 import { isRepository } from "./backup"
 import { Backups, type BackingUp } from "./backups"
 import { Account, ENCLOSE_SERVER, SCHEME } from "./account"
+import { CloudBackup } from "./cloud"
 import { Connection } from "./connection"
 import { git } from "./git"
 import { MESH_FORMATS, meshFile, trianglesOf, type MeshFormat } from "./meshes"
@@ -283,6 +284,8 @@ let updatesLog: Log | null = null
 let connection: Connection
 /** the Enclose account, from Settings, Account */
 let account: Account | undefined
+/** the projects backed up on Enclose Cloud, for that account */
+let cloud: CloudBackup | undefined
 /** an enclose:// link the app was opened by before the account was there to be told */
 let linkWaiting: string | null = null
 let backups: Backups
@@ -1573,6 +1576,9 @@ function wire() {
   ipcMain.handle(CHANNEL.accountRefresh, () => account!.refresh())
   ipcMain.handle(CHANNEL.accountSignOut, () => account!.signOut())
   ipcMain.handle(CHANNEL.accountRemove, () => account!.remove())
+  ipcMain.handle(CHANNEL.cloudGet, () => cloud!.state)
+  ipcMain.handle(CHANNEL.cloudBackUp, () => cloud!.backUp())
+  ipcMain.handle(CHANNEL.cloudStop, () => cloud!.stop())
   ipcMain.handle(CHANNEL.githubGet, () => githubState())
   ipcMain.handle(CHANNEL.githubConnect, () => {
     // (heard of as it goes: the window is not kept waiting on the user's typing)
@@ -2660,7 +2666,12 @@ if (!app.requestSingleInstanceLock()) {
       save: (kept) => settings.setAccount(ACCOUNT_SERVER, kept),
       open: (url) => void shell.openExternal(url),
       get: (url, init) => net.fetch(String(url), init),
-      onChange: (state) => send(CHANNEL.accountChanged, state),
+      onChange: (state) => {
+        send(CHANNEL.accountChanged, state)
+        // (backed up by itself, once the account has backups; nothing, signed out)
+        if (state.state !== "in") cloud?.signedOut()
+        else if (state.backup?.at) cloud?.keepUp(true)
+      },
       // (from the browser, where the person signed in: the app is brought in front of it)
       focus: () => {
         if (!win) return
@@ -2681,6 +2692,19 @@ if (!app.requestSingleInstanceLock()) {
       linkWaiting = null
     }
     void account.refresh()
+    cloud = new CloudBackup({
+      server: ACCOUNT_SERVER,
+      token: () => account?.token ?? null,
+      storage: () =>
+        account?.state.state === "in" ? account.state.storage : null,
+      projects: () =>
+        backed().map(({ id, name, path }) => ({ id, name, path })),
+      git,
+      get: (url, init) => net.fetch(String(url), init),
+      onChange: (state) => send(CHANNEL.cloudChanged, state),
+      done: () => void account?.refresh(),
+      record: (event, properties) => analytics?.record(event, properties),
+    })
     backups = new Backups({
       git,
       projects: backed,
