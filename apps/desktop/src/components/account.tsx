@@ -23,7 +23,7 @@ import { useStore } from "@/lib/store"
 
 /** The dialogs over the settings: Esc puts them away, and not the settings under them. */
 export const ACCOUNT_DIALOGS =
-  '[data-slot="sign-in"], [data-slot="delete-account"], [data-slot="choose-projects"]'
+  '[data-slot="sign-in"], [data-slot="delete-account"]'
 
 /** So many bytes, as a person reads them: "0 B", "340 MB", "1.2 GB". */
 export function sizeOf(bytes: number): string {
@@ -254,7 +254,6 @@ function YourFiles({
   account: Extract<AccountState, { state: "in" }>
 }) {
   const cloud = useStore((state) => state.cloud)
-  const [choosing, setChoosing] = React.useState(false)
   const { storage, backup } = account
   const backedUp = Boolean(backup?.at)
   const title = backedUp ? (
@@ -274,26 +273,11 @@ function YourFiles({
           backedUp={backedUp}
           known={backup !== null}
         />
-        {cloud.state === "full" && (
-          <Row
-            title="Free up room"
-            detail="Remove projects you don't need from Enclose Cloud."
-            balance
-          >
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setChoosing(true)}
-            >
-              Choose projects
-            </Button>
-          </Row>
-        )}
+        {cloud.state === "full" && <FreeUpRoom />}
         {cloud.state === "idle" && cloud.tooBig.length > 0 && (
           <TooBigFiles files={cloud.tooBig} />
         )}
       </Group>
-      <ChooseProjects open={choosing} onClose={() => setChoosing(false)} />
     </>
   )
 }
@@ -482,43 +466,31 @@ function TooBigFiles({ files }: { files: TooBig[] }) {
 }
 
 /**
- * Which projects are backed up: turned off, one is taken off Enclose Cloud and not backed
- * up again. (Inside the dialog, it starts from what the app says each time it opens.)
+ * Room made on Enclose Cloud, by taking projects off it: the projects listed in place, at
+ * "Choose projects", each with a switch; turned off, one is removed from Enclose Cloud and
+ * not backed up again, once that is saved.
  */
-function ChooseProjects({
-  open,
-  onClose,
-}: {
-  open: boolean
-  onClose: () => void
-}) {
+function FreeUpRoom() {
+  const [open, setOpen] = React.useState(false)
   return (
-    <Dialog.Root
-      open={open}
-      onOpenChange={(opened) => {
-        if (!opened) onClose()
-      }}
-    >
-      <Dialog.Portal>
-        <Dialog.Backdrop className={BACKDROP} />
-        <Dialog.Popup
-          data-slot="choose-projects"
-          aria-label="Projects on Enclose Cloud"
-          className={`${POPUP} w-96 items-stretch text-left`}
-        >
-          <div className="flex flex-col gap-1 text-center">
-            <Dialog.Title className="text-base font-medium">
-              Projects on Enclose Cloud
-            </Dialog.Title>
-            <Dialog.Description className="text-sm text-balance text-muted-foreground">
-              Turned off, a project is removed from Enclose Cloud and not backed
-              up again. It stays on this computer.
-            </Dialog.Description>
-          </div>
-          <ProjectChoices onDone={onClose} />
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <div className="flex flex-col gap-3 px-4 py-4">
+      <div className="flex items-center justify-between gap-6">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-sm font-medium">Free up room</span>
+          <span className="text-sm text-balance text-muted-foreground">
+            {open
+              ? "Turned off, a project is removed from Enclose Cloud and not backed up again. It stays on this computer."
+              : "Remove projects you don't need from Enclose Cloud."}
+          </span>
+        </div>
+        {!open && (
+          <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+            Choose projects
+          </Button>
+        )}
+      </div>
+      {open && <ProjectChoices onDone={() => setOpen(false)} />}
+    </div>
   )
 }
 
@@ -552,23 +524,23 @@ function ProjectChoices({ onDone }: { onDone: () => void }) {
 
   if (failed)
     return (
-      <p role="alert" className="text-center text-sm text-destructive">
+      <p role="alert" className="text-sm text-destructive">
         Couldn't reach Enclose Cloud. Try again in a moment.
       </p>
     )
-  if (!projects)
-    return <Spinner className="size-5 self-center text-muted-foreground" />
+  if (!projects) return <Spinner className="size-4 text-muted-foreground" />
+  const changed = projects.some((one) => off.has(one.id) === one.on)
   const freed = projects
     .filter((one) => off.has(one.id) && one.on && one.bytes !== null)
     .reduce((sum, one) => sum + (one.bytes ?? 0), 0)
   return (
     <>
-      <ul className="-mx-2 flex max-h-72 flex-col overflow-y-auto">
+      <ul className="flex flex-col gap-1">
         {projects.map((project) => {
           const on = !off.has(project.id)
           return (
             <li key={project.id}>
-              <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl px-2 py-2 hover:bg-muted/40">
+              <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl bg-muted/40 py-2.5 pr-4 pl-3">
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate text-sm">{project.name}</span>
                   <span className="truncate text-xs text-muted-foreground">
@@ -595,18 +567,23 @@ function ProjectChoices({ onDone }: { onDone: () => void }) {
         })}
       </ul>
       {trouble && (
-        <p role="alert" className="text-center text-sm text-destructive">
+        <p role="alert" className="text-sm text-destructive">
           {trouble}
         </p>
       )}
-      <div className="flex flex-col items-center gap-1">
-        <Button disabled={busy} onClick={() => void save()}>
+      <div className="flex items-center justify-end gap-2">
+        <Button variant="ghost" size="sm" disabled={busy} onClick={onDone}>
+          Cancel
+        </Button>
+        {/* (nothing is taken off Enclose Cloud before this) */}
+        <Button
+          size="sm"
+          disabled={busy || !changed}
+          onClick={() => void save()}
+        >
           {busy && <Spinner data-icon="inline-start" />}
           {freed > 0 ? `Save and free ${sizeOf(freed)}` : "Save"}
         </Button>
-        <Dialog.Close render={<Button variant="ghost" disabled={busy} />}>
-          Cancel
-        </Dialog.Close>
       </div>
     </>
   )
