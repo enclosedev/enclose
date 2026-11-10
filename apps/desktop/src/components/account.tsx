@@ -273,7 +273,20 @@ function YourFiles({
           backedUp={backedUp}
           known={backup !== null}
         />
-        {cloud.state === "full" && <FreeUpRoom />}
+        {cloud.state === "full" ? (
+          <Projects
+            title="Free up room"
+            detail="Remove projects you don't need from Enclose Cloud."
+          />
+        ) : (
+          backedUp &&
+          cloud.state === "idle" && (
+            <Projects
+              title="Projects"
+              detail="Choose which projects are backed up."
+            />
+          )
+        )}
         {cloud.state === "idle" && cloud.tooBig.length > 0 && (
           <TooBigFiles files={cloud.tooBig} />
         )}
@@ -466,21 +479,21 @@ function TooBigFiles({ files }: { files: TooBig[] }) {
 }
 
 /**
- * Room made on Enclose Cloud, by taking projects off it: the projects listed in place, at
- * "Choose projects", each with a switch; turned off, one is removed from Enclose Cloud and
- * not backed up again, once that is saved.
+ * Which projects are backed up: listed in place, at "Choose projects", each with a switch.
+ * Turned off, one is removed from Enclose Cloud and not backed up again, once that is
+ * saved; turned on, it is backed up again (as far as the account has room for it).
  */
-function FreeUpRoom() {
+function Projects({ title, detail }: { title: string; detail: string }) {
   const [open, setOpen] = React.useState(false)
   return (
     <div className="flex flex-col gap-3 px-4 py-4">
       <div className="flex items-center justify-between gap-6">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-sm font-medium">Free up room</span>
+          <span className="text-sm font-medium">{title}</span>
           <span className="text-sm text-balance text-muted-foreground">
             {open
               ? "Turned off, a project is removed from Enclose Cloud and not backed up again. It stays on this computer."
-              : "Remove projects you don't need from Enclose Cloud."}
+              : detail}
           </span>
         </div>
         {!open && (
