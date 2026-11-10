@@ -10,7 +10,8 @@ import { outbox } from "../src/email"
 
 const BASE = "http://localhost:8787"
 const PAGE = { origin: BASE, "content-type": "application/json" }
-const APP = { origin: "enclose://", "content-type": "application/json" }
+/** and the app's, which say no origin (Electron's fetch fails one that says enclose://) */
+const APP = { "content-type": "application/json" }
 
 let from = ""
 beforeEach(() => {

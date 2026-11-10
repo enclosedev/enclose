@@ -182,14 +182,15 @@ describe("signing in", () => {
     }
   })
 
-  it("sends the app's origin, and the verifier, with the exchange", async () => {
+  it("sends the verifier with the exchange, and no origin", async () => {
     const { made, site, opened } = account()
     await made.signIn()
     await made.paste(site.page(opened[0]).token)
     const exchange = site.calls.find(
       (call) => call.path === "/api/auth/electron/token"
     )!
-    expect(new Headers(exchange.init.headers).get("origin")).toBe("enclose://")
+    // (Electron's fetch fails a request that says it comes from enclose://)
+    expect(new Headers(exchange.init.headers).has("origin")).toBe(false)
     expect(JSON.parse(String(exchange.init.body)).code_verifier).toMatch(
       /^[\w-]{43}$/
     )

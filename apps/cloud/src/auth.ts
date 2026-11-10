@@ -56,9 +56,10 @@ function make(env: Env, sending: Sending, apple: string | null) {
     database: env.DB,
     // Better Auth would otherwise tell its makers about the server
     telemetry: { enabled: false },
-    // the app's requests come with the app's scheme as their origin, and Apple's
-    // sign-in comes back from Apple's
-    trustedOrigins: [`${SCHEME}://`, ...(apple ? [APPLE] : [])],
+    // Apple's sign-in comes back from Apple's site. (The app's requests say no origin:
+    // they carry no cookies, only the session's token, and Better Auth asks for an
+    // origin only where there are cookies.)
+    trustedOrigins: apple ? [APPLE] : [],
     session: {
       // the app stays signed in while it is used: every day it is, the session goes on
       expiresIn: 90 * DAY,

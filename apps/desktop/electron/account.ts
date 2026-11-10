@@ -232,10 +232,9 @@ export class Account {
         `${this.deps.server}/api/auth/electron/token`,
         {
           method: "POST",
-          headers: {
-            origin: `${SCHEME}://`,
-            "content-type": "application/json",
-          },
+          // (no Origin: Electron's fetch fails a request that says one of its own,
+          // and the server asks for none where there are no cookies, as here)
+          headers: { "content-type": "application/json" },
           body: JSON.stringify({
             token: handed.identifier,
             state: pending.state,
@@ -287,7 +286,6 @@ export class Account {
     return this.deps.get(`${this.deps.server}${path}`, {
       ...init,
       headers: {
-        origin: `${SCHEME}://`,
         "content-type": "application/json",
         authorization: `Bearer ${this.kept?.token ?? ""}`,
         ...init.headers,
