@@ -2661,12 +2661,20 @@ if (!app.requestSingleInstanceLock()) {
       open: (url) => void shell.openExternal(url),
       get: (url, init) => net.fetch(String(url), init),
       onChange: (state) => send(CHANNEL.accountChanged, state),
+      // (from the browser, where the person signed in: the app is brought in front of it)
+      focus: () => {
+        if (!win) return
+        if (win.isMinimized()) win.restore()
+        app.focus({ steal: true })
+        win.focus()
+      },
       record: (event) => analytics?.record(event),
     })
     // The installed app is what the system opens enclose:// links with (as it was
-    // packaged, and again here, for a Linux desktop that only goes by this). One run from
-    // a checkout is not: it would take the links from the app that is installed, and
-    // signs in with the code the page shows instead.
+    // packaged, and again here, for a Linux desktop that only goes by this): the way the
+    // page hands a sign-in back where the app could not listen for it on this machine.
+    // One run from a checkout is not: it would take the links from the app that is
+    // installed.
     if (app.isPackaged) app.setAsDefaultProtocolClient(SCHEME)
     if (linkWaiting) {
       linked(linkWaiting)

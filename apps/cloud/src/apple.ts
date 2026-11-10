@@ -24,9 +24,9 @@ const text = (value: unknown) =>
 export function hasApple(env: Env): boolean {
   return Boolean(
     env.APPLE_CLIENT_ID &&
-      env.APPLE_TEAM_ID &&
-      env.APPLE_KEY_ID &&
-      env.APPLE_PRIVATE_KEY
+    env.APPLE_TEAM_ID &&
+    env.APPLE_KEY_ID &&
+    env.APPLE_PRIVATE_KEY
   )
 }
 

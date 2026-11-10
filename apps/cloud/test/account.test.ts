@@ -245,7 +245,10 @@ describe("signing in from the app", () => {
     const sent = await call("/api/auth/email-otp/send-verification-otp", {
       method: "POST",
       headers: PAGE,
-      body: JSON.stringify({ email: "nobody@nowhere.invalid", type: "sign-in" }),
+      body: JSON.stringify({
+        email: "nobody@nowhere.invalid",
+        type: "sign-in",
+      }),
     })
     expect(sent.status).toBe(502)
     expect(await sent.json()).toMatchObject({

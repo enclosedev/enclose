@@ -13,13 +13,16 @@ const SERVER = {
 } as unknown as Env
 
 const asking = (token?: string) =>
-  new Request("https://cloud.enclose.dev/api/auth/email-otp/send-verification-otp", {
-    method: "POST",
-    headers: {
-      "cf-connecting-ip": "10.1.2.3",
-      ...(token ? { [HEADER]: token } : {}),
-    },
-  })
+  new Request(
+    "https://cloud.enclose.dev/api/auth/email-otp/send-verification-otp",
+    {
+      method: "POST",
+      headers: {
+        "cf-connecting-ip": "10.1.2.3",
+        ...(token ? { [HEADER]: token } : {}),
+      },
+    }
+  )
 
 /** Cloudflare, answering so of every token. */
 function cloudflare(answer: object | Error) {
@@ -62,7 +65,10 @@ describe("isPerson", () => {
     const siteverify = cloudflare(GOOD)
     expect(await isPerson(SERVER, asking())).toBe(false)
     expect(
-      await isPerson({ ...SERVER, TURNSTILE_SECRET: undefined }, asking("a-token"))
+      await isPerson(
+        { ...SERVER, TURNSTILE_SECRET: undefined },
+        asking("a-token")
+      )
     ).toBe(false)
     expect(siteverify).not.toHaveBeenCalled()
   })
@@ -74,6 +80,10 @@ describe("isPerson", () => {
 })
 
 describe("the sign-in page", () => {
+  it("takes the app's port as digits alone (as its script is served)", () => {
+    expect(signInPage("n", null)).toContain("const port = /^\\d{4,5}$/.test(")
+  })
+
   it("has the widget where there is a sitekey, and not where there isn't", () => {
     expect(signInPage("n", "the-sitekey")).toContain(
       'src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=turnstileReady"'

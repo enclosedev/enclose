@@ -19,7 +19,10 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 const call = (path: string, init?: RequestInit) => {
-  const request = new Request(`${BASE}${path}`, { redirect: "manual", ...init })
+  const request = new Request(`${BASE}${path}`, {
+    redirect: "manual",
+    ...init,
+  })
   request.headers.set("cf-connecting-ip", from)
   return exports.default.fetch(request)
 }
@@ -70,7 +73,10 @@ function provider(who: { sub: string; email: string; name?: string }) {
   const exchanges: { url: string; body: URLSearchParams }[] = []
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = String(input instanceof Request ? input.url : input)
-    exchanges.push({ url, body: new URLSearchParams(String(init?.body ?? "")) })
+    exchanges.push({
+      url,
+      body: new URLSearchParams(String(init?.body ?? "")),
+    })
     return Response.json({
       access_token: "an-access-token",
       token_type: "Bearer",
@@ -158,7 +164,11 @@ async function exchange(
 
 describe("signing in with Google", () => {
   it("sends the person to Google, and the app gets its session once they're back", async () => {
-    const google = provider({ sub: "g-1", email: "grace@example.com", name: "Grace" })
+    const google = provider({
+      sub: "g-1",
+      email: "grace@example.com",
+      name: "Grace",
+    })
     const asked = await pkce()
     const { to, back, handed } = await throughProvider("google", asked)
     expect(to.origin).toBe("https://accounts.google.com")
@@ -219,7 +229,10 @@ describe("signing in with Google", () => {
 
 describe("signing in with Apple", () => {
   it("takes Apple's posted answer, with a client secret signed by the server's key", async () => {
-    const apple = provider({ sub: "a-1", email: "tim@privaterelay.appleid.com" })
+    const apple = provider({
+      sub: "a-1",
+      email: "tim@privaterelay.appleid.com",
+    })
     const asked = await pkce()
     const { to, back, handed } = await throughProvider("apple", asked)
     expect(to.origin).toBe("https://appleid.apple.com")
@@ -230,7 +243,9 @@ describe("signing in with Apple", () => {
     )
 
     // what Apple was sent for a secret: a token the server signed, for this
-    const sent = apple.find((one) => one.url === "https://appleid.apple.com/auth/token")!
+    const sent = apple.find(
+      (one) => one.url === "https://appleid.apple.com/auth/token"
+    )!
     const secret = sent.body.get("client_secret")!
     const [head, claims, signature] = secret.split(".")
     const key = await crypto.subtle.importKey(

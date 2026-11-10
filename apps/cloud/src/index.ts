@@ -49,7 +49,8 @@ export default {
       return json(
         {
           code: "NOT_A_PERSON",
-          message: "We couldn't tell you're a person. Reload the page and try again.",
+          message:
+            "We couldn't tell you're a person. Reload the page and try again.",
         },
         403
       )

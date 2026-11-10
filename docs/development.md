@@ -438,16 +438,19 @@ How signing in goes:
    over in a cookie. Where the browser is signed in already, from before, the page offers
    that account at a click instead (**Continue**: the plugin's `/electron/transfer-user`).
 2. The server, through Better Auth's [Electron plugin](https://better-auth.com/docs/integrations/electron),
-   gives the page something for the app to sign in with, which the page hands to the
-   app as `enclose://auth/callback#token=…`, and shows as a code to paste.
+   gives the page something for the app to sign in with. While it signs in, the app
+   listens on this machine (at `127.0.0.1`, on a port of its own, which it opened the
+   page with as `loopback`), and the page goes there with it: the app signs in that
+   moment and comes forward, and the browser says it can be closed. Where the app could
+   not listen, the page hands it over as `enclose://auth/callback#token=…`; and either
+   way it shows it as a code to paste.
 3. The app sends that, with its secret, to `/api/auth/electron/token`, and is given the
    session's token. It keeps it sealed in its settings, and sends it with each request
    after (`Authorization: Bearer …`).
 
 Only the installed app is opened by `enclose://` links (the `protocols` it is packaged
 with, in [`scripts/dist.mjs`](../apps/desktop/scripts/dist.mjs)). One run from a checkout
-is not, so as not to take the installed app's: there, the link goes to the installed app,
-which lets it be, and the code the page shows is pasted into the app's dialog instead.
+is not, so as not to take the installed app's; it signs in by `127.0.0.1` all the same.
 
 The app's half is [`electron/account.ts`](../apps/desktop/electron/account.ts), and the
 page in Settings is [`src/components/account.tsx`](../apps/desktop/src/components/account.tsx).

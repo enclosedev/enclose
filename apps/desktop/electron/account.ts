@@ -4,12 +4,20 @@
 //
 // The app proves the sign-in is its own (PKCE): before it opens the page it makes a
 // secret it keeps (the verifier), and gives the page only a digest of it. The page, once
-// the code from the email is right, hands the app back an enclose:// link (or, where
-// that does not reach the app, the same as a code to paste); the app sends the server
-// what was in it with the secret, and is given the session's token for them. This is
+// the code from the email is right, hands the app back what it signs in with: to the app
+// itself, on this machine (it listens at 127.0.0.1, on a port of its own, while it signs
+// in), and where it could not listen, by an enclose:// link, or as a code to paste where
+// that does not reach the app either. The app sends the server what was in it with the
+// secret, and is given the session's token for them. This is
 // what Better Auth's Electron package does in an app, done here as the rest of the app
 // is: see apps/cloud for the server, and docs/development.md.
 import { createHash, randomBytes } from "node:crypto"
+import {
+  createServer,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from "node:http"
 
 import type { AccountState } from "../shared/api"
 import type { KeptAccount } from "./settings"
@@ -20,6 +28,10 @@ export const ENCLOSE_SERVER = "https://cloud.enclose.dev"
 export const SCHEME = "enclose"
 /** What the app signs in as, on the server (its electron plugin's client ID). */
 const CLIENT_ID = "electron"
+/** Where the page hands the sign-in back to the app, on this machine. */
+const CALLBACK = "/auth/callback"
+/** How long the app listens for it: the page has run out by then. */
+const LISTENS_MS = 15 * 60 * 1000
 
 export type AccountDeps = {
   /** where the account is kept */
@@ -30,6 +42,8 @@ export type AccountDeps = {
   open: (url: string) => void
   get: typeof fetch
   onChange: (state: AccountState) => void
+  /** bring the app forward: signed in, by the page handing it back to the app */
+  focus?: () => void
   /** something to be counted (the app's usage data) */
   record: (
     event: "account signed in" | "account signed out" | "account deleted"
@@ -53,6 +67,8 @@ export class Account {
   /** the sign-in under way: what the page was opened with, and the secret behind it */
   private pending: { state: string; verifier: string; url: string } | null =
     null
+  /** what listens for the page handing the sign-in back, while one is under way */
+  private listening: Server | null = null
 
   constructor(deps: AccountDeps) {
     this.deps = deps
@@ -83,12 +99,17 @@ export class Account {
     this.kept = null
     this.deps.save(null)
     this.pending = null
+    this.stopListening()
     this.set({ state: "out", trouble, server: this.shownServer })
   }
 
-  /** Open the sign-in page, with a secret of this sign-in's own behind it. */
-  signIn() {
+  /**
+   * Open the sign-in page, with a secret of this sign-in's own behind it, and where the
+   * page is to hand it back on this machine.
+   */
+  async signIn(): Promise<void> {
     if (this.now.state === "in") return
+    this.stopListening()
     const verifier = base64url(randomBytes(32))
     const challenge = base64url(createHash("sha256").update(verifier).digest())
     const state = base64url(randomBytes(12))
@@ -97,6 +118,8 @@ export class Account {
       state,
       code_challenge: challenge,
     })
+    const port = await this.listen()
+    if (port !== null) query.set("loopback", String(port))
     const url = `${this.deps.server}/sign-in?${query}`
     this.pending = { state, verifier, url }
     this.set({ state: "signing-in", url, server: this.shownServer })
@@ -111,6 +134,7 @@ export class Account {
   cancel() {
     if (this.now.state !== "signing-in") return
     this.pending = null
+    this.stopListening()
     this.set({ state: "out", trouble: null, server: this.shownServer })
   }
 
@@ -123,6 +147,62 @@ export class Account {
     if (token === null || !this.pending) return
     const trouble = await this.finish(token)
     if (trouble) this.set({ state: "out", trouble, server: this.shownServer })
+  }
+
+  /** Listen, on this machine alone, for the page handing the sign-in back: the port. */
+  private listen(): Promise<number | null> {
+    return new Promise((resolve) => {
+      const server = createServer((request, response) => {
+        void this.answer(request, response)
+      })
+      server.on("error", () => resolve(null))
+      server.listen(0, "127.0.0.1", () => {
+        const address = server.address()
+        if (!address || typeof address === "string") {
+          server.close()
+          return resolve(null)
+        }
+        // (it keeps nothing open of itself, and stops by itself)
+        server.unref()
+        setTimeout(() => {
+          if (this.listening === server) this.stopListening()
+        }, LISTENS_MS).unref()
+        this.listening = server
+        resolve(address.port)
+      })
+    })
+  }
+
+  private stopListening() {
+    this.listening?.close()
+    this.listening = null
+  }
+
+  /** The page, handing the sign-in back: signed in, and the browser told so. */
+  private async answer(request: IncomingMessage, response: ServerResponse) {
+    const url = new URL(request.url ?? "/", "http://127.0.0.1")
+    if (request.method !== "GET" || url.pathname !== CALLBACK) {
+      response.writeHead(404, { connection: "close" }).end()
+      return
+    }
+    const token = url.searchParams.get("token") ?? ""
+    // (handed back again, by the page reloaded, once signed in: that is so still)
+    const trouble =
+      this.now.state === "in" && !this.pending
+        ? null
+        : /^[A-Za-z0-9_-]+$/.test(token)
+          ? await this.finish(token)
+          : "That isn't what the sign-in page hands back. Start again from Enclose."
+    if (trouble === null) this.deps.focus?.()
+    response
+      .writeHead(200, {
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "no-store",
+        "content-security-policy":
+          "default-src 'none'; style-src 'unsafe-inline'",
+        connection: "close",
+      })
+      .end(handedPage(trouble))
   }
 
   /** The code the page shows, pasted: what went wrong, where something did. */
@@ -178,6 +258,7 @@ export class Account {
       return "Enclose's server answered with something unexpected. Start again."
     // (signed in, now: a link that comes later, from this page again, is let be)
     this.pending = null
+    this.stopListening()
     const kept: KeptAccount = {
       email: data.user.email,
       name: typeof data.user.name === "string" ? data.user.name : "",
@@ -291,6 +372,39 @@ export class Account {
     this.deps.record("account deleted")
     return null
   }
+}
+
+const escape = (text: string) =>
+  text.replace(/[&<>"]/g, (char) => `&#${char.charCodeAt(0)};`)
+
+/** What the browser shows, the sign-in handed back to the app: it went, or what didn't. */
+function handedPage(trouble: string | null): string {
+  const title = trouble ? "Signing in didn't work" : "You're signed in"
+  const said = trouble ?? "You can close this tab and go back to Enclose."
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title}</title>
+<style>
+:root { color-scheme: light dark; --bg: #f4f4f2; --card: #fff; --fg: #1d1d1b; --muted: #6b6b66; --line: rgba(0,0,0,.12); }
+@media (prefers-color-scheme: dark) { :root { --bg: #161615; --card: #20201f; --fg: #ededea; --muted: #9a9a94; --line: rgba(255,255,255,.12); } }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; box-sizing: border-box; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { width: 100%; max-width: 340px; box-sizing: border-box; background: var(--card); border-radius: 24px; padding: 32px 28px; box-shadow: 0 0 0 1px var(--line), 0 20px 50px rgba(0,0,0,.08); display: flex; flex-direction: column; gap: 10px; text-align: center; }
+.mark { font-weight: 600; letter-spacing: .02em; margin-bottom: 4px; }
+h1 { margin: 0; font-size: 18px; font-weight: 600; }
+p { margin: 0; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div class="mark">Enclose</div>
+  <h1>${title}</h1>
+  <p>${escape(said)}</p>
+</main>
+</body>
+</html>`
 }
 
 /**

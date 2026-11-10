@@ -80,6 +80,7 @@ function account(saved: KeptAccount | null = null, at = SERVER) {
   const states: AccountState[] = []
   const opened: string[] = []
   const recorded: string[] = []
+  let focus = 0
   const deps: AccountDeps = {
     server: at,
     saved: () => kept,
@@ -91,15 +92,24 @@ function account(saved: KeptAccount | null = null, at = SERVER) {
     get: site.get,
     onChange: (state) => states.push(state),
     record: (event) => recorded.push(event),
+    focus: () => focus++,
   }
   const made = new Account(deps)
-  return { made, site, states, opened, recorded, kept: () => kept }
+  return {
+    made,
+    site,
+    states,
+    opened,
+    recorded,
+    kept: () => kept,
+    focused: () => focus,
+  }
 }
 
 describe("signing in", () => {
-  it("opens the sign-in page with a challenge, keeping the verifier to itself", () => {
+  it("opens the sign-in page with a challenge, keeping the verifier to itself", async () => {
     const { made, opened } = account()
-    made.signIn()
+    await made.signIn()
     expect(made.state.state).toBe("signing-in")
     const url = new URL(opened[0])
     expect(url.origin + url.pathname).toBe(`${SERVER}/sign-in`)
@@ -107,11 +117,44 @@ describe("signing in", () => {
     expect(url.searchParams.get("code_challenge")).toMatch(/^[\w-]{43}$/)
     expect(url.searchParams.get("state")).toBeTruthy()
     expect(url.search).not.toContain("verifier")
+    expect(url.searchParams.get("loopback")).toMatch(/^\d+$/)
+    made.cancel()
+  })
+
+  it("signs in as the page hands it back on this machine, and comes forward", async () => {
+    const { made, site, opened, focused } = account()
+    await made.signIn()
+    const port = new URL(opened[0]).searchParams.get("loopback")
+    const { token } = site.page(opened[0])
+    const back = `http://127.0.0.1:${port}/auth/callback?token=${token}`
+    const answer = await fetch(back)
+    expect(answer.status).toBe(200)
+    expect(await answer.text()).toContain("You're signed in")
+    expect(made.state.state).toBe("in")
+    expect(focused()).toBe(1)
+    // and listens no more
+    await expect(fetch(back)).rejects.toThrow()
+  })
+
+  it("tells the browser what went wrong, handed back something else", async () => {
+    const { made, opened } = account()
+    await made.signIn()
+    const port = new URL(opened[0]).searchParams.get("loopback")
+    const answer = await fetch(
+      `http://127.0.0.1:${port}/auth/callback?token=not-the-code`
+    )
+    expect(await answer.text()).toContain("Signing in didn't work")
+    expect(made.state.state).toBe("signing-in")
+    expect((await fetch(`http://127.0.0.1:${port}/other`)).status).toBe(404)
+    made.cancel()
+    await expect(
+      fetch(`http://127.0.0.1:${port}/auth/callback?token=x`)
+    ).rejects.toThrow()
   })
 
   it("signs in by the link the page hands back, and keeps the session", async () => {
     const { made, site, opened, recorded, kept } = account()
-    made.signIn()
+    await made.signIn()
     await made.link(site.page(opened[0]).link)
     expect(made.state).toMatchObject({ state: "in", email: "ada@example.com" })
     expect(kept()).toEqual({
@@ -132,7 +175,7 @@ describe("signing in", () => {
   it("signs in by the code pasted, or the whole link", async () => {
     for (const as of ["token", "link"] as const) {
       const { made, site, opened } = account()
-      made.signIn()
+      await made.signIn()
       const handed = site.page(opened[0])
       expect(await made.paste(` ${handed[as]}\n`)).toBeNull()
       expect(made.state.state).toBe("in")
@@ -141,7 +184,7 @@ describe("signing in", () => {
 
   it("sends the app's origin, and the verifier, with the exchange", async () => {
     const { made, site, opened } = account()
-    made.signIn()
+    await made.signIn()
     await made.paste(site.page(opened[0]).token)
     const exchange = site.calls.find(
       (call) => call.path === "/api/auth/electron/token"
@@ -161,7 +204,7 @@ describe("signing in", () => {
 
   it("will not take a code from another sign-in", async () => {
     const { made, site, opened } = account()
-    made.signIn()
+    await made.signIn()
     site.page(opened[0])
     const other = Buffer.from(
       JSON.stringify({ identifier: "the-identifier", state: "another" })
@@ -171,9 +214,9 @@ describe("signing in", () => {
     expect(await made.paste("not a code")).toMatch(/isn't the code/)
   })
 
-  it("stops, cancelled", () => {
+  it("stops, cancelled", async () => {
     const { made } = account()
-    made.signIn()
+    await made.signIn()
     made.cancel()
     expect(made.state).toEqual({ state: "out", trouble: null, server: SERVER })
   })

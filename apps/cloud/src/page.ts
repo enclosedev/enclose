@@ -1,7 +1,8 @@
 // The page the app opens in the browser to sign in: an email, then the code sent to it.
-// Once the code is right, the page hands the app what it signs in with by an enclose://
-// link, and shows the same as a code to paste into the app, for where the link does not
-// reach it (an app run from a checkout, some Linux desktops).
+// Once the code is right, the page hands the app what it signs in with: to the app on
+// this machine, where the app said it listens there (`loopback`, its port at 127.0.0.1),
+// or else by an enclose:// link. It shows the same as a code to paste into the app, for
+// where neither reaches it.
 //
 // The app opens the page with what the electron plugin asks for in its address
 // (client_id, state, code_challenge), and the page passes those on as it signs in: it
@@ -102,6 +103,8 @@ const $ = (id) => document.getElementById(id)
 const show = (id) => { for (const step of ["account-step", "email-step", "code-step", "done-step", "lost-step"]) $(step).hidden = step !== id }
 const say = (text) => { $("trouble").textContent = text || "" }
 const back = location.pathname === "/sign-in/done"
+// where the app listens for the sign-in, on this machine: its port, where it said one
+const port = /^\\d{4,5}$/.test(asked.get("loopback") || "") && Number(asked.get("loopback")) <= 65535 ? asked.get("loopback") : null
 let email = ""
 
 const lost = !back && (pass.get("client_id") !== ${JSON.stringify(CLIENT_ID)} || !pass.get("state") || !pass.get("code_challenge"))
@@ -191,7 +194,11 @@ function linkFor(identifier) {
 function handOver(token) {
   $("token").textContent = token
   show("done-step")
-  location.href = ${JSON.stringify(SCHEME)} + "://auth/callback#token=" + token
+  // (a page the browser goes to, and not a request from this one: a browser asks first
+  // before a site may send requests to this machine, and lets it go to a page there)
+  location.href = port
+    ? "http://127.0.0.1:" + port + "/auth/callback?token=" + token
+    : ${JSON.stringify(SCHEME)} + "://auth/callback#token=" + token
 }
 
 /** Signed in already, in this browser: that account offered, where nothing is begun yet. */
@@ -232,8 +239,8 @@ async function withProvider(button) {
   try {
     const data = await post("/sign-in/social?" + pass.toString(), {
       provider: button.dataset.provider,
-      callbackURL: "/sign-in/done",
-      errorCallbackURL: "/sign-in/done",
+      callbackURL: "/sign-in/done" + (port ? "?loopback=" + port : ""),
+      errorCallbackURL: "/sign-in/done" + (port ? "?loopback=" + port : ""),
     })
     if (!data || !data.url) throw new Error("Something went wrong. Try again.")
     location.href = data.url
