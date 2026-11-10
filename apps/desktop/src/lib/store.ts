@@ -593,7 +593,10 @@ function enteredNow(view: View, before: Entered[]): Entered[] {
 }
 
 /** How a board is looked at in PCB mode, where that is counted (FEATURES). */
-type BoardWay = Exclude<Feature, Entered | "render" | "material" | "silent">
+type BoardWay = Exclude<
+  Feature,
+  Entered | "render" | "material" | "silent" | "update-all"
+>
 
 /**
  * What of the view is counted as put to use (FEATURES): what it was put into, and in PCB
