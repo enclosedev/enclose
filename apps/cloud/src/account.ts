@@ -12,6 +12,16 @@ export const SERVICE_LIMIT = 200 * 1024 ** 3
 /** The biggest file backed up, in bytes: one request carries it, and a Worker takes 100 MB. */
 export const FILE_LIMIT = 95 * 1024 ** 2
 
+/**
+ * Whether this is a server run on your own machine (from its address): one that emails
+ * nothing, asks nobody to prove they are a person, and signs with a secret anybody can
+ * read. Anywhere else, the server is taken for the one people use, and does none of that.
+ */
+export function onThisMachine(env: Env): boolean {
+  const host = new URL(env.BASE_URL).hostname
+  return host === "localhost" || host === "127.0.0.1"
+}
+
 /** What the app is told of the account it is signed in to (GET /v1/account). */
 export type AccountReply = {
   user: { id: string; email: string; name: string; image: string | null }

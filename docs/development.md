@@ -481,13 +481,29 @@ paths and hashes (`POST /v1/backup/snapshots`). A project unchanged since its la
 snapshot makes no new one. `GET /v1/backup/projects` lists each as last backed up, and
 `POST /v1/backup/remove` takes projects off, with each file no other project has used
 (which files each has used is kept in `project_file`); the app then backs them up no
-more (`notBackedUp` in its settings). Each account may keep 5 GB (`STORAGE_LIMIT`), and all of them
-together `SERVICE_LIMIT`, in [`src/account.ts`](../apps/cloud/src/account.ts); no file
-over 95 MB is taken, since one request carries it. Deleting the account deletes
-everything it keeps in R2.
+more (`notBackedUp` in its settings).
+
+Each account may keep 5 GB (`STORAGE_LIMIT`), files and snapshots together, and all of
+them together `SERVICE_LIMIT`, in [`src/account.ts`](../apps/cloud/src/account.ts). That
+room is kept as it changes, in `usage`, and taken there before a file or a snapshot is
+kept, so that uploads at once cannot both have the last of it. No file over 95 MB is
+taken, since one request carries it; the last 30 snapshots of each project are kept
+(`SNAPSHOTS_KEPT`), and 500 projects an account (`PROJECTS_LIMIT`). The backup routes are
+reached with the app's token alone (`Authorization: Bearer`), not the cookie the sign-in
+page leaves in the browser. Deleting the account deletes everything it keeps in R2.
+
+Better Auth answers more than Enclose uses: what it does not (passwords, emails other
+than the sign-in code, the providers' tokens) the server answers with a 404 (`unused` in
+[`src/index.ts`](../apps/cloud/src/index.ts)). What Google and Apple hand over to sign
+someone in is not kept (`withoutTokens` in [`src/auth.ts`](../apps/cloud/src/auth.ts)).
+Once a day, a cron trigger takes away the sessions and codes that have run out, and the
+rate limits' old counts ([`src/tidy.ts`](../apps/cloud/src/tidy.ts)).
 
 Run on your own machine, R2 is kept beside the database in `apps/cloud/.wrangler`, as
-`npm run dev` has it: nothing reaches Cloudflare.
+`npm run dev` has it: nothing reaches Cloudflare. A server is taken for one run on your own
+machine by its address (`BASE_URL` at `localhost` or `127.0.0.1`): only there does it
+email nothing, skip Turnstile and sign with a secret anybody can read. At any other
+address it is the server people use, and will not start without its secrets.
 
 ### Running it for everyone
 

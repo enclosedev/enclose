@@ -9,15 +9,26 @@
 //   POST /v1/backup/remove         { projects } -> { freed }   gone, and what only they used
 //
 // Everything is the signed-in account's own, under `u/<user>/` in R2, and counted in D1
-// (migrations/0002_backups.sql): an account may keep STORAGE_LIMIT, and all of them
-// together SERVICE_LIMIT. Deleting the account deletes all of it (removeAll).
+// (migrations/): an account may keep STORAGE_LIMIT, files and snapshots together, and all
+// of them SERVICE_LIMIT. The room is taken (`usage`) before anything is kept, so that
+// uploads at once cannot both have the last of it. Deleting the account deletes all of it
+// (removeAll).
 import { z } from "zod"
 
 import { FILE_LIMIT, SERVICE_LIMIT, STORAGE_LIMIT } from "./account"
 
 const HASH = /^[0-9a-f]{64}$/
-/** How many values D1 takes bound to one statement, and so how many are asked of at once. */
-const BOUND = 90
+/** How many hashes go to D1 in one value (as JSON): it takes no string over 2 MB. */
+const HASHES_AT_ONCE = 20_000
+/** How many snapshots of each project are kept: the oldest go, past these. */
+export const SNAPSHOTS_KEPT = 30
+/** How many projects an account may back up. */
+export const PROJECTS_LIMIT = 500
+/** How big a request's JSON may be, bytes: a snapshot's, and every other's. */
+const SNAPSHOT_BODY = 10 * 1024 ** 2
+const OTHER_BODY = 256 * 1024
+/** The row of `usage` that is all accounts together. */
+const ALL = "*"
 
 const fileKey = (user: string, hash: string) => `u/${user}/files/${hash}`
 const snapshotKey = (user: string, id: string) =>
@@ -29,14 +40,58 @@ const json = (body: unknown, status = 200) =>
 const refuse = (status: number, code: string, message: string, more = {}) =>
   json({ code, message, ...more }, status)
 
+/** A request's JSON, where it says so and is no bigger than `most` bytes: null otherwise. */
+async function bodyOf(request: Request, most: number): Promise<unknown> {
+  if (!request.headers.get("content-type")?.includes("application/json"))
+    return null
+  const size = Number(request.headers.get("content-length"))
+  if (!Number.isInteger(size) || size > most) return null
+  return request.json().catch(() => null)
+}
+
 /** How much an account keeps, in bytes. */
 export async function usedBy(env: Env, user: string): Promise<number> {
   const row = await env.DB.prepare(
-    `select coalesce(sum("size"), 0) as used from "file" where "userId" = ?`
+    `select "used" from "usage" where "userId" = ?`
   )
     .bind(user)
     .first<{ used: number }>()
   return row?.used ?? 0
+}
+
+/**
+ * Take `bytes` of an account's room, and of the service's: whether there was room in both
+ * (and if not, nothing is taken).
+ */
+async function reserve(
+  env: Env,
+  user: string,
+  bytes: number
+): Promise<"ok" | "full" | "service-full"> {
+  await env.DB.batch([
+    env.DB.prepare(
+      `insert or ignore into "usage" ("userId", "used") values (?, 0), (?, 0)`
+    ).bind(user, ALL),
+  ])
+  const take = `update "usage" set "used" = "used" + ?1 where "userId" = ?2 and "used" + ?1 <= ?3`
+  const mine = await env.DB.prepare(take).bind(bytes, user, STORAGE_LIMIT).run()
+  if (!mine.meta.changes) return "full"
+  const all = await env.DB.prepare(take).bind(bytes, ALL, SERVICE_LIMIT).run()
+  if (!all.meta.changes) {
+    await release(env, user, bytes, false)
+    return "service-full"
+  }
+  return "ok"
+}
+
+/** Give back `bytes` of an account's room (and of the service's). */
+async function release(env: Env, user: string, bytes: number, all = true) {
+  if (bytes <= 0) return
+  await env.DB.prepare(
+    `update "usage" set "used" = max(0, "used" - ?) where "userId" in (?, ?)`
+  )
+    .bind(bytes, user, all ? ALL : user)
+    .run()
 }
 
 /** How many of its projects an account has backed up, and when it last did. */
@@ -59,12 +114,11 @@ async function kept(
   hashes: string[]
 ): Promise<Set<string>> {
   const found = new Set<string>()
-  for (let at = 0; at < hashes.length; at += BOUND) {
-    const some = hashes.slice(at, at + BOUND)
+  for (let at = 0; at < hashes.length; at += HASHES_AT_ONCE) {
     const { results } = await env.DB.prepare(
-      `select "hash" from "file" where "userId" = ? and "hash" in (${some.map(() => "?").join(",")})`
+      `select "hash" from "file" where "userId" = ? and "hash" in (select value from json_each(?))`
     )
-      .bind(user, ...some)
+      .bind(user, JSON.stringify(hashes.slice(at, at + HASHES_AT_ONCE)))
       .all<{ hash: string }>()
     for (const row of results) found.add(row.hash)
   }
@@ -76,9 +130,6 @@ const Missing = z.object({ hashes: z.array(z.string().regex(HASH)).max(1000) })
 const Remove = z.object({
   projects: z.array(z.string().min(1).max(200)).min(1).max(1000),
 })
-
-/** Statements run together in one batch, at most: D1 takes so many at once. */
-const BATCH = 50
 
 const Snapshot = z.object({
   project: z.object({
@@ -97,6 +148,7 @@ const Snapshot = z.object({
             (path) =>
               !path.startsWith("/") &&
               !path.includes("\\") &&
+              !/^[A-Za-z]:/.test(path) &&
               !path.split("/").some((part) => part === ".." || part === ""),
             "not a path within the project"
           ),
@@ -125,7 +177,7 @@ export async function backup(
   user: string
 ): Promise<Response> {
   if (path === "/v1/backup/missing" && request.method === "POST") {
-    const asked = Missing.safeParse(await request.json().catch(() => null))
+    const asked = Missing.safeParse(await bodyOf(request, OTHER_BODY))
     if (!asked.success)
       return refuse(400, "BAD_REQUEST", "Those aren't file hashes.")
     const hashes = [...new Set(asked.data.hashes)]
@@ -148,53 +200,43 @@ export async function backup(
       await request.body.cancel()
       return json({ size })
     }
-    const used = await usedBy(env, user)
-    if (used + size > STORAGE_LIMIT) {
+    const room = await reserve(env, user, size)
+    if (room !== "ok") {
       await request.body.cancel()
-      return refuse(413, "FULL", "Your account has no room for that.", {
-        used,
-        limit: STORAGE_LIMIT,
-      })
-    }
-    const all = await env.DB.prepare(
-      `select coalesce(sum("size"), 0) as used from "file"`
-    ).first<{ used: number }>()
-    if ((all?.used ?? 0) + size > SERVICE_LIMIT) {
-      await request.body.cancel()
-      return refuse(
-        507,
-        "SERVICE_FULL",
-        "Enclose Cloud isn't taking more files right now. Try again later."
-      )
+      return room === "full"
+        ? refuse(413, "FULL", "Your account has no room for that.", {
+            used: await usedBy(env, user),
+            limit: STORAGE_LIMIT,
+          })
+        : refuse(
+            507,
+            "SERVICE_FULL",
+            "Enclose Cloud isn't taking more files right now. Try again later."
+          )
     }
     // (R2 checks what it was sent is that hash, and keeps nothing where it isn't)
     try {
       await env.FILES.put(fileKey(user, hash), request.body, { sha256: hash })
     } catch {
+      await release(env, user, size)
       return refuse(400, "NOT_THAT_FILE", "That file isn't what its hash says.")
     }
-    await env.DB.prepare(
+    const added = await env.DB.prepare(
       `insert or ignore into "file" ("userId", "hash", "size", "createdAt") values (?, ?, ?, ?)`
     )
       .bind(user, hash, size, Date.now())
       .run()
+    // (the same file, sent at the same time by another upload, is kept, and counted, once)
+    if (!added.meta.changes) await release(env, user, size)
     return json({ size })
   }
 
   if (path === "/v1/backup/snapshots" && request.method === "POST") {
-    const asked = Snapshot.safeParse(await request.json().catch(() => null))
+    const asked = Snapshot.safeParse(await bodyOf(request, SNAPSHOT_BODY))
     if (!asked.success)
       return refuse(400, "BAD_REQUEST", "That isn't a project's files.")
     const { project, files } = asked.data
-    const hashes = [...new Set(files.map((one) => one.hash))]
-    const have = await kept(env, user, hashes)
-    const missing = hashes.filter((hash) => !have.has(hash))
-    if (missing.length)
-      return refuse(409, "MISSING", "Some of those files aren't kept yet.", {
-        missing,
-      })
     const sorted = [...files].sort((a, b) => (a.path < b.path ? -1 : 1))
-    const text = JSON.stringify({ project, files: sorted })
     const manifest = await sha256(JSON.stringify(sorted))
     // (the project as it was last time: nothing new to keep of it)
     const last = await env.DB.prepare(
@@ -203,24 +245,54 @@ export async function backup(
       .bind(user, project.id)
       .first<{ id: string; manifest: string }>()
     if (last?.manifest === manifest) return json({ id: last.id, new: false })
-    const id = crypto.randomUUID()
-    // which files the project uses, as long as it is kept (for removeProjects)
-    const uses: D1PreparedStatement[] = []
-    for (let at = 0; at < hashes.length; at += BOUND / 3) {
-      const some = hashes.slice(at, at + BOUND / 3)
-      uses.push(
-        env.DB.prepare(
-          `insert or ignore into "project_file" ("userId", "projectId", "hash") values ${some.map(() => "(?, ?, ?)").join(", ")}`
-        ).bind(...some.flatMap((hash) => [user, project.id, hash]))
-      )
+    if (!last) {
+      const { projects } = await backedUp(env, user)
+      if (projects >= PROJECTS_LIMIT)
+        return refuse(
+          409,
+          "TOO_MANY_PROJECTS",
+          `An account can back up ${PROJECTS_LIMIT} projects.`
+        )
     }
-    for (let at = 0; at < uses.length; at += BATCH)
-      await env.DB.batch(uses.slice(at, at + BATCH))
+    // Which files the project uses, said before they are looked for: a project taken off
+    // Enclose Cloud meanwhile (removeProjects) then leaves them be.
+    const hashes = [...new Set(files.map((one) => one.hash))]
+    for (let at = 0; at < hashes.length; at += HASHES_AT_ONCE)
+      await env.DB.prepare(
+        `insert or ignore into "project_file" ("userId", "projectId", "hash") select ?, ?, value from json_each(?)`
+      )
+        .bind(
+          user,
+          project.id,
+          JSON.stringify(hashes.slice(at, at + HASHES_AT_ONCE))
+        )
+        .run()
+    const have = await kept(env, user, hashes)
+    const missing = hashes.filter((hash) => !have.has(hash))
+    if (missing.length)
+      return refuse(409, "MISSING", "Some of those files aren't kept yet.", {
+        missing,
+      })
+    const text = JSON.stringify({ project, files: sorted })
+    const size = new TextEncoder().encode(text).length
+    const room = await reserve(env, user, size)
+    if (room !== "ok")
+      return room === "full"
+        ? refuse(413, "FULL", "Your account has no room for that.", {
+            used: await usedBy(env, user),
+            limit: STORAGE_LIMIT,
+          })
+        : refuse(
+            507,
+            "SERVICE_FULL",
+            "Enclose Cloud isn't taking more files right now. Try again later."
+          )
+    const id = crypto.randomUUID()
     await env.FILES.put(snapshotKey(user, id), text, {
       httpMetadata: { contentType: "application/json" },
     })
     await env.DB.prepare(
-      `insert into "snapshot" ("id", "userId", "projectId", "name", "manifest", "files", "bytes", "createdAt") values (?, ?, ?, ?, ?, ?, ?, ?)`
+      `insert into "snapshot" ("id", "userId", "projectId", "name", "manifest", "files", "bytes", "size", "createdAt") values (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         id,
@@ -230,9 +302,11 @@ export async function backup(
         manifest,
         files.length,
         files.reduce((sum, one) => sum + one.size, 0),
+        size,
         Date.now()
       )
       .run()
+    await prune(env, user, project.id)
     return json({ id, new: true })
   }
 
@@ -252,7 +326,7 @@ export async function backup(
   }
 
   if (path === "/v1/backup/remove" && request.method === "POST") {
-    const asked = Remove.safeParse(await request.json().catch(() => null))
+    const asked = Remove.safeParse(await bodyOf(request, OTHER_BODY))
     if (!asked.success)
       return refuse(400, "BAD_REQUEST", "Those aren't projects.")
     const freed = await removeProjects(env, user, asked.data.projects)
@@ -263,61 +337,97 @@ export async function backup(
 }
 
 /**
+ * The oldest snapshots of a project, past SNAPSHOTS_KEPT, gone: the files they had stay,
+ * for the project uses them (a project's files go with the project, removeProjects).
+ */
+async function prune(env: Env, user: string, project: string) {
+  const { results: old } = await env.DB.prepare(
+    `select "id", "size" from "snapshot" where "userId" = ? and "projectId" = ? order by "createdAt" desc limit -1 offset ?`
+  )
+    .bind(user, project, SNAPSHOTS_KEPT)
+    .all<{ id: string; size: number }>()
+  if (!old.length) return
+  await env.DB.prepare(
+    `delete from "snapshot" where "userId" = ? and "id" in (select value from json_each(?))`
+  )
+    .bind(user, JSON.stringify(old.map((row) => row.id)))
+    .run()
+  await env.FILES.delete(old.map((row) => snapshotKey(user, row.id)))
+  await release(
+    env,
+    user,
+    old.reduce((sum, row) => sum + row.size, 0)
+  )
+}
+
+/**
  * Projects taken off Enclose Cloud: their snapshots, and every file none of the account's
- * other projects has used. How many bytes that frees.
+ * other projects has used. How many bytes that frees. (What says what is kept goes first,
+ * and what is kept after: cut short in between, a file is left over, never missed.)
  */
 export async function removeProjects(
   env: Env,
   user: string,
   projects: string[]
 ): Promise<number> {
-  for (let at = 0; at < projects.length; at += BOUND - 1) {
-    const some = projects.slice(at, at + BOUND - 1)
-    const marks = some.map(() => "?").join(",")
-    const { results } = await env.DB.prepare(
-      `select "id" from "snapshot" where "userId" = ? and "projectId" in (${marks})`
-    )
-      .bind(user, ...some)
-      .all<{ id: string }>()
-    for (let one = 0; one < results.length; one += 1000)
-      await env.FILES.delete(
-        results.slice(one, one + 1000).map((row) => snapshotKey(user, row.id))
-      )
-    await env.DB.batch([
-      env.DB.prepare(
-        `delete from "snapshot" where "userId" = ? and "projectId" in (${marks})`
-      ).bind(user, ...some),
-      env.DB.prepare(
-        `delete from "project_file" where "userId" = ? and "projectId" in (${marks})`
-      ).bind(user, ...some),
-    ])
-  }
+  const ids = JSON.stringify([...new Set(projects)])
+  const { results: snapshots } = await env.DB.prepare(
+    `select "id", "size" from "snapshot" where "userId" = ? and "projectId" in (select value from json_each(?))`
+  )
+    .bind(user, ids)
+    .all<{ id: string; size: number }>()
+  await env.DB.batch([
+    env.DB.prepare(
+      `delete from "snapshot" where "userId" = ? and "projectId" in (select value from json_each(?))`
+    ).bind(user, ids),
+    env.DB.prepare(
+      `delete from "project_file" where "userId" = ? and "projectId" in (select value from json_each(?))`
+    ).bind(user, ids),
+  ])
   // what no project uses any more
   const { results: unused } = await env.DB.prepare(
     `select "hash", "size" from "file" f where "userId" = ? and not exists (select 1 from "project_file" p where p."userId" = f."userId" and p."hash" = f."hash")`
   )
     .bind(user)
     .all<{ hash: string; size: number }>()
-  for (let at = 0; at < unused.length; at += 1000)
-    await env.FILES.delete(
-      unused.slice(at, at + 1000).map((row) => fileKey(user, row.hash))
+  for (let at = 0; at < unused.length; at += HASHES_AT_ONCE)
+    await env.DB.prepare(
+      `delete from "file" where "userId" = ? and "hash" in (select value from json_each(?))`
     )
-  const drops: D1PreparedStatement[] = []
-  for (let at = 0; at < unused.length; at += BOUND - 1) {
-    const some = unused.slice(at, at + BOUND - 1).map((row) => row.hash)
-    drops.push(
-      env.DB.prepare(
-        `delete from "file" where "userId" = ? and "hash" in (${some.map(() => "?").join(",")})`
-      ).bind(user, ...some)
-    )
-  }
-  for (let at = 0; at < drops.length; at += BATCH)
-    await env.DB.batch(drops.slice(at, at + BATCH))
-  return unused.reduce((sum, row) => sum + row.size, 0)
+      .bind(
+        user,
+        JSON.stringify(
+          unused.slice(at, at + HASHES_AT_ONCE).map((row) => row.hash)
+        )
+      )
+      .run()
+  const keys = [
+    ...snapshots.map((row) => snapshotKey(user, row.id)),
+    ...unused.map((row) => fileKey(user, row.hash)),
+  ]
+  for (let at = 0; at < keys.length; at += 1000)
+    await env.FILES.delete(keys.slice(at, at + 1000))
+  const freed = unused.reduce((sum, row) => sum + row.size, 0)
+  await release(
+    env,
+    user,
+    freed + snapshots.reduce((sum, row) => sum + row.size, 0)
+  )
+  return freed
 }
 
 /** Everything an account keeps on Enclose Cloud, deleted (as the account is). */
 export async function removeAll(env: Env, user: string): Promise<void> {
+  const used = await usedBy(env, user)
+  await env.DB.batch([
+    env.DB.prepare(`delete from "file" where "userId" = ?`).bind(user),
+    env.DB.prepare(`delete from "snapshot" where "userId" = ?`).bind(user),
+    env.DB.prepare(`delete from "project_file" where "userId" = ?`).bind(user),
+    env.DB.prepare(`delete from "usage" where "userId" = ?`).bind(user),
+    env.DB.prepare(
+      `update "usage" set "used" = max(0, "used" - ?) where "userId" = ?`
+    ).bind(used, ALL),
+  ])
   let cursor: string | undefined
   do {
     const listed = await env.FILES.list({ prefix: `u/${user}/`, cursor })
@@ -325,9 +435,4 @@ export async function removeAll(env: Env, user: string): Promise<void> {
       await env.FILES.delete(listed.objects.map((one) => one.key))
     cursor = listed.truncated ? listed.cursor : undefined
   } while (cursor)
-  await env.DB.batch([
-    env.DB.prepare(`delete from "file" where "userId" = ?`).bind(user),
-    env.DB.prepare(`delete from "snapshot" where "userId" = ?`).bind(user),
-    env.DB.prepare(`delete from "project_file" where "userId" = ?`).bind(user),
-  ])
 }

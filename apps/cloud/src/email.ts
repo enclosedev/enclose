@@ -2,6 +2,8 @@
 // it (through Resend, from an address on enclose.dev); one run on your own machine writes
 // it in the terminal instead, where whoever is trying the app reads it from.
 
+import { onThisMachine } from "./account"
+
 /** Who the codes come from: an address on a domain Resend sends for. */
 const FROM = "Enclose <sign-in@enclose.dev>"
 
@@ -16,7 +18,7 @@ export async function sendCode(
   email: string,
   code: string
 ): Promise<void> {
-  if (env.STAGE !== "production") {
+  if (onThisMachine(env)) {
     // (nor does it pretend to send where nothing could be: an address on .invalid, a
     // name kept for that, is refused as Resend would refuse one it cannot send to)
     if (email.endsWith(".invalid"))

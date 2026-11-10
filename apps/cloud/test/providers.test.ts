@@ -190,6 +190,15 @@ describe("signing in with Google", () => {
       user: { email: string; name: string }
     }
     expect(user).toMatchObject({ email: "grace@example.com", name: "Grace" })
+    // what Google handed over to sign her in is not kept
+    const kept = await env.DB.prepare(
+      `select "accessToken", "refreshToken", "idToken" from "account" where "providerId" = 'google' and "accountId" = 'g-1'`
+    ).first()
+    expect(kept).toEqual({
+      accessToken: null,
+      refreshToken: null,
+      idToken: null,
+    })
     const account = await call("/v1/account", {
       headers: { authorization: `Bearer ${token}` },
     })

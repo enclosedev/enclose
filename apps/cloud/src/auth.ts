@@ -8,6 +8,7 @@ import { betterAuth } from "better-auth"
 import { bearer } from "better-auth/plugins/bearer"
 import { emailOTP } from "better-auth/plugins/email-otp"
 
+import { onThisMachine } from "./account"
 import { appleSecret, hasApple } from "./apple"
 import { removeAll } from "./backup"
 import { sendCode } from "./email"
@@ -30,8 +31,7 @@ const LOCAL_SECRET = "enclose-local-secret-not-for-the-server-people-use"
 
 function secretOf(env: Env): string {
   if (env.BETTER_AUTH_SECRET) return env.BETTER_AUTH_SECRET
-  if (env.STAGE === "production")
-    throw new Error("BETTER_AUTH_SECRET is not set.")
+  if (!onThisMachine(env)) throw new Error("BETTER_AUTH_SECRET is not set.")
   return LOCAL_SECRET
 }
 
@@ -83,6 +83,19 @@ function make(env: Env, sending: Sending, apple: string | null) {
         ? { apple: { clientId: env.APPLE_CLIENT_ID, clientSecret: apple } }
         : {}),
     },
+    // What Google or Apple hand over to sign someone in (their tokens for the account
+    // there) is used for that, and not kept: nothing here asks them anything after.
+    account: { updateAccountOnSignIn: false },
+    databaseHooks: {
+      account: {
+        create: {
+          before: async (account) => ({ data: withoutTokens(account) }),
+        },
+        update: {
+          before: async (account) => ({ data: withoutTokens(account) }),
+        },
+      },
+    },
     // counted in the database, so that it holds across all of Cloudflare's machines
     rateLimit: { enabled: true, storage: "database" },
     advanced: { ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] } },
@@ -117,6 +130,18 @@ function make(env: Env, sending: Sending, apple: string | null) {
       electron({ clientID: CLIENT_ID }),
     ],
   })
+}
+
+/** An account as Better Auth would keep it, without the provider's tokens. */
+function withoutTokens<T extends object>(account: T): T {
+  return {
+    ...account,
+    accessToken: null,
+    refreshToken: null,
+    idToken: null,
+    accessTokenExpiresAt: null,
+    refreshTokenExpiresAt: null,
+  }
 }
 
 export type Auth = ReturnType<typeof make>

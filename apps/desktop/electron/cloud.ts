@@ -211,11 +211,21 @@ export class CloudBackup {
         Array.from({ length: Math.min(AT_ONCE, queue.length) }, worker)
       )
 
+      // each project as it is: one the server will not take (too many files, say) is
+      // said of after, and holds none of the others back
+      const failed: string[] = []
       for (const { project, files } of found)
-        await this.snapshot(project, files, running.signal)
+        if (!(await this.snapshot(project, files, running.signal)))
+          failed.push(project.name)
 
-      this.set({ state: "idle", tooBig })
       this.deps.done()
+      if (failed.length) {
+        outcome = "failed"
+        this.set({
+          state: "failed",
+          trouble: `Couldn't back up ${failed.join(", ")}. The rest is backed up.`,
+        })
+      } else this.set({ state: "idle", tooBig })
     } catch (error) {
       if (error instanceof Stopped || running.signal.aborted) {
         outcome = "stopped"
@@ -332,15 +342,19 @@ export class CloudBackup {
     let looked = 0
     const tooBig: TooBig[] = []
     const off = new Set(this.deps.notBackedUp())
+    const seen = new Set<string>()
     for (const project of this.deps.projects()) {
       if (off.has(project.id)) continue
       const files: Found[] = []
       for (const relative of await this.filesOf(project.path)) {
         if (signal.aborted) throw new Stopped()
         const abs = path.join(project.path, relative)
+        // (a link is not followed: what it leads to may be anywhere on the machine; nor
+        // is a name with a backslash in it kept, which the server takes for no path)
+        if (relative.includes("\\")) continue
         let stat: fs.Stats
         try {
-          stat = await fs.promises.stat(abs)
+          stat = await fs.promises.lstat(abs)
         } catch {
           continue // (gone since)
         }
@@ -349,6 +363,7 @@ export class CloudBackup {
           tooBig.push({ project: project.name, path: abs, size: stat.size })
           continue
         }
+        seen.add(abs)
         files.push({
           path: relative.split(path.sep).join("/"),
           abs,
@@ -360,6 +375,9 @@ export class CloudBackup {
       }
       found.push({ project, files })
     }
+    // (what was hashed of files no longer backed up is let go)
+    for (const known of this.hashes.keys())
+      if (!seen.has(known)) this.hashes.delete(known)
     return { found, tooBig }
   }
 
@@ -464,16 +482,21 @@ export class CloudBackup {
     if (createHash("sha256").update(body).digest("hex") !== file.hash) return
     await this.ask(
       `/v1/backup/files/${file.hash}`,
-      { method: "PUT", body: new Uint8Array(body) },
+      // (the file as it was read, not a copy of it)
+      {
+        method: "PUT",
+        body: new Uint8Array(body.buffer, body.byteOffset, body.byteLength),
+      },
       signal
     )
   }
 
+  /** Send the project as it is: whether the server took it (or will, next time). */
   private async snapshot(
     project: CloudProject,
     files: Found[],
     signal: AbortSignal
-  ) {
+  ): Promise<boolean> {
     try {
       await this.ask(
         "/v1/backup/snapshots",
@@ -487,9 +510,18 @@ export class CloudBackup {
         },
         signal
       )
+      return true
     } catch (error) {
       // a file that changed on the way (not sent): the project is kept next time
-      if (error instanceof Refused && error.body.code === "MISSING") return
+      if (error instanceof Refused && error.body.code === "MISSING") return true
+      // (out of reach, signed out or out of room: the backup as a whole stops)
+      if (
+        error instanceof Refused &&
+        error.status !== 401 &&
+        error.body.code !== "FULL" &&
+        error.body.code !== "SERVICE_FULL"
+      )
+        return false
       throw error
     }
   }

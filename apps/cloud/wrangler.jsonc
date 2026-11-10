@@ -10,7 +10,6 @@
   // Better Auth keeps what each request is about with AsyncLocalStorage, Node's
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "STAGE": "local",
     "BASE_URL": "http://localhost:8787",
     // (no Turnstile on your own machine: see src/turnstile.ts)
     "TURNSTILE_SITEKEY": ""
@@ -37,7 +36,6 @@
     // (`wrangler secret put <name> --env production`).
     "production": {
       "vars": {
-        "STAGE": "production",
         "BASE_URL": "https://cloud.enclose.dev",
         // the "Enclose sign-in" widget's, made with `wrangler turnstile widget create`
         "TURNSTILE_SITEKEY": "0x4AAAAAAF7s4qbrj3nelzye"
@@ -52,6 +50,8 @@
           "migrations_dir": "migrations"
         }
       ],
+      // what has run out, gone from the database once a day (src/tidy.ts)
+      "triggers": { "crons": ["17 4 * * *"] },
       // made with `wrangler r2 bucket create enclose-files`, on Enclose's account
       "r2_buckets": [{ "binding": "FILES", "bucket_name": "enclose-files" }]
     }

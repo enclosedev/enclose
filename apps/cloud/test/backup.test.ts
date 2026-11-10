@@ -6,6 +6,7 @@ import { exports } from "cloudflare:workers"
 import { beforeEach, describe, expect, it } from "vitest"
 
 import { STORAGE_LIMIT } from "../src/account"
+import { SNAPSHOTS_KEPT } from "../src/backup"
 import { outbox } from "../src/email"
 
 const BASE = "http://localhost:8787"
@@ -127,9 +128,8 @@ describe("backing up", () => {
     const made = await snapshot(token, files)
     expect(made.status).toBe(200)
     const { id } = (await made.json()) as { id: string }
-    expect(
-      await env.FILES.get(`u/${await userOf(token)}/snapshots/${id}.json`)
-    ).not.toBeNull()
+    const user = await userOf(token)
+    expect(await env.FILES.get(`u/${user}/snapshots/${id}.json`)).not.toBeNull()
 
     // nothing changed: nothing new kept
     const again = (await (await snapshot(token, files)).json()) as {
@@ -138,8 +138,11 @@ describe("backing up", () => {
     }
     expect(again).toEqual({ id, new: false })
 
+    // the files, and the snapshot, each counted once
     expect(await account(token)).toMatchObject({
-      storage: { used: model.length + readme.length },
+      storage: {
+        used: model.length + readme.length + (await snapshotsTake(user)),
+      },
       backup: { projects: 1, at: expect.any(Number) },
     })
   })
@@ -154,14 +157,88 @@ describe("backing up", () => {
   it("takes no more than the account has room for", async () => {
     const token = await signedIn("full@example.com")
     const user = await userOf(token)
-    await env.DB.prepare(
-      `insert into "file" ("userId", "hash", "size", "createdAt") values (?, ?, ?, ?)`
-    )
-      .bind(user, "f".repeat(64), STORAGE_LIMIT - 3, Date.now())
+    await env.DB.prepare(`insert into "usage" ("userId", "used") values (?, ?)`)
+      .bind(user, STORAGE_LIMIT - 3)
       .run()
     const response = await send(token, await hashOf("four"), "four")
     expect(response.status).toBe(413)
     expect(await response.json()).toMatchObject({ code: "FULL" })
+  })
+
+  it("lets no two uploads at once have the same last of the room", async () => {
+    const token = await signedIn("race@example.com")
+    const user = await userOf(token)
+    await env.DB.prepare(`insert into "usage" ("userId", "used") values (?, ?)`)
+      .bind(user, STORAGE_LIMIT - 10)
+      .run()
+    // six files of 4 bytes at once, with room for two
+    const texts = ["aaaa", "bbbb", "cccc", "dddd", "eeee", "ffff"]
+    const sent = await Promise.all(
+      texts.map(
+        async (text) => (await send(token, await hashOf(text), text)).status
+      )
+    )
+    expect(sent.filter((status) => status === 200)).toHaveLength(2)
+    expect(sent.filter((status) => status === 413)).toHaveLength(4)
+    expect((await account(token)).storage.used).toBe(STORAGE_LIMIT - 2)
+  })
+
+  it("takes no JSON that is too big, or isn't said to be JSON", async () => {
+    const token = await signedIn("big@example.com")
+    const tooBig = await call("/v1/backup/missing", {
+      method: "POST",
+      headers: as(token, { "content-type": "application/json" }),
+      body: JSON.stringify({ hashes: ["x".repeat(300 * 1024)] }),
+    })
+    expect(tooBig.status).toBe(400)
+    const plain = await call("/v1/backup/missing", {
+      method: "POST",
+      headers: as(token, { "content-type": "text/plain" }),
+      body: JSON.stringify({ hashes: [] }),
+    })
+    expect(plain.status).toBe(400)
+  })
+
+  it("is not reached with the sign-in page's cookie, only the app's token", async () => {
+    const email = "cookie@example.com"
+    await call("/api/auth/email-otp/send-verification-otp", {
+      method: "POST",
+      headers: PAGE,
+      body: JSON.stringify({ email, type: "sign-in" }),
+    })
+    const signed = await call("/api/auth/sign-in/email-otp", {
+      method: "POST",
+      headers: PAGE,
+      body: JSON.stringify({ email, otp: outbox.get(email) }),
+    })
+    const cookie = signed.headers
+      .getSetCookie()
+      .map((line) => line.split(";")[0])
+      .join("; ")
+    expect(cookie).toContain("session_token")
+    const byCookie = await call("/v1/backup/projects", { headers: { cookie } })
+    expect(byCookie.status).toBe(401)
+  })
+
+  it("keeps the last snapshots of a project, and lets the oldest go", async () => {
+    const token = await signedIn("history@example.com")
+    const user = await userOf(token)
+    const hash = await hashOf("v")
+    await send(token, hash, "v")
+    for (let version = 0; version < SNAPSHOTS_KEPT + 3; version++)
+      await snapshot(token, [{ path: `v${version}.txt`, hash, size: 1 }])
+    const rows = await env.DB.prepare(
+      `select count(*) as n from "snapshot" where "userId" = ?`
+    )
+      .bind(user)
+      .first<{ n: number }>()
+    expect(rows?.n).toBe(SNAPSHOTS_KEPT)
+    const listed = await env.FILES.list({ prefix: `u/${user}/snapshots/` })
+    expect(listed.objects).toHaveLength(SNAPSHOTS_KEPT)
+    // what it counts is the file, and the snapshots kept
+    expect((await account(token)).storage.used).toBe(
+      1 + (await snapshotsTake(user))
+    )
   })
 
   it("keeps no path that leads out of the project", async () => {
@@ -260,8 +337,18 @@ describe("taking projects off Enclose Cloud", () => {
     expect(await env.FILES.get(`u/${user}/files/${own.hash}`)).toBeNull()
     expect(await env.FILES.get(`u/${user}/files/${shared.hash}`)).not.toBeNull()
     expect(await account(token)).toMatchObject({
-      storage: { used: 9 },
+      storage: { used: 9 + (await snapshotsTake(user)) },
       backup: { projects: 1 },
     })
   })
 })
+
+/** What an account's snapshots take, as kept. */
+async function snapshotsTake(user: string): Promise<number> {
+  const row = await env.DB.prepare(
+    `select coalesce(sum("size"), 0) as size from "snapshot" where "userId" = ?`
+  )
+    .bind(user)
+    .first<{ size: number }>()
+  return row?.size ?? 0
+}

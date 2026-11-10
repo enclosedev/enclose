@@ -7,6 +7,8 @@
 // secrets are) and its sitekey (TURNSTILE_SITEKEY, in wrangler.jsonc); one run on your
 // own machine has neither, and does without.
 
+import { onThisMachine } from "./account"
+
 /** What the sign-in page's widget says it is for, and the token must say it was made for. */
 export const ACTION = "sign_in"
 /** The header the sign-in page sends the token in. */
@@ -16,7 +18,7 @@ const SITEVERIFY = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 
 /** Whether the server checks for a person at all: the one people use always does. */
 export function checking(env: Env): boolean {
-  return env.STAGE === "production" || Boolean(env.TURNSTILE_SECRET)
+  return !onThisMachine(env) || Boolean(env.TURNSTILE_SECRET)
 }
 
 /**

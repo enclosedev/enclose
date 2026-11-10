@@ -7,6 +7,7 @@
 import { STORAGE_LIMIT, type AccountReply } from "./account"
 import { authFor, providersOf } from "./auth"
 import { backedUp, backup, usedBy } from "./backup"
+import { tidy } from "./tidy"
 import { SITE, signInPage, signedInPage } from "./page"
 import { isPerson } from "./turnstile"
 
@@ -15,6 +16,17 @@ const json = (body: unknown, status = 200) =>
     status,
     headers: { "cache-control": "no-store" },
   })
+
+/**
+ * The session the app sends its token for: only so (Authorization: Bearer), not by the
+ * cookie the sign-in page leaves in the browser, which another page could send along.
+ */
+async function appSession(env: Env, request: Request) {
+  const authorization = request.headers.get("authorization") ?? ""
+  if (!authorization.startsWith("Bearer ")) return null
+  const { auth } = await authFor(env)
+  return auth.api.getSession({ headers: new Headers({ authorization }) })
+}
 
 /** Turnstile's script, and the frame its check runs in, where the page has the widget. */
 const TURNSTILE = "https://challenges.cloudflare.com"
@@ -43,9 +55,31 @@ function page(env: Env): Response {
   )
 }
 
+/**
+ * What Better Auth answers that Enclose does not use, and that is not let through: what
+ * would send an email no person asked for on the sign-in page (Turnstile guards that one),
+ * passwords, and what would reach the provider's tokens (none are kept, src/auth.ts).
+ */
+function unused(path: string): boolean {
+  const route = path.slice("/api/auth".length)
+  if (route.startsWith("/email-otp/"))
+    return route !== "/email-otp/send-verification-otp"
+  return /password|^\/sign-up\/|^\/sign-in\/email$|verify-email|verification-email|change-email|access-token|refresh-token|link-social|unlink-account/.test(
+    route
+  )
+}
+
 export default {
+  // once a day: what has run out, gone (src/tidy.ts)
+  async scheduled(_controller, env): Promise<void> {
+    await tidy(env)
+  },
+
   async fetch(request, env): Promise<Response> {
     const url = new URL(request.url)
+
+    if (url.pathname.startsWith("/api/auth/") && unused(url.pathname))
+      return json({ message: "Not found." }, 404)
 
     // (Better Auth is made only for a request it answers, and that waits on it to the
     // end: what it begins as it is made, a request over before then would leave hanging,
@@ -88,17 +122,13 @@ export default {
       return page(env)
 
     if (url.pathname.startsWith("/v1/backup/")) {
-      const { auth } = await authFor(env)
-      const session = await auth.api.getSession({ headers: request.headers })
+      const session = await appSession(env, request)
       if (!session) return json({ message: "Not signed in." }, 401)
       return backup(request, env, url.pathname, session.user.id)
     }
 
     if (url.pathname === "/v1/account" && request.method === "GET") {
-      const { auth } = await authFor(env)
-      const session = await auth.api.getSession({
-        headers: request.headers,
-      })
+      const session = await appSession(env, request)
       if (!session) return json({ message: "Not signed in." }, 401)
       const { user } = session
       const [used, backed] = await Promise.all([

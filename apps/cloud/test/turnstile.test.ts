@@ -6,7 +6,6 @@ import { signInPage } from "../src/page"
 import { ACTION, HEADER, isPerson } from "../src/turnstile"
 
 const SERVER = {
-  STAGE: "production",
   BASE_URL: "https://cloud.enclose.dev",
   TURNSTILE_SITEKEY: "the-sitekey",
   TURNSTILE_SECRET: "the-secret",
@@ -74,7 +73,7 @@ describe("isPerson", () => {
   })
 
   it("does without on your own machine", async () => {
-    const local = { STAGE: "local", BASE_URL: "http://localhost:8787" } as Env
+    const local = { BASE_URL: "http://localhost:8787" } as Env
     expect(await isPerson(local, asking())).toBe(true)
   })
 })

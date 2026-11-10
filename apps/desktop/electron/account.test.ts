@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto"
+import http from "node:http"
 import { describe, expect, it, vi } from "vitest"
 
 import type { AccountState } from "../shared/api"
@@ -137,19 +138,62 @@ describe("signing in", () => {
     await expect(fetch(back)).rejects.toThrow()
   })
 
-  it("says why, handed back something else, and the browser only that it failed", async () => {
-    const { made, opened } = account()
+  it("lets be what is not its page's, and goes on signing in", async () => {
+    const { made, site, opened } = account()
     await made.signIn()
     const port = new URL(opened[0]).searchParams.get("loopback")
     expect((await fetch(`http://127.0.0.1:${port}/other`)).status).toBe(404)
+    // what anything on this machine could send: not this sign-in's
+    const stranger = Buffer.from(
+      JSON.stringify({ identifier: "x", state: "another" })
+    ).toString("base64url")
+    for (const token of ["not-the-code", stranger])
+      expect(
+        (await fetch(`http://127.0.0.1:${port}/auth/callback?token=${token}`))
+          .status
+      ).toBe(400)
+    // nor a page elsewhere, with a name of its own made to lead here
+    const elsewhere = await new Promise<number>((resolve) =>
+      http
+        .get(
+          {
+            host: "127.0.0.1",
+            port: Number(port),
+            path: `/auth/callback?token=${site.page(opened[0]).token}`,
+            headers: { host: "evil.example" },
+          },
+          (response) => resolve(response.statusCode ?? 0)
+        )
+        .end()
+    )
+    expect(elsewhere).toBe(404)
+    expect(made.state.state).toBe("signing-in")
+    // and the page's own still signs in
     const answer = await fetch(
-      `http://127.0.0.1:${port}/auth/callback?token=not-the-code`,
+      `http://127.0.0.1:${port}/auth/callback?token=${site.page(opened[0]).token}`,
+      { redirect: "manual" }
+    )
+    expect(answer.headers.get("location")).toBe(`${SERVER}/signed-in`)
+    expect(made.state.state).toBe("in")
+  })
+
+  it("says why where the server won't sign in with what the page handed back, and the browser only that it failed", async () => {
+    const { made, opened } = account()
+    await made.signIn()
+    const asked = new URL(opened[0]).searchParams
+    const port = asked.get("loopback")
+    // this sign-in's, but not one the server knows (run out, say)
+    const old = Buffer.from(
+      JSON.stringify({ identifier: "run-out", state: asked.get("state") })
+    ).toString("base64url")
+    const answer = await fetch(
+      `http://127.0.0.1:${port}/auth/callback?token=${old}`,
       { redirect: "manual" }
     )
     expect(answer.headers.get("location")).toBe(`${SERVER}/signed-in?failed`)
     expect(made.state).toMatchObject({
       state: "out",
-      trouble: expect.stringMatching(/isn't the code/),
+      trouble: expect.stringMatching(/run out/),
     })
     // and listens no more
     await expect(

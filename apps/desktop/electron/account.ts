@@ -153,7 +153,11 @@ export class Account {
     const token = tokenOf(url)
     if (token === null || !this.pending) return
     const trouble = await this.finish(token)
-    if (trouble) this.set({ state: "out", trouble, server: this.shownServer })
+    if (trouble) {
+      this.pending = null
+      this.stopListening()
+      this.set({ state: "out", trouble, server: this.shownServer })
+    }
   }
 
   /** Listen, on this machine alone, for the page handing the sign-in back: the port. */
@@ -191,18 +195,28 @@ export class Account {
    */
   private async answer(request: IncomingMessage, response: ServerResponse) {
     const url = new URL(request.url ?? "/", "http://127.0.0.1")
-    if (request.method !== "GET" || url.pathname !== CALLBACK) {
+    const address = this.listening?.address()
+    // (only the page, sent here by name: not a page elsewhere that has had some name of
+    // its own made to lead to this machine)
+    const here =
+      address && typeof address === "object"
+        ? request.headers.host === `127.0.0.1:${address.port}`
+        : false
+    if (request.method !== "GET" || url.pathname !== CALLBACK || !here) {
       response.writeHead(404, { connection: "close" }).end()
       return
     }
     const token = url.searchParams.get("token") ?? ""
+    // Not what this sign-in's page hands back (its state is another's, or none): let be,
+    // and the sign-in goes on. Anything on this machine can reach this address; none of
+    // it can stop a sign-in, nor sign in, without what the page was opened with.
+    if (!(this.now.state === "in" && !this.pending) && !this.ours(token)) {
+      response.writeHead(400, { connection: "close" }).end()
+      return
+    }
     // (handed back again, by the page reloaded, once signed in: that is so still)
     const trouble =
-      this.now.state === "in" && !this.pending
-        ? null
-        : /^[A-Za-z0-9_-]+$/.test(token)
-          ? await this.finish(token)
-          : "That isn't what the sign-in page hands back. Start again from Enclose."
+      this.now.state === "in" && !this.pending ? null : await this.finish(token)
     if (trouble === null) this.deps.focus?.()
     // (it failed: the app says why, as for a link, and the browser only that it did)
     else if (this.pending) {
@@ -217,6 +231,22 @@ export class Account {
         connection: "close",
       })
       .end()
+  }
+
+  /** Whether a token is what this sign-in's page hands back: of its state. */
+  private ours(token: string): boolean {
+    if (!this.pending || !/^[A-Za-z0-9_-]+$/.test(token)) return false
+    try {
+      const handed = JSON.parse(
+        Buffer.from(token, "base64url").toString("utf8")
+      )
+      return (
+        typeof handed?.identifier === "string" &&
+        handed.state === this.pending.state
+      )
+    } catch {
+      return false
+    }
   }
 
   /** The code the page shows, pasted: what went wrong, where something did. */

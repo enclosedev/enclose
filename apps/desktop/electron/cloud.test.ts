@@ -68,7 +68,10 @@ function server(room = 5 * 1024 ** 3) {
       return Response.json({ size: body.length })
     }
     if (route === "/v1/backup/snapshots") {
-      snapshots.push(JSON.parse(String(init.body)))
+      const sent = JSON.parse(String(init.body))
+      if (sent.project.id === "refused")
+        return Response.json({ code: "BAD_REQUEST" }, { status: 400 })
+      snapshots.push(sent)
       return Response.json({ id: "s", new: true })
     }
     if (route === "/v1/backup/projects")
@@ -209,6 +212,35 @@ describe("backing up on Enclose Cloud", () => {
     const { cloud, site } = backup([{ id: "p1", name: "Loose", path: dir }])
     await cloud.backUp()
     expect(site.snapshots[0].files.map((one) => one.path)).toEqual(["model.py"])
+  })
+
+  it("follows no link out of a project", async () => {
+    const outside = project({ "secret.txt": "not the project's" })
+    const dir = project({ "model.py": "x" })
+    fs.symlinkSync(
+      path.join(outside, "secret.txt"),
+      path.join(dir, "linked.txt")
+    )
+    await git(["init", "-q"], dir)
+    const { cloud, site } = backup([{ id: "p1", name: "Linked", path: dir }])
+    await cloud.backUp()
+    expect(site.snapshots[0].files.map((one) => one.path)).toEqual(["model.py"])
+    expect(site.puts).toEqual([hashOf("x")])
+  })
+
+  it("backs up the other projects where the server won't take one", async () => {
+    const one = project({ "a.txt": "a" })
+    const two = project({ "b.txt": "b" })
+    const { cloud, site } = backup([
+      { id: "refused", name: "Odd", path: one },
+      { id: "fine", name: "Fine", path: two },
+    ])
+    await cloud.backUp()
+    expect(site.snapshots.map((sent) => sent.project.id)).toEqual(["fine"])
+    expect(cloud.state).toEqual({
+      state: "failed",
+      trouble: "Couldn't back up Odd. The rest is backed up.",
+    })
   })
 
   it("leaves out a file too big, and says how many", async () => {

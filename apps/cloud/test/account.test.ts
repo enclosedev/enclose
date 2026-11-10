@@ -6,6 +6,7 @@ import { exports } from "cloudflare:workers"
 import { beforeEach, describe, expect, it } from "vitest"
 
 import { outbox } from "../src/email"
+import { tidy } from "../src/tidy"
 
 const BASE = "http://localhost:8787"
 /** what the sign-in page's own requests come with */
@@ -280,6 +281,48 @@ describe("signing in from the app", () => {
       statuses.push((await send(`many${i}@example.com`)).status)
     expect(statuses.slice(0, 3)).toEqual([200, 200, 200])
     expect(statuses.at(-1)).toBe(429)
+  })
+})
+
+describe("what is not let through", () => {
+  it("answers none of Better Auth's ways in that Enclose does not use", async () => {
+    for (const path of [
+      "/api/auth/email-otp/request-password-reset",
+      "/api/auth/forget-password/email-otp",
+      "/api/auth/email-otp/reset-password",
+      "/api/auth/email-otp/verify-email",
+      "/api/auth/sign-up/email",
+      "/api/auth/sign-in/email",
+      "/api/auth/get-access-token",
+    ]) {
+      const response = await call(path, {
+        method: "POST",
+        headers: PAGE,
+        body: JSON.stringify({ email: "victim@example.com" }),
+      })
+      expect(response.status, path).toBe(404)
+    }
+    expect(outbox.has("victim@example.com")).toBe(false)
+  })
+})
+
+describe("tidying up", () => {
+  it("takes away sessions and codes that have run out, and old rate counts", async () => {
+    const past = new Date(Date.now() - 60_000).toISOString()
+    const later = new Date(Date.now() + 60_000).toISOString()
+    await env.DB.batch([
+      env.DB.prepare(
+        `insert into "verification" ("id", "identifier", "value", "expiresAt", "createdAt", "updatedAt") values ('old', 'x', 'y', ?, ?, ?), ('new', 'x', 'y', ?, ?, ?)`
+      ).bind(past, past, past, later, past, past),
+      env.DB.prepare(
+        `insert into "rateLimit" ("id", "key", "count", "lastRequest") values ('old', 'a', 1, ?), ('new', 'b', 1, ?)`
+      ).bind(Date.now() - 2 * 86_400_000, Date.now()),
+    ])
+    await tidy(env)
+    const left = await env.DB.prepare(
+      `select (select group_concat("id") from "verification" where "id" in ('old', 'new')) as codes, (select group_concat("id") from "rateLimit" where "id" in ('old', 'new')) as counts`
+    ).first()
+    expect(left).toEqual({ codes: "new", counts: "new" })
   })
 })
 

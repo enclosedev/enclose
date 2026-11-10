@@ -101,6 +101,7 @@ code {
   word-break: break-all; user-select: all;
 }
 #copy { width: 100%; margin-top: 10px; }
+.note { margin-top: 16px; color: var(--faint); font-size: 14px; letter-spacing: 0; }
 footer {
   display: flex; gap: 20px; justify-content: center; padding: 24px;
   color: var(--faint); font-size: 14px; letter-spacing: 0;
@@ -454,6 +455,7 @@ export function signInPage(
     <p>Going back to Enclose. If it didn't open, paste this code into Enclose:</p>
     <code id="token"></code>
     <button id="copy" type="button">Copy code</button>
+    <p class="note">Paste it into the Enclose app and nowhere else: nobody from Enclose will ever ask you for it.</p>
   </section>
   <section id="lost-step" hidden>
     <h1>Start from Enclose</h1>
