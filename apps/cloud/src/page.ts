@@ -25,63 +25,100 @@ import { CLIENT_ID, SCHEME, type Provider } from "./auth"
 import { ACTION, HEADER } from "./turnstile"
 
 const STYLE = `
-:root {
-  color-scheme: light dark;
-  --bg: #f4f4f2; --card: #ffffff; --fg: #1d1d1b; --muted: #6b6b66;
-  --line: rgba(0,0,0,.12); --accent: #1d1d1b; --accent-fg: #ffffff; --bad: #c4372c;
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/InterVariable.woff2") format("woff2");
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #161615; --card: #20201f; --fg: #ededea; --muted: #9a9a94;
-    --line: rgba(255,255,255,.12); --accent: #ededea; --accent-fg: #161615; --bad: #ef6b5f;
-  }
+:root {
+  color-scheme: dark;
+  --bg: #171717; --fg: #fafafa; --muted: #a1a1a1; --faint: #737373;
+  --raised: #262626; --line: rgba(255,255,255,.1); --bad: #ff7a6e;
 }
 * { box-sizing: border-box; }
+html {
+  font-variation-settings: "opsz" 32; font-feature-settings: "ss03";
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
 body {
-  margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px;
+  margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center;
   background: var(--bg); color: var(--fg);
-  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 400 18px/1.3 "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.012em;
 }
 main {
-  width: 100%; max-width: 340px; background: var(--card); border-radius: 24px;
-  padding: 32px 28px 24px; box-shadow: 0 0 0 1px var(--line), 0 20px 50px rgba(0,0,0,.08);
-  display: flex; flex-direction: column; gap: 14px; text-align: center;
+  flex: 1; width: 100%; max-width: 384px; padding: 16vh 24px 48px;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
 }
-.mark { font-weight: 600; letter-spacing: .02em; }
-section { display: flex; flex-direction: column; gap: 8px; }
-h1 { margin: 0; font-size: 18px; font-weight: 600; }
-p { margin: 0; color: var(--muted); }
-form { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 0; }
+.mark { width: 64px; height: 64px; margin-bottom: 28px; color: var(--fg); }
+section { width: 100%; display: flex; flex-direction: column; align-items: center; }
+h1 { margin: 0; font-size: 1em; font-weight: 500; line-height: 1.2; text-wrap: balance; }
+p { margin: 4px 0 0; color: var(--muted); text-wrap: balance; }
+p strong { color: var(--fg); font-weight: 500; }
+.ways, form { width: 100%; display: flex; flex-direction: column; gap: 10px; margin: 28px 0 0; }
+.ways + form { margin-top: 10px; }
 input {
-  width: 100%; height: 40px; padding: 0 14px; border-radius: 12px; font: inherit;
-  color: var(--fg); background: transparent; border: 1px solid var(--line); outline: none;
+  width: 100%; height: 52px; padding: 0 22px; border: 0; border-radius: 999px;
+  background: var(--raised); color: var(--fg); font: inherit; text-align: center; outline: none;
 }
-input:focus { border-color: var(--fg); }
-#code { text-align: center; font-size: 20px; letter-spacing: 6px; font-variant-numeric: tabular-nums; }
+input::placeholder { color: var(--faint); }
+input:focus-visible { box-shadow: 0 0 0 2px var(--fg); }
+/* the code: one field, out of sight over six boxes that show what is typed in it */
+.digits { position: relative; display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.digits span {
+  display: flex; align-items: center; justify-content: center; height: 60px; border-radius: 14px;
+  background: var(--raised); font-size: 26px; font-weight: 500; font-variant-numeric: tabular-nums;
+}
+.digits:focus-within span.at { box-shadow: 0 0 0 2px var(--fg); }
+#code {
+  position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border-radius: 14px;
+  opacity: 0; cursor: text;
+}
 button {
-  height: 40px; border: 0; border-radius: 999px; font: inherit; font-weight: 500;
-  background: var(--accent); color: var(--accent-fg); cursor: pointer;
+  height: 52px; border: 0; border-radius: 999px; font: inherit; font-weight: 500;
+  background: var(--fg); color: var(--bg); cursor: pointer; transition: opacity .2s;
 }
-button:disabled { opacity: .5; cursor: default; }
-.quiet { background: none; color: var(--muted); height: auto; padding: 4px; }
-.bad { color: var(--bad); }
-.bad:empty { display: none; }
-#person:empty { display: none; }
-#person { display: flex; justify-content: center; }
-code {
-  display: block; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line);
-  font: 12px/1.4 ui-monospace, Menlo, monospace; word-break: break-all; user-select: all;
-  color: var(--fg); text-align: left;
-}
+button:hover { opacity: .82; }
+button:disabled { opacity: .4; cursor: default; }
+button:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
 .provider {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  background: transparent; color: var(--fg); box-shadow: inset 0 0 0 1px var(--line);
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: var(--raised); color: var(--fg);
 }
-.provider svg { width: 16px; height: 16px; }
-.or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: 4px 0 0; }
-.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.provider svg { width: 18px; height: 18px; }
+.quiet { height: auto; padding: 8px; background: none; color: var(--muted); font-weight: 400; }
+.quiet:hover { opacity: 1; color: var(--fg); }
+#person { display: flex; justify-content: center; }
+#person:empty { display: none; }
+.bad { margin-top: 16px; color: var(--bad); font-size: 16px; }
+.bad:empty { display: none; }
+code {
+  display: block; width: 100%; margin-top: 24px; padding: 14px 18px; border-radius: 14px;
+  background: var(--raised); color: var(--fg); text-align: left; letter-spacing: 0;
+  font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-all; user-select: all;
+}
+#copy { width: 100%; margin-top: 10px; }
+footer {
+  display: flex; gap: 20px; justify-content: center; padding: 24px;
+  color: var(--faint); font-size: 14px; letter-spacing: 0;
+}
+footer a { color: inherit; text-decoration: none; transition: color .2s; }
+footer a:hover { color: var(--fg); }
 [hidden] { display: none !important; }
 `
+
+/** Enclose's mark, as the app draws it at rest (src/components/mark.tsx there). */
+const MARK = `<svg viewBox="-50 -50 100 100" class="mark" aria-hidden="true" fill="currentColor"><g><line x2="-31.819805153394636" y2="18.36918251601112" stroke="currentColor" stroke-width="3" stroke-linecap="round"></line><circle cx="-31.819805153394636" cy="18.36918251601112" r="5"></circle></g><g><line x2="31.81980515339464" y2="18.369182516011115" stroke="currentColor" stroke-width="3" stroke-linecap="round"></line><circle cx="31.81980515339464" cy="18.369182516011115" r="5"></circle></g><g><line x2="0" y2="-36.74433653485858" stroke="currentColor" stroke-width="3" stroke-linecap="round"></line><circle cx="0" cy="-36.74433653485858" r="5"></circle></g><g><circle cx="0" cy="27.445624295763153" r="1.5"></circle><circle cx="0" cy="21.956499436610525" r="1.5"></circle><circle cx="0" cy="16.467374577457893" r="1.5"></circle><circle cx="0" cy="10.978249718305262" r="1.5"></circle><circle cx="0" cy="5.489124859152634" r="1.5"></circle><circle cx="0" cy="36.74433653485858" r="5"></circle></g><g><circle cx="-23.76701614420597" cy="-13.720406372988942" r="1.5"></circle><circle cx="-19.01361291536478" cy="-10.976325098391156" r="1.5"></circle><circle cx="-14.260209686523584" cy="-8.232243823793366" r="1.5"></circle><circle cx="-9.50680645768239" cy="-5.488162549195578" r="1.5"></circle><circle cx="-4.753403228841197" cy="-2.7440812745977903" r="1.5"></circle><circle cx="-31.81980515339464" cy="-18.369182516011115" r="5"></circle></g><g><circle cx="23.767016144205968" cy="-13.720406372988943" r="1.5"></circle><circle cx="19.013612915364778" cy="-10.976325098391156" r="1.5"></circle><circle cx="14.260209686523583" cy="-8.232243823793366" r="1.5"></circle><circle cx="9.506806457682389" cy="-5.488162549195578" r="1.5"></circle><circle cx="4.753403228841196" cy="-2.7440812745977903" r="1.5"></circle><circle cx="31.819805153394636" cy="-18.36918251601112" r="5"></circle></g></svg>`
+
+/** What the site's own pages end with: where it is, and its terms. */
+const FOOTER = `<footer>
+  <a href="https://enclose.dev">Enclose</a>
+  <a href="https://enclose.dev/terms">Terms</a>
+  <a href="https://enclose.dev/privacy">Privacy</a>
+</footer>`
 
 /** The cookie the electron plugin leaves the sign-in in, after Google or Apple. */
 const HANDED = "better-auth.electron"
@@ -133,6 +170,7 @@ window.turnstileReady = () => {
   widget = window.turnstile.render("#person", {
     sitekey: SITEKEY,
     action: ${JSON.stringify(ACTION)},
+    theme: "dark",
     appearance: "interaction-only",
     callback: (made) => { token = made; for (const one of waiting.splice(0)) one.resolve(made) },
     "expired-callback": () => { token = "" },
@@ -173,6 +211,7 @@ async function sendCode(event) {
     $("sent-to").textContent = email
     show("code-step")
     $("code").value = ""
+    drawDigits()
     $("code").focus()
   } catch (error) {
     say(error.message)
@@ -263,6 +302,16 @@ function cameBack() {
   say(asked.get("error") ? "Signing in didn't work. Start again from Enclose." : "")
 }
 
+/** The six boxes, showing the code as typed, and which comes next. */
+function drawDigits() {
+  const value = $("code").value
+  const boxes = document.querySelectorAll("#digits span")
+  boxes.forEach((box, at) => {
+    box.textContent = value[at] || ""
+    box.classList.toggle("at", at === Math.min(value.length, boxes.length - 1))
+  })
+}
+
 async function signIn(event) {
   event.preventDefault()
   const button = $("verify")
@@ -288,6 +337,13 @@ $("another").addEventListener("click", () => { say(""); show("email-step"); $("e
 for (const button of document.querySelectorAll("[data-provider]")) button.addEventListener("click", () => withProvider(button))
 $("email-form").addEventListener("submit", sendCode)
 $("code-form").addEventListener("submit", signIn)
+$("code").addEventListener("input", () => {
+  const code = $("code")
+  code.value = code.value.replace(/\\D/g, "").slice(0, 6)
+  drawDigits()
+  // (all six in, as typed or pasted or filled in by the browser: signed in with them)
+  if (code.value.length === 6 && !$("verify").disabled) $("code-form").requestSubmit()
+})
 $("other").addEventListener("click", () => { say(""); show("email-step"); $("email").focus() })
 $("copy").addEventListener("click", async () => {
   await navigator.clipboard.writeText($("token").textContent)
@@ -316,7 +372,7 @@ export function signedInPage(nonce: string): string {
 </head>
 <body>
 <main>
-  <div class="mark">Enclose</div>
+  ${MARK}
   <section id="in">
     <h1>You're signed in</h1>
     <p>Going back to Enclose.</p>
@@ -326,6 +382,7 @@ export function signedInPage(nonce: string): string {
     <p>Go back to Enclose to see why, and try again.</p>
   </section>
 </main>
+${FOOTER}
 <script nonce="${nonce}">
 if (new URLSearchParams(location.search).has("failed")) {
   document.getElementById("in").hidden = true
@@ -349,7 +406,7 @@ export function signInPage(
   providers: Provider[] = []
 ): string {
   const ways = providers.length
-    ? `\n    ${providers.map((one) => BUTTONS[one]).join("\n    ")}\n    <div class="or">or</div>`
+    ? `\n    <div class="ways">\n      ${providers.map((one) => BUTTONS[one]).join("\n      ")}\n    </div>`
     : ""
   return `<!doctype html>
 <html lang="en">
@@ -362,7 +419,7 @@ export function signInPage(
 </head>
 <body>
 <main>
-  <div class="mark">Enclose</div>
+  ${MARK}
   <section id="account-step" hidden>
     <h1>Sign in to Enclose</h1>
     <p>You're signed in on this browser as <strong id="as"></strong>.</p>
@@ -384,7 +441,10 @@ export function signInPage(
     <h1>Check your email</h1>
     <p>Enter the code we sent to <strong id="sent-to"></strong>.</p>
     <form id="code-form">
-      <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required>
+      <div id="digits" class="digits">
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+        <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="Code" required>
+      </div>
       <button id="verify" type="submit">Sign in</button>
       <button id="other" class="quiet" type="button">Use another email</button>
     </form>
@@ -401,6 +461,7 @@ export function signInPage(
   </section>
   <p id="trouble" class="bad" role="alert"></p>
 </main>
+${FOOTER}
 <script nonce="${nonce}">${SCRIPT(sitekey)}</script>${
     sitekey
       ? `\n<script nonce="${nonce}" src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=turnstileReady" async defer></script>`

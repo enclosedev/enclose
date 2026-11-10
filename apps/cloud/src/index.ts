@@ -28,7 +28,7 @@ function html(made: (nonce: string) => string, turnstile = false): Response {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-store",
-      "content-security-policy": `default-src 'none'; script-src 'nonce-${nonce}'${scripts}; style-src 'nonce-${nonce}'; connect-src 'self'${frames}; form-action 'none'; frame-ancestors 'none'; base-uri 'none'`,
+      "content-security-policy": `default-src 'none'; script-src 'nonce-${nonce}'${scripts}; style-src 'nonce-${nonce}'; font-src 'self'; connect-src 'self'${frames}; form-action 'none'; frame-ancestors 'none'; base-uri 'none'`,
       "referrer-policy": "no-referrer",
       "x-content-type-options": "nosniff",
     },

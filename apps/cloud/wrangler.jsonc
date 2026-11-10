@@ -26,6 +26,9 @@
   // what projects backed up on Enclose Cloud keep (src/backup.ts): kept on your own
   // machine as the database is
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "enclose-files" }],
+  // what the pages load besides themselves: the font the site is set in (public/fonts,
+  // Inter, under the SIL Open Font License), served as it is, before the Worker
+  "assets": { "directory": "./public" },
   "observability": { "enabled": true },
   "env": {
     // Enclose's own, on its Cloudflare account. A fork that hosts a server of its own
