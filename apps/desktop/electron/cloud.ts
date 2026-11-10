@@ -11,7 +11,12 @@ import { createHash } from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
 
-import type { CloudState, Progress } from "../shared/api"
+import type {
+  CloudProject as Chosen,
+  CloudState,
+  Progress,
+  TooBig,
+} from "../shared/api"
 import type { Git } from "./backup"
 
 /** The biggest file backed up: the server takes no bigger (apps/cloud/src/account.ts). */
@@ -45,6 +50,13 @@ export type CloudDeps = {
   onChange: (state: CloudState) => void
   /** a backup is done: what the account keeps is to be asked again */
   done: () => void
+  /** the projects taken off Enclose Cloud, not backed up again */
+  notBackedUp: () => string[]
+  setNotBackedUp: (ids: string[]) => void
+  /** whether the machine has a network to be on (a server out of reach, else, is down) */
+  online: () => boolean
+  /** show a file in its folder */
+  reveal: (path: string) => void
   record: (
     event: "cloud backup",
     properties: Record<string, string | number | boolean>
@@ -77,7 +89,7 @@ class Refused extends Error {
 
 export class CloudBackup {
   private readonly deps: CloudDeps
-  private now: CloudState = { state: "idle", tooBig: 0 }
+  private now: CloudState = { state: "idle", tooBig: [] }
   /** the backup under way: stops when this is aborted */
   private running: AbortController | null = null
   /** the files hashed before, as they were then: not read again while unchanged */
@@ -134,14 +146,14 @@ export class CloudBackup {
     if (this.retry) clearTimeout(this.retry)
     this.retry = null
     this.running?.abort()
-    if (!this.running) this.set({ state: "idle", tooBig: 0 })
+    if (!this.running) this.set({ state: "idle", tooBig: [] })
   }
 
   /** Signed out: nothing is backed up, and nothing said of how it went. */
   signedOut() {
     this.keepUp(false)
     this.stop()
-    this.set({ state: "idle", tooBig: 0 })
+    this.set({ state: "idle", tooBig: [] })
   }
 
   /** Back the projects up now. */
@@ -207,11 +219,16 @@ export class CloudBackup {
     } catch (error) {
       if (error instanceof Stopped || running.signal.aborted) {
         outcome = "stopped"
-        this.set({ state: "idle", tooBig: 0 })
+        this.set({ state: "idle", tooBig: [] })
       } else if (error instanceof Offline) {
         // (tried again by itself, from where it was: what was sent is not sent again)
         outcome = "offline"
-        this.set({ state: "waiting", files: sent, bytes })
+        this.set({
+          state: "waiting",
+          files: sent,
+          bytes,
+          offline: !this.deps.online(),
+        })
         this.retry = setTimeout(() => {
           this.retry = null
           void this.backUp()
@@ -241,12 +258,82 @@ export class CloudBackup {
     }
   }
 
+  /** The projects, here and on Enclose Cloud, as backed up or not: null where it can't say. */
+  async projects(): Promise<Chosen[] | null> {
+    let cloud: { id: string; name: string; bytes: number }[]
+    try {
+      const reply = (await this.ask(
+        "/v1/backup/projects",
+        { method: "GET" },
+        new AbortController().signal
+      )) as { projects: { id: string; name: string; bytes: number }[] }
+      cloud = reply.projects
+    } catch {
+      return null
+    }
+    const off = new Set(this.deps.notBackedUp())
+    const here = this.deps.projects()
+    const kept = new Map(cloud.map((one) => [one.id, one]))
+    const listed: Chosen[] = here.map((project) => ({
+      id: project.id,
+      name: project.name,
+      bytes: kept.get(project.id)?.bytes ?? null,
+      here: true,
+      on: !off.has(project.id),
+    }))
+    const ids = new Set(here.map((project) => project.id))
+    for (const one of cloud)
+      if (!ids.has(one.id)) listed.push({ ...one, here: false, on: true })
+    // (the biggest on Enclose Cloud first: what frees most)
+    return listed.sort((a, b) => (b.bytes ?? -1) - (a.bytes ?? -1))
+  }
+
+  /**
+   * Back up all but these: each taken off Enclose Cloud, and none backed up again; then
+   * the rest backed up. What went wrong, where something did.
+   */
+  async choose(off: string[]): Promise<string | null> {
+    this.stop()
+    const removing = [...new Set(off)]
+    if (removing.length)
+      try {
+        await this.ask(
+          "/v1/backup/remove",
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ projects: removing }),
+          },
+          new AbortController().signal
+        )
+      } catch (error) {
+        return error instanceof Offline
+          ? "Couldn't reach Enclose Cloud. Check your connection and try again."
+          : troubleOf(error)
+      }
+    this.deps.setNotBackedUp(removing)
+    this.deps.done()
+    void this.backUp()
+    return null
+  }
+
+  /** Show a file left out for being too big in its folder (only such a file). */
+  reveal(file: string) {
+    if (
+      this.now.state === "idle" &&
+      this.now.tooBig.some((one) => one.path === file)
+    )
+      this.deps.reveal(file)
+  }
+
   /** Every project's files, hashed (the window told how many so far). */
   private async look(signal: AbortSignal) {
     const found: { project: CloudProject; files: Found[] }[] = []
     let looked = 0
-    let tooBig = 0
+    const tooBig: TooBig[] = []
+    const off = new Set(this.deps.notBackedUp())
     for (const project of this.deps.projects()) {
+      if (off.has(project.id)) continue
       const files: Found[] = []
       for (const relative of await this.filesOf(project.path)) {
         if (signal.aborted) throw new Stopped()
@@ -259,7 +346,7 @@ export class CloudBackup {
         }
         if (!stat.isFile()) continue
         if (stat.size > FILE_LIMIT) {
-          tooBig++
+          tooBig.push({ project: project.name, path: abs, size: stat.size })
           continue
         }
         files.push({

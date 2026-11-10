@@ -921,22 +921,38 @@ export type AccountState =
 /** So many of something done, of so many. */
 export type Progress = { done: number; total: number }
 
+/** A file left out of backing up for being too big: of which project, where, how big. */
+export type TooBig = { project: string; path: string; size: number }
+
 /**
  * Backing the projects up on Enclose Cloud (electron/cloud.ts). idle: nothing under
- * way; where the last time left files out for being too big, how many. preparing: the
- * projects' files being looked at (so many so far). uploading: the files the server has
- * not got, being sent, so many of them and so many bytes. waiting: the server out of
- * reach, tried again by itself in a while, from where it was. failed: what went wrong.
- * full: the account has no room for what there is to send (`needed` more bytes, with
- * `used` of `limit` kept).
+ * way; the files the last time left out for being too big. preparing: the projects'
+ * files being looked at (so many so far). uploading: the files the server has not got,
+ * being sent, so many of them and so many bytes. waiting: the server out of reach (the
+ * machine `offline`, or else the server not answering), tried again by itself in a
+ * while, from where it was. failed: what went wrong. full: the account has no room for
+ * what there is to send (`needed` more bytes, with `used` of `limit` kept).
  */
 export type CloudState =
-  | { state: "idle"; tooBig: number }
+  | { state: "idle"; tooBig: TooBig[] }
   | { state: "preparing"; files: number }
   | { state: "uploading"; files: Progress; bytes: Progress }
-  | { state: "waiting"; files: Progress; bytes: Progress }
+  | { state: "waiting"; files: Progress; bytes: Progress; offline: boolean }
   | { state: "failed"; trouble: string }
   | { state: "full"; needed: number; used: number; limit: number }
+
+/**
+ * A project, as it is chosen to be backed up or not: on Enclose Cloud (`bytes`, as last
+ * backed up; null where it is not), on this computer (`here`), and backed up from here
+ * (`on`: not taken off Enclose Cloud).
+ */
+export type CloudProject = {
+  id: string
+  name: string
+  bytes: number | null
+  here: boolean
+  on: boolean
+}
 
 /**
  * Where the app is with a newer version of itself. There is none that it knows of; or
@@ -1462,6 +1478,15 @@ export type CadApi = {
     backUp(): Promise<void>
     /** stop backing up: what was sent is kept, and not sent again */
     stop(): Promise<void>
+    /** the projects, here and on Enclose Cloud, as backed up or not: null where it can't say */
+    projects(): Promise<CloudProject[] | null>
+    /**
+     * Back up all but these: those on Enclose Cloud are taken off it, and none of them
+     * backed up again. What went wrong, where something did.
+     */
+    choose(off: string[]): Promise<string | null>
+    /** show a file left out for being too big, in its folder */
+    reveal(path: string): Promise<void>
     onChange(listener: (state: CloudState) => void): () => void
   }
   update: {
@@ -1597,6 +1622,9 @@ export const CHANNEL = {
   cloudGet: "cloud:get",
   cloudBackUp: "cloud:back-up",
   cloudStop: "cloud:stop",
+  cloudProjects: "cloud:projects",
+  cloudChoose: "cloud:choose",
+  cloudReveal: "cloud:reveal",
   cloudChanged: "cloud:changed",
   viewportRequest: "viewport:request",
   viewportResponse: "viewport:response",

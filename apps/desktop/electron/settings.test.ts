@@ -172,6 +172,16 @@ describe("SettingsStore", () => {
     expect(open.account("https://cloud.enclose.dev")).toBeNull()
   })
 
+  it("keeps the projects taken off Enclose Cloud, for each server", () => {
+    const store = new SettingsStore(file, DEFAULTS)
+    store.setNotBackedUp("https://cloud.enclose.dev", ["a", "b", "a"])
+    const again = new SettingsStore(file, DEFAULTS)
+    expect(again.notBackedUp("https://cloud.enclose.dev")).toEqual(["a", "b"])
+    expect(again.notBackedUp("http://localhost:8787")).toEqual([])
+    again.setNotBackedUp("https://cloud.enclose.dev", [])
+    expect(fs.readFileSync(file, "utf8")).not.toContain("notBackedUp")
+  })
+
   it("keeps no key in the open where the system has nowhere to keep it", () => {
     const store = new SettingsStore(file, DEFAULTS)
     expect(() =>

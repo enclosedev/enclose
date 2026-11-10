@@ -42,6 +42,7 @@ function server(room = 5 * 1024 ** 3) {
   const files = new Map<string, number>()
   const snapshots: { project: { id: string }; files: { path: string }[] }[] = []
   const puts: string[] = []
+  const removed: string[] = []
   let down = false
   let full = false
   const get = (async (url: string | URL | Request, init: RequestInit = {}) => {
@@ -70,6 +71,16 @@ function server(room = 5 * 1024 ** 3) {
       snapshots.push(JSON.parse(String(init.body)))
       return Response.json({ id: "s", new: true })
     }
+    if (route === "/v1/backup/projects")
+      return Response.json({
+        projects: [...new Set(snapshots.map((one) => one.project.id))]
+          .filter((id) => !removed.includes(id))
+          .map((id) => ({ id, name: id.toUpperCase(), bytes: 10 })),
+      })
+    if (route === "/v1/backup/remove") {
+      removed.push(...JSON.parse(String(init.body)).projects)
+      return Response.json({ freed: 10 })
+    }
     return new Response("{}", { status: 404 })
   }) as typeof fetch
   return {
@@ -77,6 +88,7 @@ function server(room = 5 * 1024 ** 3) {
     files,
     snapshots,
     puts,
+    removed,
     goDown: (is: boolean) => (down = is),
     fill: () => (full = true),
   }
@@ -94,6 +106,9 @@ function backup(
   const recorded: Record<string, unknown>[] = []
   let done = 0
   let clock = 0
+  let off: string[] = []
+  let online = true
+  const revealed: string[] = []
   const deps: CloudDeps = {
     server: SERVER,
     token: () => "the-session",
@@ -103,6 +118,10 @@ function backup(
     get: site.get,
     onChange: (state) => states.push(state),
     done: () => done++,
+    notBackedUp: () => off,
+    setNotBackedUp: (ids) => (off = ids),
+    online: () => online,
+    reveal: (file) => revealed.push(file),
     record: (_, properties) => recorded.push(properties),
     // (each step a while after the last: every one of them told)
     now: () => (clock += 1000),
@@ -113,6 +132,9 @@ function backup(
     states,
     recorded,
     done: () => done,
+    off: () => off,
+    goOffline: () => (online = false),
+    revealed,
   }
 }
 
@@ -197,7 +219,16 @@ describe("backing up on Enclose Cloud", () => {
     const { cloud, site } = backup([{ id: "p1", name: "Huge", path: dir }])
     await cloud.backUp()
     expect(site.files.size).toBe(1)
-    expect(cloud.state).toEqual({ state: "idle", tooBig: 1 })
+    expect(cloud.state).toEqual({
+      state: "idle",
+      tooBig: [
+        {
+          project: "Huge",
+          path: path.join(dir, "huge.step"),
+          size: FILE_LIMIT + 1,
+        },
+      ],
+    })
   })
 
   it("sends nothing where the account has no room for it", async () => {
@@ -224,6 +255,66 @@ describe("backing up on Enclose Cloud", () => {
     const { cloud } = backup([{ id: "p1", name: "Full", path: dir }], site)
     await cloud.backUp()
     expect(cloud.state).toMatchObject({ state: "full", limit: 100 })
+  })
+
+  it("shows a file too big in its folder, and no other", async () => {
+    const dir = project({ "model.py": "x" })
+    const huge = path.join(dir, "huge.step")
+    fs.writeFileSync(huge, "")
+    fs.truncateSync(huge, FILE_LIMIT + 1)
+    const { cloud, revealed } = backup([{ id: "p1", name: "Huge", path: dir }])
+    await cloud.backUp()
+    cloud.reveal(huge)
+    cloud.reveal(path.join(dir, "model.py"))
+    expect(revealed).toEqual([huge])
+  })
+
+  it("says whether the machine is offline, or the server out of reach", async () => {
+    const dir = project({ "model.py": "x" })
+    const site = server()
+    site.goDown(true)
+    const { cloud, goOffline } = backup(
+      [{ id: "p1", name: "Away", path: dir }],
+      site
+    )
+    await cloud.backUp()
+    expect(cloud.state).toMatchObject({ state: "waiting", offline: false })
+    cloud.stop()
+    goOffline()
+    await cloud.backUp()
+    expect(cloud.state).toMatchObject({ state: "waiting", offline: true })
+    cloud.stop()
+  })
+
+  it("lists the projects, here and on Enclose Cloud, and takes those turned off off it", async () => {
+    const a = project({ "a.txt": "a" })
+    const b = project({ "b.txt": "b" })
+    const site = server()
+    const { cloud, off } = backup(
+      [
+        { id: "a", name: "A", path: a },
+        { id: "b", name: "B", path: b },
+      ],
+      site
+    )
+    await cloud.backUp()
+    expect(await cloud.projects()).toEqual([
+      { id: "a", name: "A", bytes: 10, here: true, on: true },
+      { id: "b", name: "B", bytes: 10, here: true, on: true },
+    ])
+    expect(await cloud.choose(["a"])).toBeNull()
+    expect(site.removed).toEqual(["a"])
+    expect(off()).toEqual(["a"])
+    // and is not backed up again
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(site.snapshots.at(-1)?.project.id).toBe("b")
+    expect((await cloud.projects())?.find((one) => one.id === "a")).toEqual({
+      id: "a",
+      name: "A",
+      bytes: null,
+      here: true,
+      on: false,
+    })
   })
 
   it("waits for a connection, and goes on by itself", async () => {
@@ -253,7 +344,7 @@ describe("backing up on Enclose Cloud", () => {
     const going = cloud.backUp()
     cloud.stop()
     await going
-    expect(cloud.state).toEqual({ state: "idle", tooBig: 0 })
+    expect(cloud.state).toEqual({ state: "idle", tooBig: [] })
     expect(recorded[0]).toMatchObject({ outcome: "stopped" })
     expect(site.snapshots).toHaveLength(0)
   })

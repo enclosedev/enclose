@@ -1579,6 +1579,15 @@ function wire() {
   ipcMain.handle(CHANNEL.cloudGet, () => cloud!.state)
   ipcMain.handle(CHANNEL.cloudBackUp, () => cloud!.backUp())
   ipcMain.handle(CHANNEL.cloudStop, () => cloud!.stop())
+  ipcMain.handle(CHANNEL.cloudProjects, () => cloud!.projects())
+  ipcMain.handle(CHANNEL.cloudChoose, (_, off: unknown) =>
+    cloud!.choose(
+      Array.isArray(off) ? off.filter((id) => typeof id === "string") : []
+    )
+  )
+  ipcMain.handle(CHANNEL.cloudReveal, (_, file: unknown) =>
+    cloud!.reveal(String(file))
+  )
   ipcMain.handle(CHANNEL.githubGet, () => githubState())
   ipcMain.handle(CHANNEL.githubConnect, () => {
     // (heard of as it goes: the window is not kept waiting on the user's typing)
@@ -2664,7 +2673,9 @@ if (!app.requestSingleInstanceLock()) {
       server: ACCOUNT_SERVER,
       saved: () => settings.account(ACCOUNT_SERVER),
       save: (kept) => settings.setAccount(ACCOUNT_SERVER, kept),
-      open: (url) => void shell.openExternal(url),
+      // (a run checking the app, with nobody at it, says where it would go instead)
+      open: (url) =>
+        CAPTURE ? console.log(`[open] ${url}`) : void shell.openExternal(url),
       get: (url, init) => net.fetch(String(url), init),
       onChange: (state) => {
         send(CHANNEL.accountChanged, state)
@@ -2703,6 +2714,10 @@ if (!app.requestSingleInstanceLock()) {
       get: (url, init) => net.fetch(String(url), init),
       onChange: (state) => send(CHANNEL.cloudChanged, state),
       done: () => void account?.refresh(),
+      notBackedUp: () => settings.notBackedUp(ACCOUNT_SERVER),
+      setNotBackedUp: (ids) => settings.setNotBackedUp(ACCOUNT_SERVER, ids),
+      online: () => net.isOnline(),
+      reveal: (file) => shell.showItemInFolder(file),
       record: (event, properties) => analytics?.record(event, properties),
     })
     backups = new Backups({

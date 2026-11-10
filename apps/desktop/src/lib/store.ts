@@ -1351,7 +1351,7 @@ export const useStore = create<State>()((set, get) => ({
     failures: [],
   },
   account: { state: "out", trouble: null, server: null },
-  cloud: { state: "idle", tooBig: 0 },
+  cloud: { state: "idle", tooBig: [] },
   access: savedAccess(saved(ACCESS_KEY)),
   providers: [],
   provider: PROVIDERS.find((one) => one === saved(PROVIDER_KEY)) ?? "claude",

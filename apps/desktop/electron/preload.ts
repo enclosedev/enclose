@@ -258,6 +258,9 @@ const api: CadApi = {
     get: () => ipcRenderer.invoke(CHANNEL.cloudGet),
     backUp: () => ipcRenderer.invoke(CHANNEL.cloudBackUp),
     stop: () => ipcRenderer.invoke(CHANNEL.cloudStop),
+    projects: () => ipcRenderer.invoke(CHANNEL.cloudProjects),
+    choose: (off) => ipcRenderer.invoke(CHANNEL.cloudChoose, off),
+    reveal: (path) => ipcRenderer.invoke(CHANNEL.cloudReveal, path),
     onChange: (listener) => on(CHANNEL.cloudChanged, listener),
   },
   update: {

@@ -478,7 +478,10 @@ left out), each hashed with SHA-256. The app asks which hashes the server has no
 (`POST /v1/backup/missing`), sends each of those once (`PUT /v1/backup/files/<hash>`,
 which R2 keeps only if it is that hash), and then each project as it is, its files'
 paths and hashes (`POST /v1/backup/snapshots`). A project unchanged since its last
-snapshot makes no new one. Each account may keep 5 GB (`STORAGE_LIMIT`), and all of them
+snapshot makes no new one. `GET /v1/backup/projects` lists each as last backed up, and
+`POST /v1/backup/remove` takes projects off, with each file no other project has used
+(which files each has used is kept in `project_file`); the app then backs them up no
+more (`notBackedUp` in its settings). Each account may keep 5 GB (`STORAGE_LIMIT`), and all of them
 together `SERVICE_LIMIT`, in [`src/account.ts`](../apps/cloud/src/account.ts); no file
 over 95 MB is taken, since one request carries it. Deleting the account deletes
 everything it keeps in R2.

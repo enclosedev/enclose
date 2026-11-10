@@ -36,6 +36,7 @@ export function Row({
   wrap,
   halves,
   flush,
+  balance,
   children,
 }: {
   title: React.ReactNode
@@ -43,6 +44,8 @@ export function Row({
   wrap?: boolean
   halves?: boolean
   flush?: boolean
+  /** break its lines evenly, rather than as far along as each goes */
+  balance?: boolean
   children?: React.ReactNode
 }) {
   return (
@@ -60,9 +63,18 @@ export function Row({
           wrap && "min-w-44 flex-1"
         )}
       >
-        <span className="text-sm font-medium">{title}</span>
+        <span className={cn("text-sm font-medium", balance && "text-balance")}>
+          {title}
+        </span>
         {detail && (
-          <span className="text-sm text-muted-foreground">{detail}</span>
+          <span
+            className={cn(
+              "text-sm text-muted-foreground",
+              balance && "text-balance"
+            )}
+          >
+            {detail}
+          </span>
         )}
       </div>
       {children && (

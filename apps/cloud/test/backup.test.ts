@@ -206,3 +206,62 @@ async function userOf(token: string): Promise<string> {
   const response = await call("/v1/account", { headers: as(token) })
   return ((await response.json()) as { user: { id: string } }).user.id
 }
+
+describe("taking projects off Enclose Cloud", () => {
+  const keep = (
+    token: string,
+    id: string,
+    files: { path: string; hash: string; size: number }[]
+  ) =>
+    call("/v1/backup/snapshots", {
+      method: "POST",
+      headers: as(token, { "content-type": "application/json" }),
+      body: JSON.stringify({ project: { id, name: id.toUpperCase() }, files }),
+    })
+
+  it("lists each project as last backed up, and frees what only it used", async () => {
+    const token = await signedIn("removes@example.com")
+    const user = await userOf(token)
+    const shared = { path: "LICENSE", hash: await hashOf("shared"), size: 6 }
+    const own = { path: "a.step", hash: await hashOf("only a's"), size: 8 }
+    const other = { path: "b.step", hash: await hashOf("b's"), size: 3 }
+    for (const [hash, text] of [
+      [shared.hash, "shared"],
+      [own.hash, "only a's"],
+      [other.hash, "b's"],
+    ])
+      await send(token, hash, text)
+    await keep(token, "a", [shared, own])
+    await keep(token, "b", [shared, other])
+
+    const listed = await call("/v1/backup/projects", { headers: as(token) })
+    const { projects } = (await listed.json()) as {
+      projects: { id: string; name: string; bytes: number }[]
+    }
+    expect(projects).toMatchObject([
+      { id: "a", name: "A", bytes: 14 },
+      { id: "b", name: "B", bytes: 9 },
+    ])
+
+    const removed = await call("/v1/backup/remove", {
+      method: "POST",
+      headers: as(token, { "content-type": "application/json" }),
+      body: JSON.stringify({ projects: ["a"] }),
+    })
+    expect(await removed.json()).toEqual({ freed: 8 })
+
+    // b's files, the shared one with them, are all still there
+    const left = (await (
+      await missing(token, [shared.hash, own.hash, other.hash])
+    ).json()) as {
+      missing: string[]
+    }
+    expect(left.missing).toEqual([own.hash])
+    expect(await env.FILES.get(`u/${user}/files/${own.hash}`)).toBeNull()
+    expect(await env.FILES.get(`u/${user}/files/${shared.hash}`)).not.toBeNull()
+    expect(await account(token)).toMatchObject({
+      storage: { used: 9 },
+      backup: { projects: 1 },
+    })
+  })
+})

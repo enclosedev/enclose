@@ -104,6 +104,8 @@ type Saved = Partial<Settings> & {
    * any a run from a checkout signs in on), with what signs in to it sealed.
    */
   accounts?: Record<string, { email: string; name: string; sealed: string }>
+  /** for each server, the projects taken off Enclose Cloud there: not backed up again */
+  notBackedUp?: Record<string, string[]>
 }
 
 /** An Enclose account, as the app keeps it: who, and the token of its session. */
@@ -309,6 +311,23 @@ export class SettingsStore {
     this.saved = Object.keys(accounts).length > 0 ? { ...rest, accounts } : rest
     this.write()
     return true
+  }
+
+  /** The projects taken off Enclose Cloud on this server: not backed up again. */
+  notBackedUp(server: string): string[] {
+    return this.saved.notBackedUp?.[server] ?? []
+  }
+
+  setNotBackedUp(server: string, ids: string[]) {
+    const kept = { ...this.saved.notBackedUp }
+    if (ids.length) kept[server] = [...new Set(ids)]
+    else delete kept[server]
+    const rest = { ...this.saved }
+    delete rest.notBackedUp
+    this.saved = Object.keys(kept).length
+      ? { ...rest, notBackedUp: kept }
+      : rest
+    this.write()
   }
 
   private write() {
