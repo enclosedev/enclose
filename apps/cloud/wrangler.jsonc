@@ -11,7 +11,9 @@
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "STAGE": "local",
-    "BASE_URL": "http://localhost:8787"
+    "BASE_URL": "http://localhost:8787",
+    // (no Turnstile on your own machine: see src/turnstile.ts)
+    "TURNSTILE_SITEKEY": ""
   },
   "d1_databases": [
     {
@@ -24,12 +26,15 @@
   "observability": { "enabled": true },
   "env": {
     // Enclose's own, on its Cloudflare account. A fork that hosts a server of its own
-    // puts its own database and address here. BETTER_AUTH_SECRET and RESEND_API_KEY are
-    // set apart from this file (`wrangler secret put <name> --env production`).
+    // puts its own database, address and Turnstile widget here. BETTER_AUTH_SECRET,
+    // RESEND_API_KEY and TURNSTILE_SECRET are set apart from this file
+    // (`wrangler secret put <name> --env production`).
     "production": {
       "vars": {
         "STAGE": "production",
-        "BASE_URL": "https://cloud.enclose.dev"
+        "BASE_URL": "https://cloud.enclose.dev",
+        // the "Enclose sign-in" widget's, made with `wrangler turnstile widget create`
+        "TURNSTILE_SITEKEY": "0x4AAAAAAF7s4qbrj3nelzye"
       },
       "routes": [{ "pattern": "cloud.enclose.dev", "custom_domain": true }],
       "d1_databases": [

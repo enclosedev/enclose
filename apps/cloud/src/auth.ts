@@ -1,18 +1,22 @@
 // Accounts, as Better Auth keeps them in the server's D1 database: signed in to with a
-// code sent by email (no password), and from the app through the sign-in page, which
-// hands the app what it signs in with by way of an enclose:// link (the electron
-// plugin). The app then sends that session's token with each request (the bearer plugin).
+// code sent by email (no password), or with Google or Apple where the server has their
+// keys, and from the app through the sign-in page, which hands the app what it signs in
+// with by way of an enclose:// link (the electron plugin). The app then sends that
+// session's token with each request (the bearer plugin).
 import { electron } from "@better-auth/electron"
 import { betterAuth } from "better-auth"
 import { bearer } from "better-auth/plugins/bearer"
 import { emailOTP } from "better-auth/plugins/email-otp"
 
+import { appleSecret, hasApple } from "./apple"
 import { sendCode } from "./email"
 
 /** What the app signs in as, through the sign-in page: the electron plugin's own. */
 export const CLIENT_ID = "electron"
 /** The link the app is handed back by, which it alone answers: `enclose://`. */
 export const SCHEME = "enclose"
+/** Where Apple sends people back from, by a form it posts (so, from its own origin). */
+const APPLE = "https://appleid.apple.com"
 
 const DAY = 24 * 60 * 60
 
@@ -30,7 +34,20 @@ function secretOf(env: Env): string {
   return LOCAL_SECRET
 }
 
-function make(env: Env) {
+/** The ways in besides an email's code: those the server has the keys for. */
+export type Provider = "google" | "apple"
+
+export function providersOf(env: Env): Provider[] {
+  const ways: Provider[] = []
+  if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) ways.push("google")
+  if (hasApple(env)) ways.push("apple")
+  return ways
+}
+
+/** Whether the code Better Auth was to send, for one request, failed to go. */
+export type Sending = { failed: boolean }
+
+function make(env: Env, sending: Sending, apple: string | null) {
   return betterAuth({
     appName: "Enclose",
     baseURL: env.BASE_URL,
@@ -39,12 +56,30 @@ function make(env: Env) {
     database: env.DB,
     // Better Auth would otherwise tell its makers about the server
     telemetry: { enabled: false },
-    // the app's requests come with the app's scheme as their origin
-    trustedOrigins: [`${SCHEME}://`],
+    // the app's requests come with the app's scheme as their origin, and Apple's
+    // sign-in comes back from Apple's
+    trustedOrigins: [`${SCHEME}://`, ...(apple ? [APPLE] : [])],
     session: {
       // the app stays signed in while it is used: every day it is, the session goes on
       expiresIn: 90 * DAY,
       updateAge: DAY,
+    },
+    // (one account for each email: signing in with Google or Apple, as the email a code
+    // was sent to before, is the same account, as both say they have checked the email)
+    socialProviders: {
+      ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+        ? {
+            google: {
+              clientId: env.GOOGLE_CLIENT_ID,
+              clientSecret: env.GOOGLE_CLIENT_SECRET,
+              // (which Google account, asked each time: not whichever is signed in)
+              prompt: "select_account" as const,
+            },
+          }
+        : {}),
+      ...(apple && env.APPLE_CLIENT_ID
+        ? { apple: { clientId: env.APPLE_CLIENT_ID, clientSecret: apple } }
+        : {}),
     },
     // counted in the database, so that it holds across all of Cloudflare's machines
     rateLimit: { enabled: true, storage: "database" },
@@ -59,7 +94,16 @@ function make(env: Env) {
         // (the code is checked against what is kept, and nobody reading the database
         // can sign in with it)
         storeOTP: "hashed",
-        sendVerificationOTP: ({ email, otp }) => sendCode(env, email, otp),
+        // (Better Auth waits on the send, but says it went whether or not: what failed
+        // is noted, for the reply to say so instead)
+        sendVerificationOTP: async ({ email, otp }) => {
+          try {
+            await sendCode(env, email, otp)
+          } catch (error) {
+            sending.failed = true
+            throw error
+          }
+        },
       }),
       bearer(),
       electron({ clientID: CLIENT_ID }),
@@ -70,10 +114,15 @@ function make(env: Env) {
 export type Auth = ReturnType<typeof make>
 
 /**
- * Better Auth, for one request. It is made again for each: one kept from an earlier
- * request waits there on what that request began (its setup, read from the database),
- * and the Workers runtime never lets another request see that finish, so it hangs.
+ * Better Auth, for one request, and whether a code it was to send failed to go. It is
+ * made again for each: one kept from an earlier request waits there on what that request
+ * began (its setup, read from the database), and the Workers runtime never lets another
+ * request see that finish, so it hangs.
  */
-export function authFor(env: Env): Auth {
-  return make(env)
+export async function authFor(
+  env: Env
+): Promise<{ auth: Auth; sending: Sending }> {
+  const sending: Sending = { failed: false }
+  const apple = hasApple(env) ? await appleSecret(env) : null
+  return { auth: make(env, sending, apple), sending }
 }

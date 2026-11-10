@@ -419,7 +419,9 @@ Its database is kept in `apps/cloud/.wrangler`, and made or brought up to date f
 [`migrations/`](../apps/cloud/migrations) each time `npm run dev` starts. A sign-in code
 is not sent from there: it is written in the terminal the server runs in (`[sign-in]
 the code for you@example.com is 123456`), to be typed on the page as if it had come by
-email. Any email will do.
+email. Any email will do. Google and Apple are not offered there, nor is anybody asked
+to prove they are a person: both take keys only the server people use has (below). To
+try them, put keys of your own in `apps/cloud/.dev.vars`, which git ignores.
 
 Run from a checkout, the app signs in on that server; another is tried with
 `ENCLOSE_CLOUD_URL=<url> npm run dev`. The installed app signs in on Enclose's own, at
@@ -431,7 +433,9 @@ How signing in goes:
 
 1. The app makes a secret of its own (a PKCE verifier) and opens the sign-in page,
    `/sign-in`, with a digest of it. The page asks for an email, has the server send a
-   code to it, and signs in with the code.
+   code to it, and signs in with the code. Or it sends the person to Google or Apple,
+   and they come back to `/sign-in/done`, where Better Auth has left what step 2 hands
+   over in a cookie.
 2. The server, through Better Auth's [Electron plugin](https://better-auth.com/docs/integrations/electron),
    gives the page something for the app to sign in with, which the page hands to the
    app as `enclose://auth/callback#token=…`, and shows as a code to paste.
@@ -447,7 +451,9 @@ which lets it be, and the code the page shows is pasted into the app's dialog in
 The app's half is [`electron/account.ts`](../apps/desktop/electron/account.ts), and the
 page in Settings is [`src/components/account.tsx`](../apps/desktop/src/components/account.tsx).
 The server's is [`src/auth.ts`](../apps/cloud/src/auth.ts) (Better Auth, and how it is
-set up), [`src/page.ts`](../apps/cloud/src/page.ts) (the sign-in page) and
+set up), [`src/page.ts`](../apps/cloud/src/page.ts) (the sign-in page),
+[`src/turnstile.ts`](../apps/cloud/src/turnstile.ts) (that whoever asks for a code is a
+person), [`src/apple.ts`](../apps/cloud/src/apple.ts) (the secret Apple is sent) and
 [`src/index.ts`](../apps/cloud/src/index.ts) (what is answered where).
 
 [`migrations/0001_accounts.sql`](../apps/cloud/migrations/0001_accounts.sql) is the
@@ -465,11 +471,31 @@ The server people use is on Enclose's Cloudflare account, as `wrangler.jsonc` ha
 npx wrangler d1 create enclose                          # its id goes in wrangler.jsonc
 npx wrangler secret put BETTER_AUTH_SECRET --env production    # openssl rand -base64 32
 npx wrangler secret put RESEND_API_KEY --env production
+npx wrangler secret put TURNSTILE_SECRET --env production
 ```
 
 The sign-in codes are sent through [Resend](https://resend.com), from
 `sign-in@enclose.dev`: enclose.dev is a sending domain on Enclose's Resend account,
 with the records Resend asks for in its DNS on Cloudflare (DNS only, not proxied).
+Before a code is sent, [Turnstile](https://developers.cloudflare.com/turnstile/) checks
+that whoever asked is a person: the page has the "Enclose sign-in" widget (its sitekey is
+`TURNSTILE_SITEKEY` in `wrangler.jsonc`, made with `wrangler turnstile widget create`),
+unseen unless Cloudflare is unsure, and the server has Cloudflare check its token with
+`TURNSTILE_SECRET`. A code that could not be sent is said so on the page, as Resend's
+answer is in the server's logs (`npx wrangler tail --env production`).
+
+Google and Apple are offered once their keys are secrets on the server, each apart:
+
+- Google: an OAuth client (a web application) in Google Cloud's console, with
+  `https://cloud.enclose.dev/api/auth/callback/google` for its redirect URI.
+  `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+- Apple: on Apple's developer site, a Services ID with Sign in with Apple, for the
+  domain `cloud.enclose.dev` and the return URL
+  `https://cloud.enclose.dev/api/auth/callback/apple`, and a Sign in with Apple key.
+  `APPLE_CLIENT_ID` (the Services ID), `APPLE_TEAM_ID`, `APPLE_KEY_ID` and
+  `APPLE_PRIVATE_KEY` (the `.p8` file's text). The secret Apple is sent, which it takes
+  for six months at most, the server makes from the key itself as it needs it.
+
 Then `npm run deploy` brings the database up to date and puts the server up. A fork
 that hosts its own puts its own database and address in `env.production`, and the
 address in `ENCLOSE_SERVER` for its app.

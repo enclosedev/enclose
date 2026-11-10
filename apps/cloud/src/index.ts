@@ -5,8 +5,9 @@
 // this module exports for something it answers requests with, and will not start
 // otherwise.)
 import { STORAGE_LIMIT, type AccountReply } from "./account"
-import { authFor } from "./auth"
+import { authFor, providersOf } from "./auth"
 import { signInPage } from "./page"
+import { isPerson } from "./turnstile"
 
 const json = (body: unknown, status = 200) =>
   Response.json(body, {
@@ -14,13 +15,19 @@ const json = (body: unknown, status = 200) =>
     headers: { "cache-control": "no-store" },
   })
 
-function page(): Response {
+/** Turnstile's script, and the frame its check runs in, where the page has the widget. */
+const TURNSTILE = "https://challenges.cloudflare.com"
+
+function page(env: Env): Response {
   const nonce = crypto.randomUUID().replaceAll("-", "")
-  return new Response(signInPage(nonce), {
+  const sitekey = env.TURNSTILE_SITEKEY || null
+  const scripts = sitekey ? ` ${TURNSTILE}` : ""
+  const frames = sitekey ? `; frame-src ${TURNSTILE}` : ""
+  return new Response(signInPage(nonce, sitekey, providersOf(env)), {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-store",
-      "content-security-policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; connect-src 'self'; form-action 'none'; frame-ancestors 'none'; base-uri 'none'`,
+      "content-security-policy": `default-src 'none'; script-src 'nonce-${nonce}'${scripts}; style-src 'nonce-${nonce}'; connect-src 'self'${frames}; form-action 'none'; frame-ancestors 'none'; base-uri 'none'`,
       "referrer-policy": "no-referrer",
       "x-content-type-options": "nosniff",
     },
@@ -34,13 +41,45 @@ export default {
     // (Better Auth is made only for a request it answers, and that waits on it to the
     // end: what it begins as it is made, a request over before then would leave hanging,
     // and every request after it waiting on that)
-    if (url.pathname.startsWith("/api/auth/"))
-      return authFor(env).handler(request)
+    // (a code is emailed only for a person: see src/turnstile.ts)
+    if (
+      url.pathname === "/api/auth/email-otp/send-verification-otp" &&
+      !(await isPerson(env, request))
+    )
+      return json(
+        {
+          code: "NOT_A_PERSON",
+          message: "We couldn't tell you're a person. Reload the page and try again.",
+        },
+        403
+      )
 
-    if (url.pathname === "/sign-in" && request.method === "GET") return page()
+    if (url.pathname.startsWith("/api/auth/")) {
+      const { auth, sending } = await authFor(env)
+      const response = await auth.handler(request)
+      // (Better Auth says a code went that did not: the page is told it didn't)
+      if (sending.failed)
+        return json(
+          {
+            code: "CODE_NOT_SENT",
+            message:
+              "We couldn't send the code. Check the email and try again in a moment.",
+          },
+          502
+        )
+      return response
+    }
+
+    // (and the same page, back from Google or Apple)
+    if (
+      (url.pathname === "/sign-in" || url.pathname === "/sign-in/done") &&
+      request.method === "GET"
+    )
+      return page(env)
 
     if (url.pathname === "/v1/account" && request.method === "GET") {
-      const session = await authFor(env).api.getSession({
+      const { auth } = await authFor(env)
+      const session = await auth.api.getSession({
         headers: request.headers,
       })
       if (!session) return json({ message: "Not signed in." }, 401)

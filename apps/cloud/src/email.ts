@@ -17,6 +17,10 @@ export async function sendCode(
   code: string
 ): Promise<void> {
   if (env.STAGE !== "production") {
+    // (nor does it pretend to send where nothing could be: an address on .invalid, a
+    // name kept for that, is refused as Resend would refuse one it cannot send to)
+    if (email.endsWith(".invalid"))
+      throw new Error(`There is nowhere to send ${email}'s code.`)
     outbox.set(email, code)
     console.log(`[sign-in] the code for ${email} is ${code}`)
     return

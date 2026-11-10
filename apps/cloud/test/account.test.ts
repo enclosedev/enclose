@@ -193,6 +193,19 @@ describe("signing in from the app", () => {
     for (const row of results) expect(row.value).not.toContain(code)
   })
 
+  it("says so where the code could not be sent", async () => {
+    const sent = await call("/api/auth/email-otp/send-verification-otp", {
+      method: "POST",
+      headers: PAGE,
+      body: JSON.stringify({ email: "nobody@nowhere.invalid", type: "sign-in" }),
+    })
+    expect(sent.status).toBe(502)
+    expect(await sent.json()).toMatchObject({
+      code: "CODE_NOT_SENT",
+      message: expect.stringMatching(/couldn't send the code/),
+    })
+  })
+
   it("sends no more than a few codes a minute to anybody", async () => {
     const send = (email: string) =>
       call("/api/auth/email-otp/send-verification-otp", {
