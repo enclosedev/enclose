@@ -115,6 +115,17 @@ describe("signing in from the app", () => {
     expect(await response.text()).toContain(`<script nonce="${nonce}">`)
   })
 
+  it("closes the tab, once the app has the sign-in, or goes on to the site", async () => {
+    const response = await call("/signed-in")
+    expect(response.status).toBe(200)
+    const policy = response.headers.get("content-security-policy") ?? ""
+    const nonce = /script-src 'nonce-([^']+)'/.exec(policy)?.[1]
+    const page = await response.text()
+    expect(page).toContain(`<script nonce="${nonce}">`)
+    expect(page).toContain("window.close()")
+    expect(page).toContain('location.replace("https://enclose.dev")')
+  })
+
   it("makes an account of a new email, and tells the app of it", async () => {
     const token = await signedIn("new@example.com")
     const response = await account(token)

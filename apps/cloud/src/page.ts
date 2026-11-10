@@ -195,10 +195,11 @@ function handOver(token) {
   $("token").textContent = token
   show("done-step")
   // (a page the browser goes to, and not a request from this one: a browser asks first
-  // before a site may send requests to this machine, and lets it go to a page there)
-  location.href = port
-    ? "http://127.0.0.1:" + port + "/auth/callback?token=" + token
-    : ${JSON.stringify(SCHEME)} + "://auth/callback#token=" + token
+  // before a site may send requests to this machine, and lets it go to a page there.
+  // In place of this one, so that the tab has nothing before what it ends at, and may
+  // be closed by it: see signedInPage)
+  if (port) location.replace("http://127.0.0.1:" + port + "/auth/callback?token=" + token)
+  else location.href = ${JSON.stringify(SCHEME)} + "://auth/callback#token=" + token
 }
 
 /** Signed in already, in this browser: that account offered, where nothing is begun yet. */
@@ -293,6 +294,50 @@ $("copy").addEventListener("click", async () => {
   $("copy").textContent = "Copied"
 })
 `
+
+/** Where the browser goes once the app has the sign-in, where the tab is not closed. */
+export const SITE = "https://enclose.dev"
+
+/**
+ * Where the app sends the browser once it has the sign-in (from 127.0.0.1, so that its
+ * address is not left in the browser): the tab closes, where the browser lets it (it
+ * does where nothing came before in the tab, as after the email's code), or goes on to
+ * Enclose's site. Where signing in failed (`?failed`), it says so, and the app says why.
+ */
+export function signedInPage(nonce: string): string {
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Enclose</title>
+<style nonce="${nonce}">${STYLE}</style>
+</head>
+<body>
+<main>
+  <div class="mark">Enclose</div>
+  <section id="in">
+    <h1>You're signed in</h1>
+    <p>Going back to Enclose.</p>
+  </section>
+  <section id="failed" hidden>
+    <h1>Signing in didn't work</h1>
+    <p>Go back to Enclose to see why, and try again.</p>
+  </section>
+</main>
+<script nonce="${nonce}">
+if (new URLSearchParams(location.search).has("failed")) {
+  document.getElementById("in").hidden = true
+  document.getElementById("failed").hidden = false
+} else {
+  window.close()
+  setTimeout(() => location.replace(${JSON.stringify(SITE)}), 250)
+}
+</script>
+</body>
+</html>`
+}
 
 /**
  * The page, with the nonce its own script runs under and no other may (but Turnstile's,

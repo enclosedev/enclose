@@ -178,7 +178,10 @@ export class Account {
     this.listening = null
   }
 
-  /** The page, handing the sign-in back: signed in, and the browser told so. */
+  /**
+   * The page, handing the sign-in back: signed in, and the browser sent on (so that
+   * this address is not left in it) to the server's page that closes the tab.
+   */
   private async answer(request: IncomingMessage, response: ServerResponse) {
     const url = new URL(request.url ?? "/", "http://127.0.0.1")
     if (request.method !== "GET" || url.pathname !== CALLBACK) {
@@ -194,15 +197,19 @@ export class Account {
           ? await this.finish(token)
           : "That isn't what the sign-in page hands back. Start again from Enclose."
     if (trouble === null) this.deps.focus?.()
+    // (it failed: the app says why, as for a link, and the browser only that it did)
+    else if (this.pending) {
+      this.pending = null
+      this.stopListening()
+      this.set({ state: "out", trouble, server: this.shownServer })
+    }
     response
-      .writeHead(200, {
-        "content-type": "text/html; charset=utf-8",
+      .writeHead(302, {
+        location: `${this.deps.server}/signed-in${trouble ? "?failed" : ""}`,
         "cache-control": "no-store",
-        "content-security-policy":
-          "default-src 'none'; style-src 'unsafe-inline'",
         connection: "close",
       })
-      .end(handedPage(trouble))
+      .end()
   }
 
   /** The code the page shows, pasted: what went wrong, where something did. */
@@ -370,39 +377,6 @@ export class Account {
     this.deps.record("account deleted")
     return null
   }
-}
-
-const escape = (text: string) =>
-  text.replace(/[&<>"]/g, (char) => `&#${char.charCodeAt(0)};`)
-
-/** What the browser shows, the sign-in handed back to the app: it went, or what didn't. */
-function handedPage(trouble: string | null): string {
-  const title = trouble ? "Signing in didn't work" : "You're signed in"
-  const said = trouble ?? "You can close this tab and go back to Enclose."
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title}</title>
-<style>
-:root { color-scheme: light dark; --bg: #f4f4f2; --card: #fff; --fg: #1d1d1b; --muted: #6b6b66; --line: rgba(0,0,0,.12); }
-@media (prefers-color-scheme: dark) { :root { --bg: #161615; --card: #20201f; --fg: #ededea; --muted: #9a9a94; --line: rgba(255,255,255,.12); } }
-body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; box-sizing: border-box; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-main { width: 100%; max-width: 340px; box-sizing: border-box; background: var(--card); border-radius: 24px; padding: 32px 28px; box-shadow: 0 0 0 1px var(--line), 0 20px 50px rgba(0,0,0,.08); display: flex; flex-direction: column; gap: 10px; text-align: center; }
-.mark { font-weight: 600; letter-spacing: .02em; margin-bottom: 4px; }
-h1 { margin: 0; font-size: 18px; font-weight: 600; }
-p { margin: 0; color: var(--muted); }
-</style>
-</head>
-<body>
-<main>
-  <div class="mark">Enclose</div>
-  <h1>${title}</h1>
-  <p>${escape(said)}</p>
-</main>
-</body>
-</html>`
 }
 
 /**

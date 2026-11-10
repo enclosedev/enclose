@@ -127,26 +127,31 @@ describe("signing in", () => {
     const port = new URL(opened[0]).searchParams.get("loopback")
     const { token } = site.page(opened[0])
     const back = `http://127.0.0.1:${port}/auth/callback?token=${token}`
-    const answer = await fetch(back)
-    expect(answer.status).toBe(200)
-    expect(await answer.text()).toContain("You're signed in")
+    // sent on, so that this address is not left in the browser
+    const answer = await fetch(back, { redirect: "manual" })
+    expect(answer.status).toBe(302)
+    expect(answer.headers.get("location")).toBe(`${SERVER}/signed-in`)
     expect(made.state.state).toBe("in")
     expect(focused()).toBe(1)
     // and listens no more
     await expect(fetch(back)).rejects.toThrow()
   })
 
-  it("tells the browser what went wrong, handed back something else", async () => {
+  it("says why, handed back something else, and the browser only that it failed", async () => {
     const { made, opened } = account()
     await made.signIn()
     const port = new URL(opened[0]).searchParams.get("loopback")
-    const answer = await fetch(
-      `http://127.0.0.1:${port}/auth/callback?token=not-the-code`
-    )
-    expect(await answer.text()).toContain("Signing in didn't work")
-    expect(made.state.state).toBe("signing-in")
     expect((await fetch(`http://127.0.0.1:${port}/other`)).status).toBe(404)
-    made.cancel()
+    const answer = await fetch(
+      `http://127.0.0.1:${port}/auth/callback?token=not-the-code`,
+      { redirect: "manual" }
+    )
+    expect(answer.headers.get("location")).toBe(`${SERVER}/signed-in?failed`)
+    expect(made.state).toMatchObject({
+      state: "out",
+      trouble: expect.stringMatching(/isn't the code/),
+    })
+    // and listens no more
     await expect(
       fetch(`http://127.0.0.1:${port}/auth/callback?token=x`)
     ).rejects.toThrow()

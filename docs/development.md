@@ -441,7 +441,9 @@ How signing in goes:
    gives the page something for the app to sign in with. While it signs in, the app
    listens on this machine (at `127.0.0.1`, on a port of its own, which it opened the
    page with as `loopback`), and the page goes there with it: the app signs in that
-   moment and comes forward, and the browser says it can be closed. Where the app could
+   moment and comes forward, and sends the browser on to `/signed-in`, which closes the
+   tab where the browser lets it (where nothing came before in the tab, as after the
+   email's code) or goes on to enclose.dev (as after Google's or Apple's pages). Where the app could
    not listen, the page hands it over as `enclose://auth/callback#token=…`; and either
    way it shows it as a code to paste.
 3. The app sends that, with its secret, to `/api/auth/electron/token`, and is given the

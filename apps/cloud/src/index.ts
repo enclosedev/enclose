@@ -6,7 +6,7 @@
 // otherwise.)
 import { STORAGE_LIMIT, type AccountReply } from "./account"
 import { authFor, providersOf } from "./auth"
-import { signInPage } from "./page"
+import { SITE, signInPage, signedInPage } from "./page"
 import { isPerson } from "./turnstile"
 
 const json = (body: unknown, status = 200) =>
@@ -18,12 +18,12 @@ const json = (body: unknown, status = 200) =>
 /** Turnstile's script, and the frame its check runs in, where the page has the widget. */
 const TURNSTILE = "https://challenges.cloudflare.com"
 
-function page(env: Env): Response {
+/** A page, its own script and style let run by a nonce alone (and Turnstile's, where said). */
+function html(made: (nonce: string) => string, turnstile = false): Response {
   const nonce = crypto.randomUUID().replaceAll("-", "")
-  const sitekey = env.TURNSTILE_SITEKEY || null
-  const scripts = sitekey ? ` ${TURNSTILE}` : ""
-  const frames = sitekey ? `; frame-src ${TURNSTILE}` : ""
-  return new Response(signInPage(nonce, sitekey, providersOf(env)), {
+  const scripts = turnstile ? ` ${TURNSTILE}` : ""
+  const frames = turnstile ? `; frame-src ${TURNSTILE}` : ""
+  return new Response(made(nonce), {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-store",
@@ -32,6 +32,14 @@ function page(env: Env): Response {
       "x-content-type-options": "nosniff",
     },
   })
+}
+
+function page(env: Env): Response {
+  const sitekey = env.TURNSTILE_SITEKEY || null
+  return html(
+    (nonce) => signInPage(nonce, sitekey, providersOf(env)),
+    Boolean(sitekey)
+  )
 }
 
 export default {
@@ -98,8 +106,11 @@ export default {
       return json(reply)
     }
 
-    if (url.pathname === "/")
-      return Response.redirect("https://enclose.dev", 302)
+    // (where the app sends the browser, once it has the sign-in)
+    if (url.pathname === "/signed-in" && request.method === "GET")
+      return html(signedInPage)
+
+    if (url.pathname === "/") return Response.redirect(SITE, 302)
 
     return json({ message: "Not found." }, 404)
   },
