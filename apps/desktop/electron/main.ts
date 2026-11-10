@@ -1588,6 +1588,11 @@ function wire() {
   ipcMain.handle(CHANNEL.cloudReveal, (_, file: unknown) =>
     cloud!.reveal(String(file))
   )
+  ipcMain.handle(CHANNEL.cloudRestore, (_, ids: unknown) =>
+    cloud!.restore(
+      Array.isArray(ids) ? ids.filter((id) => typeof id === "string") : []
+    )
+  )
   ipcMain.handle(CHANNEL.githubGet, () => githubState())
   ipcMain.handle(CHANNEL.githubConnect, () => {
     // (heard of as it goes: the window is not kept waiting on the user's typing)
@@ -2718,6 +2723,11 @@ if (!app.requestSingleInstanceLock()) {
       setNotBackedUp: (ids) => settings.setNotBackedUp(ACCOUNT_SERVER, ids),
       online: () => net.isOnline(),
       reveal: (file) => shell.showItemInFolder(file),
+      makeFolder: (name) =>
+        makeFolder(settings.get().projectsFolder, folderName(name, new Date())),
+      // (what its build made was not backed up: it is made again, here)
+      addProject: (dir, name, id) =>
+        makeModel(projects.add(dir, { name }, null, id)),
       record: (event, properties) => analytics?.record(event, properties),
     })
     backups = new Backups({

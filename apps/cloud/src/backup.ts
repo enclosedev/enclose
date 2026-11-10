@@ -7,6 +7,8 @@
 //   POST /v1/backup/snapshots      { project, files } -> { id } the project as it is now
 //   GET  /v1/backup/projects       -> { projects }             each, as last backed up
 //   POST /v1/backup/remove         { projects } -> { freed }   gone, and what only they used
+//   GET  /v1/backup/projects/<id>  -> { project, files }       as last backed up, to restore
+//   GET  /v1/backup/files/<hash>   -> the file                 to restore
 //
 // Everything is the signed-in account's own, under `u/<user>/` in R2, and counted in D1
 // (migrations/): an account may keep STORAGE_LIMIT, files and snapshots together, and all
@@ -326,6 +328,36 @@ export async function backup(
         at: number
       }>()
     return json({ projects: results })
+  }
+
+  // Restoring: a project as last backed up, then each of its files.
+  const one = /^\/v1\/backup\/projects\/([^/]{1,200})$/.exec(path)
+  if (one && request.method === "GET") {
+    const last = await env.DB.prepare(
+      `select "id" from "snapshot" where "userId" = ? and "projectId" = ? order by "createdAt" desc limit 1`
+    )
+      .bind(user, decodeURIComponent(one[1]))
+      .first<{ id: string }>()
+    const kept = last && (await env.FILES.get(snapshotKey(user, last.id)))
+    if (!kept) return refuse(404, "NOT_FOUND", "That project isn't backed up.")
+    return new Response(kept.body, {
+      headers: {
+        "content-type": "application/json",
+        "cache-control": "no-store",
+      },
+    })
+  }
+
+  if (file && request.method === "GET") {
+    const kept = await env.FILES.get(fileKey(user, file[1]))
+    if (!kept) return refuse(404, "NOT_FOUND", "That file isn't backed up.")
+    return new Response(kept.body, {
+      headers: {
+        "content-type": "application/octet-stream",
+        "content-length": String(kept.size),
+        "cache-control": "no-store",
+      },
+    })
   }
 
   if (path === "/v1/backup/remove" && request.method === "POST") {

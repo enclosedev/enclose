@@ -931,7 +931,8 @@ export type TooBig = { project: string; path: string; size: number }
  * being sent, so many of them and so many bytes. waiting: the server out of reach (the
  * machine `offline`, or else the server not answering), tried again by itself in a
  * while, from where it was. failed: what went wrong. full: the account has no room for
- * what there is to send (`needed` more bytes, with `used` of `limit` kept).
+ * what there is to send (`needed` more bytes, with `used` of `limit` kept). downloading:
+ * a project being brought back from Enclose Cloud, so many of its files and bytes.
  */
 export type CloudState =
   | { state: "idle"; tooBig: TooBig[] }
@@ -940,6 +941,7 @@ export type CloudState =
   | { state: "waiting"; files: Progress; bytes: Progress; offline: boolean }
   | { state: "failed"; trouble: string }
   | { state: "full"; needed: number; used: number; limit: number }
+  | { state: "downloading"; project: string; files: Progress; bytes: Progress }
 
 /**
  * A project, as it is chosen to be backed up or not: on Enclose Cloud (`bytes`, as last
@@ -1487,6 +1489,8 @@ export type CadApi = {
     choose(off: string[]): Promise<string | null>
     /** show a file left out for being too big, in its folder */
     reveal(path: string): Promise<void>
+    /** bring these projects back from Enclose Cloud, onto this computer */
+    restore(ids: string[]): Promise<void>
     onChange(listener: (state: CloudState) => void): () => void
   }
   update: {
@@ -1625,6 +1629,7 @@ export const CHANNEL = {
   cloudProjects: "cloud:projects",
   cloudChoose: "cloud:choose",
   cloudReveal: "cloud:reveal",
+  cloudRestore: "cloud:restore",
   cloudChanged: "cloud:changed",
   viewportRequest: "viewport:request",
   viewportResponse: "viewport:response",

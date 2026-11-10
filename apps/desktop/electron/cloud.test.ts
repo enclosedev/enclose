@@ -40,9 +40,13 @@ const hashOf = (text: string) => createHash("sha256").update(text).digest("hex")
 /** Enclose Cloud as the app is answered by it, keeping what it is sent. */
 function server(room = 5 * 1024 ** 3) {
   const files = new Map<string, number>()
+  /** what was sent of each file, to give back */
+  const bodies = new Map<string, Buffer>()
   const snapshots: { project: { id: string }; files: { path: string }[] }[] = []
   const puts: string[] = []
   const removed: string[] = []
+  /** files given back other than as they were sent (to stand in for one gone wrong) */
+  const served = new Map<string, Buffer>()
   let down = false
   let full = false
   const get = (async (url: string | URL | Request, init: RequestInit = {}) => {
@@ -55,6 +59,21 @@ function server(room = 5 * 1024 ** 3) {
       })
     }
     const file = /^\/v1\/backup\/files\/(\w+)$/.exec(route)
+    if (file && (init.method ?? "GET") === "GET") {
+      const body = served.get(file[1]) ?? bodies.get(file[1])
+      return body
+        ? new Response(new Uint8Array(body))
+        : Response.json({ code: "NOT_FOUND" }, { status: 404 })
+    }
+    const kept = /^\/v1\/backup\/projects\/(.+)$/.exec(route)
+    if (kept) {
+      const last = snapshots
+        .filter((one) => one.project.id === decodeURIComponent(kept[1]))
+        .at(-1)
+      return last
+        ? Response.json(last)
+        : Response.json({ code: "NOT_FOUND" }, { status: 404 })
+    }
     if (file) {
       const body = Buffer.from(init.body as Uint8Array)
       if (full)
@@ -65,6 +84,7 @@ function server(room = 5 * 1024 ** 3) {
       expect(createHash("sha256").update(body).digest("hex")).toBe(file[1])
       puts.push(file[1])
       files.set(file[1], body.length)
+      bodies.set(file[1], body)
       return Response.json({ size: body.length })
     }
     if (route === "/v1/backup/snapshots") {
@@ -92,6 +112,7 @@ function server(room = 5 * 1024 ** 3) {
     snapshots,
     puts,
     removed,
+    served,
     goDown: (is: boolean) => (down = is),
     fill: () => (full = true),
   }
@@ -110,6 +131,11 @@ function backup(
   let done = 0
   let clock = 0
   let off: string[] = []
+  const restoreInto = fs.mkdtempSync(
+    path.join(os.tmpdir(), "enclose-restored-")
+  )
+  made.push(restoreInto)
+  const added: { dir: string; name: string; id: string }[] = []
   let online = true
   const revealed: string[] = []
   const deps: CloudDeps = {
@@ -125,6 +151,12 @@ function backup(
     setNotBackedUp: (ids) => (off = ids),
     online: () => online,
     reveal: (file) => revealed.push(file),
+    makeFolder: (name) => {
+      const dir = path.join(restoreInto, `${added.length}-${name}`)
+      fs.mkdirSync(dir)
+      return dir
+    },
+    addProject: (dir, name, id) => added.push({ dir, name, id }),
     record: (_, properties) => recorded.push(properties),
     // (each step a while after the last: every one of them told)
     now: () => (clock += 1000),
@@ -137,6 +169,8 @@ function backup(
     done: () => done,
     off: () => off,
     goOffline: () => (online = false),
+    added,
+    restoreInto,
     revealed,
   }
 }
@@ -203,11 +237,35 @@ describe("backing up on Enclose Cloud", () => {
     ])
   })
 
+  it("keeps a board's build, which the model is made with, though .gitignore leaves it out", async () => {
+    const dir = project({
+      ".gitignore": "build/\n__pycache__/\n",
+      "model.py": "x",
+      "build/model.glb": "made again in a moment",
+      "pcb/main.tsx": "board",
+      "pcb/build/main.step": "long to make again",
+      "pcb/__pycache__/x.pyc": "never",
+    })
+    await git(["init", "-q"], dir)
+    const { cloud, site } = backup([{ id: "p1", name: "Board", path: dir }])
+    await cloud.backUp()
+    expect(site.snapshots[0].files.map((one) => one.path).sort()).toEqual([
+      ".gitignore",
+      "model.py",
+      "pcb/build/main.step",
+      "pcb/main.tsx",
+    ])
+  })
+
   it("leaves out what is never wanted, of a folder that is no repository", async () => {
     const dir = project({
       "model.py": "x",
       "node_modules/a.js": "a",
       "build/model.glb": "b",
+      ".env": "SECRET=1",
+      ".env.local": "SECRET=2",
+      "__pycache__/model.pyc": "c",
+      "pcb/build/main.step": "kept",
     })
     const { cloud, site } = backup([{ id: "p1", name: "Loose", path: dir }])
     await cloud.backUp()
@@ -412,5 +470,87 @@ describe("backing up on Enclose Cloud", () => {
     deps.token = () => null
     await cloud.backUp()
     expect(site.files.size).toBe(0)
+  })
+
+  it("brings a project back as it was backed up, under the id it was backed up as", async () => {
+    const dir = project({
+      "model.py": "from enclose import *\n",
+      "parts/a.step": "solid",
+      "parts/copy.step": "solid",
+    })
+    const site = server()
+    const { cloud } = backup([{ id: "p1", name: "Stool", path: dir }], site)
+    await cloud.backUp()
+
+    // on another machine, signed in to the same account, with nothing on it
+    const other = backup([], site)
+    const states: CloudState[] = []
+    const seen = other.cloud as unknown as { deps: CloudDeps }
+    const told = seen.deps.onChange
+    seen.deps.onChange = (state) => {
+      states.push(state)
+      told(state)
+    }
+    await other.cloud.restore(["p1"])
+    expect(other.added).toEqual([
+      { dir: expect.stringContaining("Stool"), name: "Stool", id: "p1" },
+    ])
+    const back = other.added[0].dir
+    expect(fs.readFileSync(path.join(back, "model.py"), "utf8")).toBe(
+      "from enclose import *\n"
+    )
+    expect(fs.readFileSync(path.join(back, "parts/copy.step"), "utf8")).toBe(
+      "solid"
+    )
+    expect(states.some((state) => state.state === "downloading")).toBe(true)
+    expect(other.cloud.state).toEqual({ state: "idle", tooBig: [] })
+    expect(other.recorded.at(-1)).toMatchObject({
+      outcome: "done",
+      projects: 1,
+      files: 3,
+    })
+  })
+
+  it("keeps nothing of a project where a file comes back other than it went", async () => {
+    const dir = project({ "model.py": "the real one" })
+    const site = server()
+    await backup([{ id: "p1", name: "Stool", path: dir }], site).cloud.backUp()
+    site.served.set(hashOf("the real one"), Buffer.from("something else"))
+    const other = backup([], site)
+    await other.cloud.restore(["p1"])
+    expect(other.cloud.state).toMatchObject({
+      state: "failed",
+      trouble: expect.stringMatching(/didn't come back/),
+    })
+    expect(other.added).toEqual([])
+    expect(fs.readdirSync(other.restoreInto)).toEqual([])
+  })
+
+  it("writes nothing outside the project's folder", async () => {
+    const site = server()
+    const outside = hashOf("escaped")
+    site.served.set(outside, Buffer.from("escaped"))
+    // a snapshot no server of Enclose's would keep: a path out of the project
+    ;(site as unknown as { snapshots: unknown[] }).snapshots.push({
+      project: { id: "bad", name: "Bad" },
+      files: [{ path: "../escaped.txt", hash: outside, size: 7 }],
+    })
+    const other = backup([], site)
+    await other.cloud.restore(["bad"])
+    expect(other.cloud.state.state).toBe("failed")
+    expect(fs.existsSync(path.join(other.restoreInto, "escaped.txt"))).toBe(
+      false
+    )
+    expect(fs.readdirSync(other.restoreInto)).toEqual([])
+  })
+
+  it("backs a project brought back up again, though it was turned off before", async () => {
+    const dir = project({ "model.py": "x" })
+    const site = server()
+    await backup([{ id: "p1", name: "Stool", path: dir }], site).cloud.backUp()
+    const other = backup([], site)
+    ;(other.cloud as unknown as { deps: CloudDeps }).deps.setNotBackedUp(["p1"])
+    await other.cloud.restore(["p1"])
+    expect(other.off()).toEqual([])
   })
 })

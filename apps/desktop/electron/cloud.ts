@@ -10,6 +10,9 @@
 import { createHash } from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
+import { Readable, Transform } from "node:stream"
+import { pipeline } from "node:stream/promises"
+import type { ReadableStream as WebStream } from "node:stream/web"
 
 import type {
   CloudProject as Chosen,
@@ -29,8 +32,34 @@ export const EVERY_MS = 15 * 60_000
 export const RETRY_MS = 30_000
 /** How often the window is told how far along it is, at most, ms. */
 const TOLD_EVERY_MS = 100
-/** What is never backed up, of a folder that is not a repository. */
-const NEVER = new Set([".git", "node_modules", "build", ".DS_Store", ".venv"])
+/**
+ * What is never backed up, of a folder that is not a repository: what the app keeps out
+ * of a repository of its own too (backup.ts), secrets in .env files among it.
+ */
+const NEVER = new Set([
+  ".git",
+  "node_modules",
+  "build",
+  ".venv",
+  "venv",
+  "__pycache__",
+  ".DS_Store",
+  ".env",
+])
+const never = (name: string) => NEVER.has(name) || name.startsWith(".env.")
+
+/**
+ * A file in a build folder deeper in the project than the model's own (`build/` at the
+ * top): what a circuit board's build made, say, and none of what is never kept.
+ */
+const deeperBuild = (file: string) => {
+  const parts = file.split("/")
+  return (
+    parts[0] !== "build" &&
+    parts.slice(1, -1).includes("build") &&
+    !parts.some((part) => part !== "build" && never(part))
+  )
+}
 
 export type CloudProject = { id: string; name: string; path: string }
 
@@ -57,8 +86,12 @@ export type CloudDeps = {
   online: () => boolean
   /** show a file in its folder */
   reveal: (path: string) => void
+  /** a folder for a project restored from Enclose Cloud, where new projects go */
+  makeFolder: (name: string) => string
+  /** a project restored there, added under the id it was backed up as */
+  addProject: (dir: string, name: string, id: string) => void
   record: (
-    event: "cloud backup",
+    event: "cloud backup" | "cloud restore",
     properties: Record<string, string | number | boolean>
   ) => void
   /** the time, ms: the tests' own */
@@ -69,6 +102,14 @@ export type CloudDeps = {
 type Found = { path: string; abs: string; size: number; hash: string }
 
 class Stopped extends Error {}
+/** A file that came back other than as it was backed up, or would land outside its project. */
+class Mismatch extends Error {}
+
+/** A project as last backed up, as the server gives it back to restore. */
+type Kept = {
+  project: { id: string; name: string }
+  files: { path: string; hash: string; size: number }[]
+}
 class Offline extends Error {}
 /** What the server said, refusing. */
 type Refusal = {
@@ -405,8 +446,22 @@ export class CloudBackup {
         ["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
         dir
       )
+      // and what a build deeper in the project made, which its .gitignore leaves out
+      // with the model's (`build/` is every build folder to git): a circuit board's,
+      // say, which the model is made with, and which is long to make again
+      const ignored = await this.deps.git(
+        ["ls-files", "--others", "--ignored", "--exclude-standard", "-z"],
+        dir
+      )
       if (listed.code === 0)
-        return [...new Set(listed.stdout.split("\0").filter(Boolean))]
+        return [
+          ...new Set([
+            ...listed.stdout.split("\0").filter(Boolean),
+            ...(ignored.code === 0
+              ? ignored.stdout.split("\0").filter(Boolean).filter(deeperBuild)
+              : []),
+          ]),
+        ]
     }
     const files: string[] = []
     const walk = async (at: string) => {
@@ -419,7 +474,9 @@ export class CloudBackup {
         return
       }
       for (const entry of entries) {
-        if (NEVER.has(entry.name)) continue
+        if (never(entry.name)) continue
+        // (the model's own build, made again in a moment; one deeper is kept)
+        if (!at && entry.name === "build") continue
         const relative = at ? path.join(at, entry.name) : entry.name
         if (entry.isDirectory()) await walk(relative)
         else if (entry.isFile()) files.push(relative)
@@ -450,11 +507,22 @@ export class CloudBackup {
     init: RequestInit,
     signal: AbortSignal
   ): Promise<unknown> {
+    const response = await this.request(route, init, signal)
+    const body = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Refused(response.status, body as Refusal)
+    return body
+  }
+
+  /** A request to the server, signed in, as it is answered: Offline where it is out of reach. */
+  private async request(
+    route: string,
+    init: RequestInit,
+    signal: AbortSignal
+  ): Promise<Response> {
     const token = this.deps.token()
     if (!token) throw new Refused(401, {})
-    let response: Response
     try {
-      response = await this.deps.get(`${this.deps.server}${route}`, {
+      return await this.deps.get(`${this.deps.server}${route}`, {
         ...init,
         signal,
         headers: { authorization: `Bearer ${token}`, ...init.headers },
@@ -463,9 +531,154 @@ export class CloudBackup {
       if (signal.aborted) throw new Stopped()
       throw new Offline()
     }
-    const body = await response.json().catch(() => ({}))
-    if (!response.ok) throw new Refused(response.status, body as Refusal)
-    return body
+  }
+
+  /**
+   * Bring projects back from Enclose Cloud, each as last backed up: into a folder of its
+   * own where new projects go, file by file (each checked against its hash), and then
+   * added to the app under the id it was backed up as, so that it goes on being backed up
+   * as the same project. One stopped, or that fails, leaves no folder half made.
+   */
+  async restore(ids: string[]): Promise<void> {
+    if (this.running || !this.deps.token() || !ids.length) return
+    if (this.retry) clearTimeout(this.retry)
+    this.retry = null
+    const running = new AbortController()
+    this.running = running
+    const clock = this.deps.now ?? Date.now
+    const began = clock()
+    let outcome: CloudOutcome = "done"
+    let restored = 0
+    let files: Progress = { done: 0, total: 0 }
+    let bytes: Progress = { done: 0, total: 0 }
+    let making: string | null = null
+    try {
+      for (const id of ids) {
+        const kept = (await this.ask(
+          `/v1/backup/projects/${encodeURIComponent(id)}`,
+          { method: "GET" },
+          running.signal
+        )) as Kept
+        const name = kept.project.name || "Restored project"
+        // each file once, where a project has the same in several places
+        const byHash = new Map<string, { size: number; paths: string[] }>()
+        for (const file of kept.files) {
+          const known = byHash.get(file.hash)
+          if (known) known.paths.push(file.path)
+          else byHash.set(file.hash, { size: file.size, paths: [file.path] })
+        }
+        files = { done: 0, total: kept.files.length }
+        bytes = {
+          done: 0,
+          total: kept.files.reduce((sum, file) => sum + file.size, 0),
+        }
+        this.set({ state: "downloading", project: name, files, bytes })
+        const dir = this.deps.makeFolder(name)
+        making = dir
+        const queue = [...byHash]
+        const worker = async () => {
+          for (let next = queue.shift(); next; next = queue.shift()) {
+            const [hash, { size, paths }] = next
+            await this.fetchInto(dir, hash, paths, running.signal)
+            files = { ...files, done: files.done + paths.length }
+            bytes = { ...bytes, done: bytes.done + size * paths.length }
+            this.set(
+              { state: "downloading", project: name, files, bytes },
+              true
+            )
+          }
+        }
+        await Promise.all(
+          Array.from({ length: Math.min(AT_ONCE, queue.length) }, worker)
+        )
+        making = null
+        this.deps.addProject(dir, name, kept.project.id)
+        // (brought back: backed up again, whatever was said of it before)
+        this.deps.setNotBackedUp(
+          this.deps.notBackedUp().filter((one) => one !== kept.project.id)
+        )
+        restored++
+      }
+      this.set({ state: "idle", tooBig: [] })
+      this.deps.done()
+    } catch (error) {
+      if (making) fs.rmSync(making, { recursive: true, force: true })
+      if (error instanceof Stopped || running.signal.aborted) {
+        outcome = "stopped"
+        this.set({ state: "idle", tooBig: [] })
+      } else {
+        outcome = error instanceof Offline ? "offline" : "failed"
+        this.set({
+          state: "failed",
+          trouble:
+            error instanceof Offline
+              ? "Couldn't reach Enclose Cloud. Check your connection and try again."
+              : error instanceof Mismatch
+                ? "A file didn't come back as it was backed up. Try again."
+                : troubleOf(error),
+        })
+      }
+    } finally {
+      this.running = null
+      this.deps.record("cloud restore", {
+        outcome,
+        projects: restored,
+        files: files.done,
+        megabytes: Math.round((bytes.done / 1024 ** 2) * 10) / 10,
+        seconds: Math.round((clock() - began) / 1000),
+      })
+    }
+  }
+
+  /**
+   * A file, from Enclose Cloud, written where the project has it (each of `paths`, within
+   * `dir`): as it comes, hashed on the way, and checked against `hash` before it is kept.
+   */
+  private async fetchInto(
+    dir: string,
+    hash: string,
+    paths: string[],
+    signal: AbortSignal
+  ) {
+    const targets = paths.map((file) => {
+      const target = path.resolve(dir, file)
+      if (!target.startsWith(dir + path.sep)) throw new Mismatch()
+      return target
+    })
+    const response = await this.request(
+      `/v1/backup/files/${hash}`,
+      { method: "GET" },
+      signal
+    )
+    if (!response.ok || !response.body)
+      throw new Refused(
+        response.status,
+        ((await response.json().catch(() => ({}))) as Refusal) ?? {}
+      )
+    const [first, ...others] = targets
+    fs.mkdirSync(path.dirname(first), { recursive: true })
+    const digest = createHash("sha256")
+    try {
+      await pipeline(
+        Readable.fromWeb(response.body as WebStream<Uint8Array>),
+        new Transform({
+          transform(chunk: Buffer, _encoding, done) {
+            digest.update(chunk)
+            done(null, chunk)
+          },
+        }),
+        fs.createWriteStream(first),
+        { signal }
+      )
+    } catch {
+      if (signal.aborted) throw new Stopped()
+      throw new Offline()
+    }
+    if (digest.digest("hex") !== hash) throw new Mismatch()
+    for (const other of others) {
+      fs.mkdirSync(path.dirname(other), { recursive: true })
+      fs.copyFileSync(first, other)
+    }
   }
 
   private async missing(

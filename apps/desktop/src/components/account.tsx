@@ -273,6 +273,9 @@ function YourFiles({
           backedUp={backedUp}
           known={backup !== null}
         />
+        {backedUp && cloud.state === "idle" && (
+          <NotHere at={backup?.at ?? null} />
+        )}
         {cloud.state === "full" ? (
           <Projects
             title="Free up room"
@@ -322,6 +325,23 @@ function FilesRow({
   known: boolean
 }) {
   switch (cloud.state) {
+    case "downloading":
+      return (
+        <Row
+          title={`Downloading ${cloud.project}`}
+          detail={`${many(cloud.files.done)} of ${many(cloud.files.total)} files · ${sizeOf(cloud.bytes.done)} of ${sizeOf(cloud.bytes.total)}`}
+          balance
+        >
+          <div className="flex items-center gap-4">
+            <Bar
+              done={cloud.bytes.done}
+              total={cloud.bytes.total}
+              label="Downloaded"
+            />
+            <Stop />
+          </div>
+        </Row>
+      )
     case "uploading":
       return (
         <Row
@@ -422,6 +442,69 @@ function FilesRow({
         <Bar done={storage.used} total={storage.limit} label="Storage used" />
       )}
     </Row>
+  )
+}
+
+/**
+ * The projects on Enclose Cloud that are not on this computer (as on a new one, signed in
+ * to the account): each brought back here at a click, into a folder of its own where new
+ * projects go. Asked of Enclose Cloud again each time it has been backed up to.
+ */
+function NotHere({ at }: { at: number | null }) {
+  const [projects, setProjects] = React.useState<CloudProject[] | null>(null)
+  React.useEffect(() => {
+    let live = true
+    void window.cad.cloud.projects().then((listed) => {
+      if (live) setProjects(listed?.filter((one) => !one.here) ?? null)
+    })
+    return () => {
+      live = false
+    }
+  }, [at])
+  if (!projects?.length) return null
+  const restore = (ids: string[]) => void window.cad.cloud.restore(ids)
+  return (
+    <div className="flex flex-col gap-3 px-4 py-4">
+      <div className="flex items-center justify-between gap-6">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-sm font-medium">Not on this computer</span>
+          <span className="text-sm text-balance text-muted-foreground">
+            Download your projects from Enclose Cloud to work on them here.
+          </span>
+        </div>
+        {projects.length > 1 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => restore(projects.map((one) => one.id))}
+          >
+            Download all
+          </Button>
+        )}
+      </div>
+      <ul className="flex flex-col gap-1">
+        {projects.map((project) => (
+          <li
+            key={project.id}
+            className="flex items-center justify-between gap-4 rounded-xl bg-muted/40 py-2 pr-2 pl-3"
+          >
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate text-sm">{project.name}</span>
+              <span className="truncate text-xs text-muted-foreground">
+                {project.bytes !== null ? sizeOf(project.bytes) : ""}
+              </span>
+            </span>
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => restore([project.id])}
+            >
+              Download
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 

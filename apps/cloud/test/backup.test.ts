@@ -392,3 +392,33 @@ describe("letting old versions go", () => {
     )
   })
 })
+
+describe("restoring", () => {
+  it("gives a project back as last backed up, and its files, to its own account alone", async () => {
+    const token = await signedIn("restores@example.com")
+    const model = "from enclose import *\n"
+    const hash = await hashOf(model)
+    await send(token, hash, model)
+    await snapshot(token, [{ path: "model.py", hash, size: model.length }])
+
+    const project = await call("/v1/backup/projects/p1", { headers: as(token) })
+    expect(project.status).toBe(200)
+    expect(await project.json()).toEqual({
+      project: { id: "p1", name: "Stool" },
+      files: [{ path: "model.py", hash, size: model.length }],
+    })
+    const file = await call(`/v1/backup/files/${hash}`, { headers: as(token) })
+    expect(file.status).toBe(200)
+    expect(file.headers.get("content-length")).toBe(String(model.length))
+    expect(await file.text()).toBe(model)
+
+    // another account, though it knows the hash and the project's id
+    const other = await signedIn("someone-else@example.com")
+    expect(
+      (await call("/v1/backup/projects/p1", { headers: as(other) })).status
+    ).toBe(404)
+    expect(
+      (await call(`/v1/backup/files/${hash}`, { headers: as(other) })).status
+    ).toBe(404)
+  })
+})
