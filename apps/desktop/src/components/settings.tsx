@@ -13,8 +13,6 @@ import {
 import type { Settings as AppSettings } from "@shared/api"
 import { DEFAULT_THEME, type Theme } from "@shared/theme-format"
 import { ACCOUNT_DIALOGS, AccountPage } from "@/components/account"
-import { ConnectGitHub } from "@/components/connect-github"
-import { GitHubIcon } from "@/components/icons"
 import { Logo } from "@/components/mark"
 import { Miniature } from "@/components/miniature"
 import { PillSlider } from "@/components/pill-slider"
@@ -64,7 +62,6 @@ const SECTIONS = [
   { id: "navigation", label: "Navigation" },
   { id: "shortcuts", label: "Shortcuts" },
   { id: "providers", label: "Providers" },
-  { id: "connections", label: "Connections" },
   { id: "appearance", label: "Appearance" },
   { id: "account", label: "Account" },
   { id: "about", label: "About" },
@@ -1026,76 +1023,6 @@ function Shortcuts() {
 }
 
 /**
- * The services the app keeps the user's work with, each with the button that connects
- * it. GitHub first: every project backed up to a private repository of its own on the
- * user's account, after every change, with nothing more asked of them.
- */
-function Connections() {
-  const { connection, backingUp, failures } = useStore((state) => state.github)
-  const { github } = window.cad
-  // a project whose history could not be kept, or pushed, the last time: the latest
-  const [failed] = failures
-  const failing =
-    failed &&
-    `${failures.length > 1 ? `${failures.length} projects failed to back up. ` : ""}${failed.name}: ${failed.why}`
-  const said =
-    connection.state === "unavailable"
-      ? "Not available in this version of Enclose."
-      : connection.state === "off"
-        ? (connection.trouble ??
-          failing ??
-          "Back up your projects to private repositories.")
-        : connection.state === "code" || connection.state === "install"
-          ? "Connecting…"
-          : backingUp
-            ? `Backing up to @${connection.login}: ${backingUp.done} of ${backingUp.total}`
-            : (failing ?? `Backed up to @${connection.login}.`)
-  const troubled =
-    (connection.state === "off" && connection.trouble !== null) ||
-    ((connection.state === "off" || connection.state === "on") &&
-      !backingUp &&
-      Boolean(failing))
-  return (
-    // laid out as the agents are, each with its mark
-    <div className="divide-y divide-border/60 overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10">
-      <div className="flex min-h-24.5 items-center gap-5 pr-7 pl-8">
-        <span className="flex min-w-0 flex-1 items-center gap-6">
-          <GitHubIcon className="size-6.5 shrink-0" />
-          <span className="flex min-w-0 flex-col">
-            <span className="text-sm font-medium">GitHub</span>
-            <span
-              // (the whole of it on the pointer, where it is cut short)
-              title={failing ? said : undefined}
-              className={cn(
-                "truncate text-sm text-muted-foreground",
-                troubled && "text-destructive"
-              )}
-            >
-              {said}
-            </span>
-          </span>
-        </span>
-        {connection.state === "off" && (
-          <Button size="sm" onClick={() => void github.connect()}>
-            Connect
-          </Button>
-        )}
-        {connection.state === "on" && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void github.disconnect()}
-          >
-            Disconnect
-          </Button>
-        )}
-      </div>
-      <ConnectGitHub connection={connection} />
-    </div>
-  )
-}
-
-/**
  * What of other people's code goes out with the app, and under what terms: opened in the
  * system's own reader. The app as it is worked on has it only once it has been built.
  */
@@ -1236,7 +1163,6 @@ const PAGES: Record<SectionId, () => React.ReactNode> = {
   shortcuts: Shortcuts,
   providers: Providers,
   account: AccountPage,
-  connections: Connections,
   about: About,
 }
 
@@ -1266,12 +1192,7 @@ export function Settings() {
     const key = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return
       // a dialog over the settings is put away first, by itself
-      if (
-        document.querySelector(
-          `[data-slot="connect-github"], ${ACCOUNT_DIALOGS}`
-        )
-      )
-        return
+      if (document.querySelector(ACCOUNT_DIALOGS)) return
       // before anything under the settings hears it
       event.stopPropagation()
       event.preventDefault()

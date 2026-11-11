@@ -68,7 +68,6 @@ import {
   type Seen,
   type ThreadItem,
   type Turned,
-  type GitHubState,
   type AccountState,
   type CloudState,
   type Update,
@@ -703,8 +702,6 @@ type State = {
   cleared: Cleared
   /** where the app is with a newer version of itself, as the app last said */
   update: Update
-  /** GitHub, as projects are backed up to it, and how far backing them all up has got */
-  github: GitHubState
   /** the Enclose account signed in to, as the app last said */
   account: AccountState
   /** backing its projects up on Enclose Cloud, as the app last said */
@@ -1345,11 +1342,6 @@ export const useStore = create<State>()((set, get) => ({
   settingsOpen: false,
   cleared: null,
   update: { state: "none" },
-  github: {
-    connection: { state: "unavailable" },
-    backingUp: null,
-    failures: [],
-  },
   // (not said to be new before the app has said so: the label would come and go)
   account: { state: "out", trouble: null, server: null, fresh: false },
   cloud: { state: "idle", tooBig: [] },
@@ -2871,8 +2863,6 @@ export function connect() {
     .then((providers) => useStore.setState({ providers }))
   cad.update.onChange((update) => useStore.setState({ update }))
   void cad.update.get().then((update) => useStore.setState({ update }))
-  cad.github.onChange((github) => useStore.setState({ github }))
-  void cad.github.get().then((github) => useStore.setState({ github }))
   cad.account.onChange((account) => useStore.setState({ account }))
   void cad.account.get().then((account) => useStore.setState({ account }))
   cad.cloud.onChange((cloud) => useStore.setState({ cloud }))

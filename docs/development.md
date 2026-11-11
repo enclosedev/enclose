@@ -366,7 +366,7 @@ installed app sends to, and does the sending. What is counted is recorded in
 event says nothing of a project or a message, and one that is added is added to
 usage-data.md with it.
 
-## GitHub backups
+## Project history
 
 A project's history is kept with the git the app brings,
 [dugite](https://github.com/desktop/dugite), which `npm install` fetches into
@@ -376,28 +376,8 @@ one is made, and takes Git Credential Manager out of it
 ([`scripts/git.mjs`](../apps/desktop/scripts/git.mjs)); dugite ships git for Linux too,
 so this works the same on either system.
 
-Backing up goes through Enclose's GitHub App. Its client ID is in
-[`electron/github.ts`](../apps/desktop/electron/github.ts) (`GITHUB_APP`); a build with
-none says, in the settings, that GitHub is not available. Another app is tried with:
-
-```
-ENCLOSE_GITHUB_CLIENT_ID=<client id> ENCLOSE_GITHUB_APP=<its slug> npm run dev
-```
-
-The app is registered on GitHub (Settings, Developer settings, GitHub Apps) with:
-
-- **Enable Device Flow** on. No callback URL, webhook or client secret is needed: the
-  app signs in with a code the user types, and gets its token renewed without a secret.
-- User authorization tokens that expire, as GitHub has it to begin with.
-- Repository permissions: **Administration**, read and write (to make and rename the
-  repositories), and **Contents**, read and write (to push). Metadata, read, comes with
-  them.
-- Installable by any account.
-
-[`electron/backup.ts`](../apps/desktop/electron/backup.ts) keeps a project's history,
-[`electron/backups.ts`](../apps/desktop/electron/backups.ts) when, and what goes to
-GitHub, [`electron/github.ts`](../apps/desktop/electron/github.ts) and
-[`electron/connection.ts`](../apps/desktop/electron/connection.ts) the signing in.
+[`electron/backup.ts`](../apps/desktop/electron/backup.ts) keeps a project's history, and
+[`electron/backups.ts`](../apps/desktop/electron/backups.ts) says when.
 
 ## The account server
 

@@ -5,7 +5,6 @@ import path from "node:path"
 import {
   app,
   BrowserWindow,
-  clipboard,
   dialog,
   ipcMain,
   net,
@@ -29,7 +28,6 @@ import {
   PROVIDERS,
   SCENE_HOST,
   type BoardSummary,
-  type GitHubState,
   type GroupAsked,
   type GuideSummary,
   type Looks,
@@ -85,10 +83,9 @@ import { Versions } from "./versions"
 import { Locks } from "./locks"
 import { zipOf } from "./zip"
 import { isRepository } from "./backup"
-import { Backups, type BackingUp } from "./backups"
+import { Backups } from "./backups"
 import { Account, ENCLOSE_SERVER, SCHEME } from "./account"
 import { CloudBackup } from "./cloud"
-import { Connection } from "./connection"
 import { git } from "./git"
 import { MESH_FORMATS, meshFile, trianglesOf, type MeshFormat } from "./meshes"
 import { followRename, listCommands, lookAtClaude } from "./claude"
@@ -151,7 +148,6 @@ import {
 } from "./themes"
 import { ToolServer } from "./tools"
 import { logIn, onThisMachine, Updates, type Log } from "./update"
-import { tryOtherApp } from "./github"
 
 const HERE = import.meta.dirname
 const DEV_URL = process.env.VITE_DEV_SERVER_URL
@@ -174,7 +170,6 @@ const ICONS = path.join(HERE, "../icons")
 //                            only at an address on this machine, 127.0.0.1 or localhost)
 //   ENCLOSE_ANALYTICS_KEY=<key>  send the count of how the app is used to that PostHog
 //                            project: run from a checkout it is sent nowhere otherwise
-//   ENCLOSE_GITHUB_CLIENT_ID, ENCLOSE_GITHUB_APP  back up through another GitHub App
 //   ENCLOSE_CLOUD_URL=<url>  sign in to an Enclose account on that server: run from a
 //                            checkout, the app signs in on the one apps/cloud runs on
 //                            this machine (`npm run dev` there), http://localhost:8787
@@ -189,7 +184,6 @@ const CAPTURE = flag("capture")
 const EXAMPLES_FROM = (CHECKOUT && process.env.ENCLOSE_EXAMPLES_URL) || null
 const UPDATES_FROM = onThisMachine(process.env.ENCLOSE_UPDATES_URL)
 const ANALYTICS_KEY = (CHECKOUT && process.env.ENCLOSE_ANALYTICS_KEY) || null
-if (CHECKOUT) tryOtherApp(process.env)
 /**
  * A request to Enclose's server, signed in with the account's token (Authorization:
  * Bearer) and never with a cookie: none is sent, nor kept of what it answers. (Electron's
@@ -289,8 +283,6 @@ const guideServer = new GuideServer(path.join(HERE, "guide"), (id) => {
 let updates: Updates | null = null
 /** where the updates, and the restarts and quits that put one in, are written down */
 let updatesLog: Log | null = null
-/** GitHub, as projects are backed up to it, and backing them up */
-let connection: Connection
 /** the Enclose account, from Settings, Account */
 let account: Account | undefined
 /** the projects backed up on Enclose Cloud, for that account */
@@ -298,7 +290,6 @@ let cloud: CloudBackup | undefined
 /** an enclose:// link the app was opened by before the account was there to be told */
 let linkWaiting: string | null = null
 let backups: Backups
-let backingUp: BackingUp = null
 /** the count of how the app is used: none is kept when it is run from a checkout */
 let analytics: Analytics | null = null
 /**
@@ -493,16 +484,6 @@ function broadcastSoon() {
   if (threads.standing() !== stood) return broadcast()
   summing ??= setTimeout(broadcast, SUMMARIES_MS)
 }
-const githubState = (): GitHubState => ({
-  connection: connection.state,
-  backingUp,
-  failures: (backups?.failures() ?? []).flatMap(({ id, why, at }) => {
-    const project = projects.listed(id)
-    return project ? [{ projectId: id, name: project.name, why, at }] : []
-  }),
-})
-const sendGitHub = () => send(CHANNEL.githubChanged, githubState())
-
 /**
  * The app opened by an enclose:// link: the sign-in page handing back a sign-in. (On a
  * Mac it comes as an event; elsewhere as what a second start of the app was given.)
@@ -1059,8 +1040,7 @@ function makeModel(id: string) {
       builds.delete(id)
       projects.report(id, failed)
       follow()
-      // there is a model of it now, and so a repository to be made for it, where GitHub is
-      // connected (what the build wrote is no part of the history)
+      // there is a model of it now (what the build wrote is no part of the history)
       if (!failed)
         void backups.record(id, {
           what: "Built the model",
@@ -1252,7 +1232,6 @@ function lookOver(id: string, seen: Seen, manner: Manner): string | null {
       // (the project alone is renamed: its folder is left as it is called)
       named = title
       projects.rename(id, title)
-      void backups.renamed(id)
       projects.refresh(id)
       broadcast()
       return `Done: ${arranged.parts.length} parts in ${arranged.groups.length} groups (${arranged.groups.map((group) => group.label).join(", ")}).${title === called ? "" : ` The project is called "${title}" now.`} The view shows the model so.`
@@ -1568,7 +1547,6 @@ function wire() {
       versions.busy(String(id))
     )
     projects.rename(String(id), String(name), idle ? followFolder : undefined)
-    void backups.renamed(String(id))
   })
   ipcMain.handle(
     CHANNEL.projectsTrustSettings,
@@ -1602,18 +1580,6 @@ function wire() {
       Array.isArray(ids) ? ids.filter((id) => typeof id === "string") : []
     )
   )
-  ipcMain.handle(CHANNEL.githubGet, () => githubState())
-  ipcMain.handle(CHANNEL.githubConnect, () => {
-    // (heard of as it goes: the window is not kept waiting on the user's typing)
-    void connection.connect()
-  })
-  ipcMain.handle(CHANNEL.githubOpenCode, () => connection.openCode())
-  ipcMain.handle(CHANNEL.githubOpenInstall, () => connection.openInstall())
-  ipcMain.handle(CHANNEL.githubCancel, () => connection.cancel())
-  ipcMain.handle(CHANNEL.githubDisconnect, () => {
-    connection.disconnect()
-    analytics?.record("github disconnected")
-  })
   ipcMain.handle(CHANNEL.projectsReveal, (_, id: string) => {
     const project = projects.get(id)
     if (project) void shell.openPath(project.path)
@@ -2670,19 +2636,6 @@ if (!app.requestSingleInstanceLock()) {
       trash: (file) => shell.trashItem(file),
       onChange: (id, state) => send(CHANNEL.inspirationChanged, id, state),
     })
-    connection = new Connection({
-      saved: () => settings.github(),
-      save: (github) => settings.setGitHub(github),
-      open: (url) => void shell.openExternal(url),
-      copy: (text) => clipboard.writeText(text),
-      get: (url, init) => net.fetch(String(url), init),
-      onChange: sendGitHub,
-      onConnected: () => {
-        analytics?.record("github connected")
-        // every project there is, backed up now, with the window saying how far it has got
-        void backups.all(true)
-      },
-    })
     account = new Account({
       server: ACCOUNT_SERVER,
       saved: () => settings.account(ACCOUNT_SERVER),
@@ -2758,13 +2711,6 @@ if (!app.requestSingleInstanceLock()) {
       versioned: () => settings.get().versions,
       on: (id) => versions.on(id),
       hold: (id, work) => locks.hold(id, work),
-      github: () => connection.connected(),
-      signedOut: () => connection.signedOut(),
-      onProgress: (progress) => {
-        backingUp = progress
-        sendGitHub()
-      },
-      onFailures: sendGitHub,
     })
     threads = new Threads({
       dir: path.join(data, "threads"),
@@ -2805,11 +2751,7 @@ if (!app.requestSingleInstanceLock()) {
         })
         return filed
       },
-      onRenamed: (from, to) => {
-        followFolder(from, to)
-        const renamed = projects.list(() => []).find((one) => one.path === to)
-        if (renamed) void backups.renamed(renamed.id)
-      },
+      onRenamed: (from, to) => followFolder(from, to),
       // (what the commit says is what came of the turn, as a change log, where Claude
       // Code is there to write one; and what was asked, where it is not)
       onTurned: (projectId, conversationId, what, conversation, said) =>
@@ -2823,7 +2765,7 @@ if (!app.requestSingleInstanceLock()) {
       history: (projectId) => {
         const project = projects.get(projectId)
         if (!project?.kept || !isRepository(project.path)) return "off"
-        return connection.connected() ? "github" : "local"
+        return "local"
       },
       viewport: askViewport,
       inspiration: (projectId) => inspiration.digest(projectId),
@@ -3028,9 +2970,6 @@ if (!app.requestSingleInstanceLock()) {
       )
         makeModel(id)
     }
-
-    // what changed in the projects while the app was not open goes to GitHub, unshown
-    if (connection.connected() && !CAPTURE) void backups.all(false)
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow(null)

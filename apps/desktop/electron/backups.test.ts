@@ -4,18 +4,13 @@ import path from "node:path"
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
-import { BIG } from "./backup"
 import { Backups, type Backed, type BackupsDeps } from "./backups"
 import { git } from "./git"
-import type { GitHub } from "./github"
 import { Locks } from "./locks"
 
 let root: string
 let project: Backed
-/** where "GitHub" keeps the repositories it makes: bare ones, in a folder */
-let remote: string
 let versioned: boolean
-let made: string[]
 
 const write = (file: string, content: string) => {
   const full = path.join(project.path, file)
@@ -25,22 +20,7 @@ const write = (file: string, content: string) => {
 const show = async (repo: string, ...args: string[]) =>
   (await git(args, repo)).stdout.trim()
 
-/** GitHub as a folder of bare repositories. */
-const github = {
-  createRepository: async (name: string) => {
-    const url = path.join(remote, `${name}.git`)
-    await git(["init", "--quiet", "--bare", url], root)
-    made.push(name)
-    return { full: `ada/${name}`, url }
-  },
-  changeRepository: async (_: string, change: { name?: string }) => ({
-    full: `ada/${change.name}`,
-    url: path.join(remote, `${change.name}.git`),
-  }),
-  pushing: async () => ({}),
-} as unknown as GitHub
-
-const backups = (connected: boolean, more: Partial<BackupsDeps> = {}) =>
+const backups = (more: Partial<BackupsDeps> = {}) =>
   new Backups({
     git,
     projects: () => [project],
@@ -49,12 +29,6 @@ const backups = (connected: boolean, more: Partial<BackupsDeps> = {}) =>
     },
     fits: async () => true,
     versioned: () => versioned,
-    github: () =>
-      connected
-        ? { client: github, account: { id: 7, login: "ada", name: "Ada" } }
-        : null,
-    signedOut: () => {},
-    onProgress: () => {},
     ...more,
   })
 
@@ -62,8 +36,6 @@ beforeEach(() => {
   root = fs.realpathSync(
     fs.mkdtempSync(path.join(os.tmpdir(), "enclose-backups-"))
   )
-  remote = path.join(root, "github")
-  fs.mkdirSync(remote)
   project = {
     id: "p1",
     path: path.join(root, "Lid"),
@@ -75,34 +47,30 @@ beforeEach(() => {
   }
   fs.mkdirSync(project.path)
   versioned = true
-  made = []
 })
 afterEach(() => fs.rmSync(root, { recursive: true, force: true }))
 
 describe("Backups", () => {
-  it("keeps a new project's history where nothing is connected, and pushes none of it", async () => {
+  it("keeps a new project's history, by the app", async () => {
     write("model.py", "a = 1")
-    await backups(false).prepare("p1", "Started in Enclose")
+    await backups().prepare("p1", "Started in Enclose")
     expect(await show(project.path, "log", "--format=%an|%s")).toBe(
       "Enclose|Started in Enclose"
     )
-    expect(made).toEqual([])
   })
 
-  it("makes a project's repository the first time, and pushes each turn to it, by the user", async () => {
+  it("commits each turn on the branch of the conversation it was in", async () => {
     write("model.py", "a = 1")
-    const kept = backups(true)
+    const kept = backups()
     await kept.prepare("p1", "Started in Enclose")
-    expect(made).toEqual(["enclose-lid"])
     write("model.py", "a = 2")
     await kept.record("p1", {
       what: "Thicker lid",
       conversation: "Lid",
       conversationId: "c1",
     })
-    const bare = path.join(remote, "enclose-lid.git")
-    expect(await show(bare, "log", "--format=%an <%ae>|%s", "main")).toBe(
-      "Ada <7+ada@users.noreply.github.com>|Thicker lid\nAda <7+ada@users.noreply.github.com>|Started in Enclose"
+    expect(await show(project.path, "log", "--format=%s", "main")).toBe(
+      "Thicker lid\nStarted in Enclose"
     )
     write("model.py", "a = 3")
     await kept.record("p1", {
@@ -110,34 +78,15 @@ describe("Backups", () => {
       conversation: null,
       conversationId: "c2xxxx",
     })
-    expect(await show(bare, "branch", "--format=%(refname:short)")).toBe(
-      "main\nversion/round-corners-c2xxxx"
-    )
-    expect(made).toEqual(["enclose-lid"])
-  })
-
-  it("makes no repository for a project with no model yet, and makes it with the model", async () => {
-    project = { ...project, manifest: null, build: null }
-    write("notes.txt", "a lid")
-    const kept = backups(true)
-    await kept.prepare("p1", "Started in Enclose")
-    expect(made).toEqual([])
-    project = {
-      ...project,
-      manifest: path.join(project.path, "build", "enclose.model.json"),
-    }
-    await kept.record("p1", {
-      what: "Built the model",
-      conversation: null,
-      conversationId: null,
-    })
-    expect(made).toEqual(["enclose-lid"])
+    expect(
+      await show(project.path, "branch", "--format=%(refname:short)")
+    ).toBe("main\nversion/round-corners-c2xxxx")
   })
 
   it("commits on main alone where there are no versions", async () => {
     versioned = false
     write("model.py", "a = 1")
-    const kept = backups(false)
+    const kept = backups()
     await kept.prepare("p1", "Started in Enclose")
     write("model.py", "a = 2")
     await kept.record("p1", {
@@ -158,7 +107,7 @@ describe("Backups", () => {
 
   it("commits a conversation's turn only while the folder is still that conversation's", async () => {
     let on = "c1"
-    const kept = backups(false, { on: () => on })
+    const kept = backups({ on: () => on })
     write("model.py", "a = 1")
     await kept.prepare("p1", "Started in Enclose")
     write("model.py", "a = 2")
@@ -179,27 +128,14 @@ describe("Backups", () => {
     expect(await show(project.path, "log", "--format=%s", "main")).toBe(
       "One\nStarted in Enclose"
     )
-    await kept.all(false)
     expect(
       await show(project.path, "branch", "--format=%(refname:short)")
-    ).toBe("main\nversion/backed-up-by-enclose-c2xxxx")
-    expect(
-      await show(
-        project.path,
-        "log",
-        "--format=%s",
-        "version/backed-up-by-enclose-c2xxxx",
-        "-1"
-      )
-    ).toBe("Backed up by Enclose")
-    expect(await show(project.path, "log", "--format=%s", "main", "-1")).toBe(
-      "One"
-    )
+    ).toBe("main")
   })
 
-  it("makes a version main, and back, without rewriting anything pushed", async () => {
+  it("makes a version main, and back", async () => {
     let on = "c1"
-    const kept = backups(true, { on: () => on })
+    const kept = backups({ on: () => on })
     const titles: Record<string, string> = { c1: "Version 1", c2: "Version 2" }
     const titleOf = (id: string) => titles[id]
     write("model.py", "a = 1")
@@ -241,11 +177,6 @@ describe("Backups", () => {
     expect(await show(project.path, "symbolic-ref", "--short", "HEAD")).toBe(
       "main"
     )
-    // pushed as it is, and nothing GitHub had is gone from it
-    const pushed = path.join(remote, "enclose-lid.git")
-    expect(await show(pushed, "rev-parse", "main")).toBe(
-      await show(project.path, "rev-parse", "main")
-    )
 
     // each goes on committing where it now is
     write("model.py", "a = 4")
@@ -286,15 +217,11 @@ describe("Backups", () => {
     expect(await show(project.path, "symbolic-ref", "--short", "HEAD")).toBe(
       "main"
     )
-    expect(await show(pushed, "rev-parse", "version/two-c2xxxx")).toBe(
-      await show(project.path, "rev-parse", "version/two-c2xxxx")
-    )
-    expect(kept.failures()).toEqual([])
   })
 
   it("commits once nothing else is being done in the folder, and says when it has", async () => {
     const locks = new Locks()
-    const kept = backups(false, {
+    const kept = backups({
       hold: (id, work) => locks.hold(id, work),
     })
     write("model.py", "a = 1")
@@ -325,12 +252,10 @@ describe("Backups", () => {
     expect(await show(project.path, "log", "--format=%s", "-1")).toBe("One")
   })
 
-  it("says when a project's history could not be kept, until it can be again", async () => {
-    let told = 0
-    const kept = backups(false, { onFailures: () => told++ })
+  it("commits again once what git left of a run cut short is old enough", async () => {
+    const kept = backups()
     write("model.py", "a = 1")
     await kept.prepare("p1", "Started in Enclose")
-    expect(kept.failures()).toEqual([])
     // what a git cut short a moment ago leaves: every commit fails while it is there
     const lock = path.join(project.path, ".git", "index.lock")
     fs.writeFileSync(lock, "")
@@ -340,14 +265,9 @@ describe("Backups", () => {
       conversation: null,
       conversationId: null,
     })
-    expect(kept.failures()).toEqual([
-      {
-        id: "p1",
-        why: expect.stringContaining("index.lock"),
-        at: expect.any(Number),
-      },
-    ])
-    expect(told).toBe(1)
+    expect(await show(project.path, "log", "--format=%s", "-1")).toBe(
+      "Started in Enclose"
+    )
     // left there long enough, it is taken for one left behind, and the next commit goes in
     const old = (Date.now() - 11 * 60_000) / 1000
     fs.utimesSync(lock, old, old)
@@ -356,45 +276,16 @@ describe("Backups", () => {
       conversation: null,
       conversationId: null,
     })
-    expect(kept.failures()).toEqual([])
-    expect(told).toBe(2)
     expect(await show(project.path, "log", "--format=%s", "-1")).toBe("Two")
-  })
-
-  it("backs up projects made before GitHub was connected, and renames a repository with its project", async () => {
-    write("model.py", "a = 1")
-    await backups(false).prepare("p1", "Started in Enclose")
-    const kept = backups(true)
-    await kept.all(false)
-    expect(made).toEqual(["enclose-lid"])
-    project = { ...project, name: "Pill box" }
-    await kept.renamed("p1")
-    expect(
-      await show(project.path, "config", "--get", "enclose.repository")
-    ).toBe("ada/enclose-pill-box")
   })
 
   it("leaves a repository that was somebody's own alone", async () => {
     project = { ...project, made: false }
     await git(["init", "--quiet"], project.path)
     write("model.py", "a = 1")
-    const kept = backups(true)
-    await kept.prepare("p1", "Opened in Enclose")
-    await kept.all(false)
-    expect(made).toEqual([])
+    await backups().prepare("p1", "Opened in Enclose")
     expect((await git(["rev-parse", "HEAD"], project.path)).code).not.toBe(0)
   })
-
-  it("sends what Git LFS keeps itself, with no hook to send it", async () => {
-    write("model.py", "a = 1")
-    write("scan.stl", "x".repeat(BIG))
-    await backups(true).prepare("p1", "Started in Enclose")
-    const bare = path.join(remote, "enclose-lid.git")
-    expect(await show(bare, "log", "--format=%s", "main")).toBe(
-      "Started in Enclose"
-    )
-    expect(fs.existsSync(path.join(bare, "lfs", "objects"))).toBe(true)
-  }, 30_000)
 
   it("takes no repository's word that the app set it up", async () => {
     // a folder from somebody else's Enclose, opened here: its config says it is managed
@@ -402,15 +293,13 @@ describe("Backups", () => {
     await git(["init", "--quiet"], project.path)
     await git(["config", "enclose.managed", "true"], project.path)
     write("model.py", "a = 1")
-    const kept = backups(true)
+    const kept = backups()
     await kept.prepare("p1", "Opened in Enclose")
     await kept.record("p1", {
       what: "Thicker",
       conversation: null,
       conversationId: null,
     })
-    await kept.all(false)
-    expect(made).toEqual([])
     expect((await git(["rev-parse", "HEAD"], project.path)).code).not.toBe(0)
   })
 
@@ -418,7 +307,7 @@ describe("Backups", () => {
     await git(["init", "--quiet"], root)
     project = { ...project, made: false }
     write("model.py", "a = 1")
-    await backups(false).prepare("p1", "Opened in Enclose")
+    await backups().prepare("p1", "Opened in Enclose")
     expect(fs.existsSync(path.join(project.path, ".git"))).toBe(false)
     expect(project.kept).toBe(false)
   })

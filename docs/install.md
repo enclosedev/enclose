@@ -61,7 +61,7 @@ you trust.
 The app is called Enclose (Alpha), and keeps its state in `~/.config/Enclose`. New
 projects go in `~/Documents/Enclose`, unless the [settings](settings.md) say elsewhere.
 
-Signing in to an Enclose account, connecting GitHub, and keeping an agent's keys all
+Signing in to an Enclose account and keeping an agent's keys both
 need a password store, GNOME Keyring or KWallet, which GNOME and KDE desktops have
 already. Without one (a bare window manager, often), the app keeps none of them, and says
 so: install one, and sign in again.

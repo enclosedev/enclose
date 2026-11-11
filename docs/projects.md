@@ -89,7 +89,7 @@ that was not a git repository already, nor inside one. A folder that was one, or
 one, is yours, kept your own way, and the app commits nothing in it. The app remembers
 which repositories it set up itself, and goes by that alone: a folder that comes with a
 repository the app made somewhere else (sent by somebody, say) is theirs, and is not
-committed to or pushed. Nor does the app's git run anything a repository names of its
+committed to. Nor does the app's git run anything a repository names of its
 own, its hooks or a filter of its own: a repository whose config names a filter, other
 than Git LFS's, has nothing committed in it.
 
@@ -104,22 +104,14 @@ has a branch of its own: the [main version](working-with-the-agent.md#the-main-v
 is `main`, and each other's `version/<what it began with>`, from where the project was
 when it began. A commit goes on the branch of the
 conversation whose version the folder holds: turning to another waits for the commit of
-the turn that just ended, and the backup the app makes as it opens goes on the branch of
-the conversation turned to last. With versions off, everything is on `main`. What the build writes
+the turn that just ended. With versions off, everything is on `main`. What the build writes
 (`build/`), a Python of the project's own, Python's caches and `.env` files are left
 out, in `.gitignore`; a file of 50 MB or more is kept with Git LFS. A folder too big to
 have [versions](working-with-the-agent.md#versions) has no history kept either. The app brings its own git,
 with Git LFS, so nothing has to be installed for it.
 
-Connect GitHub in the settings (Connections) and every project is backed up as well:
-each to a private repository of its own on your account, `enclose-<project name>`, made
-the first time the project has a model, and pushed to after each commit, every branch of
-it. Nothing is asked. Connecting backs up every project there is at once, with a pill at
-the foot of the view saying how far it has got. A project renamed renames its repository.
-A push that fails, with no connection say, is tried again a few minutes later; one that
-has not got through in two minutes is stopped, and tried again the same way. Where a
-project's last commit or push failed, the settings say so under GitHub, in red, with
-why, until it next works. A lock git left behind in the middle of a commit (the app
+To have your projects backed up off this computer, sign in to an Enclose account and back
+them up on Enclose Cloud, from [Settings, Account](settings.md). A lock git left behind in the middle of a commit (the app
 quit, or the machine going off), which would have every commit after it fail, is taken
 away once it is ten minutes old.
 

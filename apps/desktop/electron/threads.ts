@@ -422,9 +422,9 @@ export type ThreadsDeps = {
   onSignedOut: (provider: ProviderId) => void
   /**
    * whether the app keeps a project's history in git: off, where it does not (a
-   * repository of somebody's own, say); local; or github, backed up there as well
+   * repository of somebody's own, say); or local
    */
-  history: (projectId: string) => "off" | "local" | "github"
+  history: (projectId: string) => "off" | "local"
   /**
    * a turn is over, and the folder as it left it: what was asked, in which conversation,
    * and what the agent said at the end of it, which says what came of it
@@ -1124,12 +1124,12 @@ const recolouring = (kit: string) =>
 
 /**
  * What an agent is told of the project's history, where the app keeps it in git: that
- * the app commits, and pushes, and the agent leaves git to it.
+ * the app commits, and the agent leaves git to it.
  */
-function keepingHistory(history: "off" | "local" | "github"): string[] {
+function keepingHistory(history: "off" | "local"): string[] {
   if (history === "off") return []
   return [
-    `- The app keeps this project's history in git${history === "github" ? ", and backs it up to a private repository on the user's GitHub account" : ""}. After each of your turns it commits what the folder holds, with a log of what the turn changed as the message ("Added: a lid"), on a branch of this conversation's own where each conversation has its own version${history === "github" ? ", and pushes it" : ""}. Leave that to it: do not commit, push, make or switch branches, rewrite history or change the repository's settings yourself, unless the user asks you to. What the build writes is left out of it by .gitignore, which you may add to (never remove the app's lines); a file of 50 MB or more is kept with Git LFS by itself. Never put a password, a key or a token in the project's files.`,
+    `- The app keeps this project's history in git. After each of your turns it commits what the folder holds, with a log of what the turn changed as the message ("Added: a lid"), on a branch of this conversation's own where each conversation has its own version. Leave that to it: do not commit, push, make or switch branches, rewrite history or change the repository's settings yourself, unless the user asks you to. What the build writes is left out of it by .gitignore, which you may add to (never remove the app's lines); a file of 50 MB or more is kept with Git LFS by itself. Never put a password, a key or a token in the project's files.`,
   ]
 }
 
@@ -1185,8 +1185,8 @@ function guide(
   trying: boolean,
   /** its model has parts made of a mesh */
   meshes = false,
-  /** whether the app keeps its history in git, and backs that up to GitHub */
-  history: "off" | "local" | "github" = "off",
+  /** whether the app keeps its history in git */
+  history: "off" | "local" = "off",
   /** what the circuit board being made in the background is called, while one is */
   job: string | null = null,
   /** the project has an inspiration board with pictures on it */

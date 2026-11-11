@@ -428,8 +428,8 @@ const SETTINGS_SECTIONS = [
   "Navigation",
   "Shortcuts",
   "Providers",
-  "Connections",
   "Appearance",
+  "Account",
   "About",
 ]
 

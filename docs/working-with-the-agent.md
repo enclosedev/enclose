@@ -439,8 +439,7 @@ enough to settle, the card offers a new session, as it would otherwise.
 Where the app keeps the project's history, the main version's is the `main` branch. A
 version made main has its branch taken into `main`, in a commit that says so, and goes
 on committing there; the one that was main goes on in a branch of its own,
-`version/<what it is called>`. Nothing that was committed is changed, so the project is
-backed up to GitHub as it always is.
+`version/<what it is called>`. Nothing that was committed is changed.
 
 ### Discarding a version
 
@@ -450,8 +449,7 @@ folder was that version's, it is put as the main version left it first, and the 
 version is shown. The main version cannot be discarded, nor one the agent is at work in
 or making a board in: make another main first, or wait for the turn to end.
 
-Its history is kept: what it committed stays on its branch, and on GitHub where the
-project is backed up there.
+Its history is kept: what it committed stays on its branch.
 
 ### Asking for a new version
 

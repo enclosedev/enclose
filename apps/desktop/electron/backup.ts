@@ -8,8 +8,6 @@
 // their own way: the app commits nothing in it. What it set up itself it remembers in its
 // own list of projects (projects.ts), and goes by that alone: a repository's own config
 // is anybody's to write, whoever sent the folder or the agent working in it.
-//
-// Nothing here goes to GitHub: github.ts does that, with what is committed here.
 import fs from "node:fs"
 import path from "node:path"
 
@@ -20,19 +18,19 @@ export type Git = (
   env?: Record<string, string>
 ) => Promise<{ code: number; stdout: string; stderr: string }>
 
-/** Who a commit is by: the user, as GitHub knows them, or the app where it does not. */
+/** Who a commit is by: the app. */
 export type Author = { name: string; email: string }
 export const APP_AUTHOR: Author = {
   name: "Enclose",
   email: "noreply@enclose.dev",
 }
 
-/** A file this big or bigger goes to Git LFS, which GitHub keeps apart from the rest. */
+/** A file this big or bigger goes to Git LFS, which keeps it apart from the rest. */
 export const BIG = 50 * 1024 * 1024
 
 /**
  * What is never kept: made again from what is, a Python of the project's own, or where
- * keys and passwords are kept, which have no business on GitHub, private or not.
+ * keys and passwords are kept, which have no business in a project's history.
  */
 const NOT_KEPT = [
   ".venv/",
@@ -320,8 +318,7 @@ export async function makeMain(
 
 /**
  * Have Git LFS keep the files too big for a repository to keep well: those at least BIG,
- * not ignored, and not kept by it yet. (GitHub takes none bigger than 100 MB in a
- * repository itself, and keeps what Git LFS has apart from it.)
+ * not ignored, and not kept by it yet.
  */
 async function bigOnes(git: Git, dir: string): Promise<void> {
   const listed = await run(

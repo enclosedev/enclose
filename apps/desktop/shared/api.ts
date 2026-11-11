@@ -862,40 +862,6 @@ export const FEATURES = [
 export type Feature = (typeof FEATURES)[number]
 
 /**
- * GitHub, as the app backs projects up to it (electron/github.ts). unavailable: this
- * build of the app has no GitHub app of its own to connect through. off: not connected.
- * code: the user is to type `code` at `uri` on GitHub's site. install: signed in, but
- * Enclose's app is still to be installed on the account, at `url`. on: connected.
- */
-export type GitHubConnection =
-  | { state: "unavailable" }
-  | { state: "off"; trouble: string | null }
-  | { state: "code"; code: string; uri: string }
-  | { state: "install"; login: string; url: string }
-  | { state: "on"; login: string; name: string | null }
-
-/**
- * A project whose history could not be kept, or backed up, the last time it was tried:
- * what went wrong, as git or GitHub said it, and when. It is tried again, and goes from
- * here the next time that works.
- */
-export type BackupFailure = {
-  projectId: string
-  /** what the project is called */
-  name: string
-  why: string
-  at: number
-}
-
-/** GitHub, and how far backing every project up to it has got, while it is under way. */
-export type GitHubState = {
-  connection: GitHubConnection
-  backingUp: { done: number; total: number } | null
-  /** the projects whose last commit or push failed, the latest first */
-  failures: BackupFailure[]
-}
-
-/**
  * The Enclose account the app is signed in to (electron/account.ts). out: none, with
  * what went wrong the last time, where something did. signing-in: the sign-in page is
  * open in the browser, at `url`, and the app waits to be handed back what it signs in
@@ -1449,20 +1415,6 @@ export type CadApi = {
     /** write that, likewise from a checkout only, and give it back as written */
     saveDefaults(defaults: Defaults): Promise<Defaults>
   }
-  github: {
-    get(): Promise<GitHubState>
-    /** sign in to GitHub: what the user is to do is heard of as it comes */
-    connect(): Promise<void>
-    /** copy the code to be typed, and open the page it is typed on */
-    openCode(): Promise<void>
-    /** open the page Enclose's app is installed from */
-    openInstall(): Promise<void>
-    /** stop signing in, where it is under way */
-    cancel(): Promise<void>
-    /** forget the account: the repositories stay on GitHub, and the history in each project */
-    disconnect(): Promise<void>
-    onChange(listener: (state: GitHubState) => void): () => void
-  }
   account: {
     get(): Promise<AccountState>
     /** open the sign-in page in the browser: what comes of it is heard of as it comes */
@@ -1613,13 +1565,6 @@ export const CHANNEL = {
   updateRestart: "update:restart",
   updateCheck: "update:check",
   updateChanged: "update:changed",
-  githubGet: "github:get",
-  githubConnect: "github:connect",
-  githubOpenCode: "github:open-code",
-  githubOpenInstall: "github:open-install",
-  githubCancel: "github:cancel",
-  githubDisconnect: "github:disconnect",
-  githubChanged: "github:changed",
   accountGet: "account:get",
   accountSignIn: "account:sign-in",
   accountOpenPage: "account:open-page",

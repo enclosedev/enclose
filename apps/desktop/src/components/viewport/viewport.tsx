@@ -71,7 +71,6 @@ import { objectsOf, pieceWith, wholeOf } from "./apart"
 import { ARRIVAL, newIn, type Arriving } from "./arriving"
 import { AxisGizmo } from "./axis-gizmo"
 import { bridge } from "./bridge"
-import { BackingUp } from "@/components/backing-up"
 import { ExplodeSlider } from "./explode-slider"
 import {
   apartAsShown,
@@ -2030,7 +2029,6 @@ function Model({ project }: { project: Project }) {
       <div className="pointer-events-none absolute inset-x-0 bottom-5 flex flex-col items-center gap-2.5">
         <Updates />
         <TrustSettings project={project} />
-        <BackingUp />
         {loaded ? (
           <>
             {lookingOver && (

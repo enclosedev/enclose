@@ -234,15 +234,6 @@ const api: CadApi = {
     saveDefaults: (defaults) =>
       ipcRenderer.invoke(CHANNEL.themesSaveDefaults, defaults),
   },
-  github: {
-    get: () => ipcRenderer.invoke(CHANNEL.githubGet),
-    connect: () => ipcRenderer.invoke(CHANNEL.githubConnect),
-    openCode: () => ipcRenderer.invoke(CHANNEL.githubOpenCode),
-    openInstall: () => ipcRenderer.invoke(CHANNEL.githubOpenInstall),
-    cancel: () => ipcRenderer.invoke(CHANNEL.githubCancel),
-    disconnect: () => ipcRenderer.invoke(CHANNEL.githubDisconnect),
-    onChange: (listener) => on(CHANNEL.githubChanged, listener),
-  },
   account: {
     get: () => ipcRenderer.invoke(CHANNEL.accountGet),
     signIn: () => ipcRenderer.invoke(CHANNEL.accountSignIn),

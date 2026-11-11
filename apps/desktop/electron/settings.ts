@@ -10,7 +10,6 @@ import {
   type Settings,
 } from "../shared/api"
 import { missing, setAside, writeWhole } from "./atomic"
-import type { Account, Tokens } from "./github"
 
 /** A list of names, from what may be anything: the strings in it, each once. */
 const names = (given: unknown): string[] => [
@@ -97,8 +96,8 @@ export class Unsealed extends Error {
 
 type Saved = Partial<Settings> & {
   providers?: Partial<Record<ProviderId, unknown>>
-  /** the GitHub account projects are backed up to, and its tokens, sealed */
-  github?: { account: Account; sealed: string }
+  /** a GitHub account, as versions before 0.0.23 backed projects up to: forgotten */
+  github?: unknown
   /**
    * The Enclose account signed in to, for each server it is kept on (Enclose's own, and
    * any a run from a checkout signs in on), with what signs in to it sealed.
@@ -149,10 +148,15 @@ export class SettingsStore {
       } catch {
         // (it is written so the next time anything is set)
       }
+      // the GitHub sign-in of a version that backed projects up there: no longer used
+      if ("github" in this.saved) {
+        delete this.saved.github
+        this.write()
+      }
       return
     }
     // What cannot be read is kept, out of the way, rather than written over the first
-    // time anything is set: the keys and the GitHub sign-in in it with the rest.
+    // time anything is set: the keys and the account's sign-in in it with the rest.
     this.aside = setAside(file)
   }
 
@@ -242,41 +246,6 @@ export class SettingsStore {
     }
     this.write()
     return next
-  }
-
-  /**
-   * The GitHub account projects are backed up to, and what signs the app in to it:
-   * null where there is none, or where what was kept cannot be had back.
-   */
-  github(): { account: Account; tokens: Tokens } | null {
-    const kept = this.saved.github
-    if (!kept || !this.vault) return null
-    try {
-      return {
-        account: kept.account,
-        tokens: JSON.parse(this.vault.unseal(kept.sealed)),
-      }
-    } catch {
-      return null
-    }
-  }
-
-  /** Keep a GitHub account, sealed, or forget the one there is. Not kept where nothing can seal it. */
-  setGitHub(github: { account: Account; tokens: Tokens } | null): boolean {
-    if (github && !this.vault) return false
-    const rest = { ...this.saved }
-    delete rest.github
-    this.saved = github
-      ? {
-          ...rest,
-          github: {
-            account: github.account,
-            sealed: this.vault!.seal(JSON.stringify(github.tokens)),
-          },
-        }
-      : rest
-    this.write()
-    return true
   }
 
   /**

@@ -224,7 +224,8 @@ describe("SettingsStore", () => {
   })
 
   it("moves a file it cannot read aside, and writes nothing over it", () => {
-    const kept = '{ "github": { "sealed": "abc" }, "projectsFolder": "/mi'
+    const kept =
+      '{ "accounts": { "x": { "sealed": "abc" } }, "projectsFolder": "/mi'
     fs.writeFileSync(file, kept)
     const store = new SettingsStore(file, DEFAULTS)
     expect(store.get().projectsFolder).toBe(DEFAULTS.projectsFolder)
@@ -236,6 +237,21 @@ describe("SettingsStore", () => {
     })
     fs.rmSync(file)
     expect(new SettingsStore(file, DEFAULTS).aside).toBeNull()
+  })
+
+  it("forgets the GitHub sign-in a version that backed projects up there kept", () => {
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        github: { account: { login: "ada" }, sealed: "abc" },
+        analytics: false,
+      })
+    )
+    const store = new SettingsStore(file, DEFAULTS)
+    expect(store.get().analytics).toBe(false)
+    expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual({
+      analytics: false,
+    })
   })
 
   it("is the user's alone to read", () => {
