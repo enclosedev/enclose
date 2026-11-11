@@ -896,6 +896,65 @@ export type GitHubState = {
 }
 
 /**
+ * The Enclose account the app is signed in to (electron/account.ts). out: none, with
+ * what went wrong the last time, where something did. signing-in: the sign-in page is
+ * open in the browser, at `url`, and the app waits to be handed back what it signs in
+ * with (by an enclose:// link, or pasted). in: signed in, with how much the account
+ * keeps of the most it may, once the server has said (null until then), and what went
+ * wrong asking it, where something did. `server` is where the account is kept, where
+ * that is not Enclose's own (a server run from a checkout): null where it is.
+ */
+export type AccountState =
+  | { state: "out"; trouble: string | null; server: string | null }
+  | { state: "signing-in"; url: string; server: string | null }
+  | {
+      state: "in"
+      email: string
+      name: string
+      storage: { used: number; limit: number } | null
+      /** its projects on Enclose Cloud: how many, and when last backed up (ms) */
+      backup: { projects: number; at: number | null } | null
+      trouble: string | null
+      server: string | null
+    }
+
+/** So many of something done, of so many. */
+export type Progress = { done: number; total: number }
+
+/** A file left out of backing up for being too big: of which project, where, how big. */
+export type TooBig = { project: string; path: string; size: number }
+
+/**
+ * Backing the projects up on Enclose Cloud (electron/cloud.ts). idle: nothing under
+ * way; the files the last time left out for being too big. preparing: the projects'
+ * files being looked at (so many so far). uploading: the files the server has not got,
+ * being sent, so many of them and so many bytes. waiting: the server out of reach (the
+ * machine `offline`, or else the server not answering), tried again by itself in a
+ * while, from where it was. failed: what went wrong. full: the account has no room for
+ * what there is to send (`needed` more bytes, with `used` of `limit` kept).
+ */
+export type CloudState =
+  | { state: "idle"; tooBig: TooBig[] }
+  | { state: "preparing"; files: number }
+  | { state: "uploading"; files: Progress; bytes: Progress }
+  | { state: "waiting"; files: Progress; bytes: Progress; offline: boolean }
+  | { state: "failed"; trouble: string }
+  | { state: "full"; needed: number; used: number; limit: number }
+
+/**
+ * A project, as it is chosen to be backed up or not: on Enclose Cloud (`bytes`, as last
+ * backed up; null where it is not), on this computer (`here`), and backed up from here
+ * (`on`: not taken off Enclose Cloud).
+ */
+export type CloudProject = {
+  id: string
+  name: string
+  bytes: number | null
+  here: boolean
+  on: boolean
+}
+
+/**
  * Where the app is with a newer version of itself. There is none that it knows of; or
  * there is one to be had, which is fetched when it is asked for; or it is on its way,
  * with this much of it here (0 to 1); or it is here, and is what the app is once it has
@@ -1396,6 +1455,40 @@ export type CadApi = {
     disconnect(): Promise<void>
     onChange(listener: (state: GitHubState) => void): () => void
   }
+  account: {
+    get(): Promise<AccountState>
+    /** open the sign-in page in the browser: what comes of it is heard of as it comes */
+    signIn(): Promise<void>
+    /** open the sign-in page again, where it is being signed in on */
+    openPage(): Promise<void>
+    /** sign in with the code the page shows: what went wrong, where something did */
+    paste(code: string): Promise<string | null>
+    /** stop signing in */
+    cancel(): Promise<void>
+    /** ask the server again what there is of the account */
+    refresh(): Promise<void>
+    signOut(): Promise<void>
+    /** delete the account and all of it on the server: what went wrong, where something did */
+    remove(): Promise<string | null>
+    onChange(listener: (state: AccountState) => void): () => void
+  }
+  cloud: {
+    get(): Promise<CloudState>
+    /** back the projects up now (and from then on, by itself): how it goes is heard of */
+    backUp(): Promise<void>
+    /** stop backing up: what was sent is kept, and not sent again */
+    stop(): Promise<void>
+    /** the projects, here and on Enclose Cloud, as backed up or not: null where it can't say */
+    projects(): Promise<CloudProject[] | null>
+    /**
+     * Back up all but these: those on Enclose Cloud are taken off it, and none of them
+     * backed up again. What went wrong, where something did.
+     */
+    choose(off: string[]): Promise<string | null>
+    /** show a file left out for being too big, in its folder */
+    reveal(path: string): Promise<void>
+    onChange(listener: (state: CloudState) => void): () => void
+  }
   update: {
     get(): Promise<Update>
     /**
@@ -1517,6 +1610,22 @@ export const CHANNEL = {
   githubCancel: "github:cancel",
   githubDisconnect: "github:disconnect",
   githubChanged: "github:changed",
+  accountGet: "account:get",
+  accountSignIn: "account:sign-in",
+  accountOpenPage: "account:open-page",
+  accountPaste: "account:paste",
+  accountCancel: "account:cancel",
+  accountRefresh: "account:refresh",
+  accountSignOut: "account:sign-out",
+  accountRemove: "account:remove",
+  accountChanged: "account:changed",
+  cloudGet: "cloud:get",
+  cloudBackUp: "cloud:back-up",
+  cloudStop: "cloud:stop",
+  cloudProjects: "cloud:projects",
+  cloudChoose: "cloud:choose",
+  cloudReveal: "cloud:reveal",
+  cloudChanged: "cloud:changed",
   viewportRequest: "viewport:request",
   viewportResponse: "viewport:response",
 } as const

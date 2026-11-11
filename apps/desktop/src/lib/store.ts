@@ -69,6 +69,8 @@ import {
   type ThreadItem,
   type Turned,
   type GitHubState,
+  type AccountState,
+  type CloudState,
   type Update,
   type Vec3,
 } from "@shared/api"
@@ -703,6 +705,10 @@ type State = {
   update: Update
   /** GitHub, as projects are backed up to it, and how far backing them all up has got */
   github: GitHubState
+  /** the Enclose account signed in to, as the app last said */
+  account: AccountState
+  /** backing its projects up on Enclose Cloud, as the app last said */
+  cloud: CloudState
   access: Access
   /** the agents there are, once the app has said: Claude Code, Codex, Grok */
   providers: Provider[]
@@ -1344,6 +1350,8 @@ export const useStore = create<State>()((set, get) => ({
     backingUp: null,
     failures: [],
   },
+  account: { state: "out", trouble: null, server: null },
+  cloud: { state: "idle", tooBig: [] },
   access: savedAccess(saved(ACCESS_KEY)),
   providers: [],
   provider: PROVIDERS.find((one) => one === saved(PROVIDER_KEY)) ?? "claude",
@@ -2864,6 +2872,10 @@ export function connect() {
   void cad.update.get().then((update) => useStore.setState({ update }))
   cad.github.onChange((github) => useStore.setState({ github }))
   void cad.github.get().then((github) => useStore.setState({ github }))
+  cad.account.onChange((account) => useStore.setState({ account }))
+  void cad.account.get().then((account) => useStore.setState({ account }))
+  cad.cloud.onChange((cloud) => useStore.setState({ cloud }))
+  void cad.cloud.get().then((cloud) => useStore.setState({ cloud }))
 }
 
 // lets a script drive the app when it is being checked without a person at it

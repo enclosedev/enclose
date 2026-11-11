@@ -47,3 +47,31 @@ jobs:
       - run: npm run lint
 
       - run: npm test
+
+  # Enclose's server (apps/cloud): its tests run in the Workers runtime, which npm
+  # fetches for Linux as it installs.
+  cloud:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: apps/cloud
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/cloud/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm test

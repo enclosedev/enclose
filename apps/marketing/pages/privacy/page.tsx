@@ -3,14 +3,15 @@ import { REPOSITORY } from '../../shell/Header'
 
 export default function Privacy() {
   return (
-    <Legal page="privacy" title="Privacy Policy" updated="3 November 2026">
+    <Legal page="privacy" title="Privacy Policy" updated="10 November 2026">
       <p>
         Enclose is an open-source project maintained by Glauber. This page says what the
         Enclose app and this website send anywhere, and what they do not. In short: the app
-        needs no account, your projects stay on your machine unless you connect GitHub to
-        back them up, and the installed app counts how it is used, without your name,
-        unless you switch that off. This website counts its visits, without cookies and
-        without knowing whose they are.
+        needs no account, your projects stay on your machine unless you back them up (on
+        Enclose Cloud, with an Enclose account, or to your own GitHub account), and the
+        installed app counts how it is used, without your name, unless you switch that
+        off. This website counts its visits, without cookies and without knowing whose they
+        are.
       </p>
 
       <h2>Usage data from the app</h2>
@@ -61,13 +62,20 @@ export default function Privacy() {
         <li>
           that an agent was switched on or off or updated, that a newer version was looked
           for from the settings or an update fetched, and that GitHub was connected or
-          disconnected, without which account.
+          disconnected, without which account;
+        </li>
+        <li>
+          that an Enclose account was signed in to, signed out of or deleted, without which
+          account, and how a backup on Enclose Cloud went: whether it was done, stopped or
+          failed, how many projects and files, how many megabytes were sent, and how long it
+          took.
         </li>
       </ul>
       <p>
         With every event go the app’s version, your operating system and its version, the
         kind of processor, and a random name made up for your installation the first time
-        the app runs. That name is tied to no account and to nothing else about you. PostHog
+        the app runs. That name is tied to no account, not even an Enclose account you are
+        signed in to, and to nothing else about you. PostHog
         keeps what it is sent in the United States. As any server does, it sees the address
         a request comes from, and works out roughly where that is: a country and a city.
       </p>
@@ -154,6 +162,65 @@ export default function Privacy() {
         .
       </p>
 
+      <h2>Your Enclose account</h2>
+      <p>
+        An account is not needed to use the app. You can make one in Settings, Account, to
+        back your projects up on Enclose Cloud. Signing in happens on a page of Enclose’s
+        own server, <code>cloud.enclose.dev</code>, which runs on{' '}
+        <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare</a>.
+      </p>
+      <p>
+        You sign in with a code sent to your email, or with Google or Apple. A code is sent
+        through <a href="https://resend.com/legal/privacy-policy">Resend</a>, which sees your
+        email address and the code. Before one is sent, Cloudflare’s Turnstile checks, in
+        the page, that a person asked for it; it looks at signals from your browser to do
+        that, under Cloudflare’s privacy policy. Signing in with Google or Apple, they tell
+        Enclose your email address and your name, and Google a link to your picture; Apple
+        may give an address of its own that forwards to yours instead, if you ask it to.
+        What they hand over to sign you in is used for that and not kept.
+      </p>
+      <p>What the server keeps of an account:</p>
+      <ul>
+        <li>your email address, your name and, from Google, the link to your picture;</li>
+        <li>which ways you sign in (the code, Google, Apple), and what Google or Apple calls you;</li>
+        <li>
+          for each place you are signed in, when the sign-in began and when it runs out, and
+          the address and browser it began from;
+        </li>
+        <li>
+          a code sent to you, kept as a hash, for the ten minutes it works; and for a minute,
+          how many codes an address asked for, to slow anyone sending many.
+        </li>
+      </ul>
+      <p>
+        It is kept in Cloudflare’s database in Western North America. The app keeps what
+        signs it in on your machine, sealed by the system as GitHub’s is (below). Deleting
+        your account, in Settings, Account, deletes all of it and everything backed up with
+        it, at once.
+      </p>
+
+      <h2>Enclose Cloud</h2>
+      <p>
+        Only if you back up, from Settings, Account. Then each project you back up goes to
+        Enclose Cloud: its files, but those its <code>.gitignore</code> leaves out (as what
+        its build makes) and any over 95 MB; and its name. Your conversations and your
+        settings are not sent. Each file is sent once, under a fingerprint of its contents
+        (SHA-256), and each time a project has changed, which files it had then is kept as
+        well, so that its last 30 versions are kept too. While the app is open, it backs up
+        again every 15 minutes.
+      </p>
+      <p>
+        The files are kept in Cloudflare’s storage (R2) in Western North America, encrypted
+        there as everything Cloudflare stores is, and reached only with your account. They
+        are not encrypted end to end: Enclose’s server reads what it is sent. Nobody looks at
+        them but to keep the service running, or where the law requires it.
+      </p>
+      <p>
+        A project you turn off in Settings, Account, is removed from Enclose Cloud with every
+        file no other project of yours has, and not backed up again. Deleting your account
+        removes everything it kept there.
+      </p>
+
       <h2>Circuit boards</h2>
       <p>
         Boards are built with <a href="https://tscircuit.com">tscircuit</a>’s command line,
@@ -172,9 +239,9 @@ export default function Privacy() {
       <h2>What stays on your machine</h2>
       <p>
         Your conversations and your settings are kept on your machine and nowhere else, and
-        so are your projects, unless you back them up to GitHub. Removing a project from the
-        app forgets what was said about it, and leaves its folder, and its repository on
-        GitHub where there is one.
+        so are your projects, unless you back them up on Enclose Cloud or to GitHub. Removing
+        a project from the app forgets what was said about it, and leaves its folder, its
+        backup on Enclose Cloud and its repository on GitHub where there are those.
       </p>
 
       <h2>This website</h2>
@@ -223,6 +290,8 @@ export default function Privacy() {
         The project cannot tell which events came from you: it has no name or account to
         find them by. You can stop them at any time with the switch above, and deleting{' '}
         <code>analytics-id</code> cuts what is sent afterwards off from what was sent before.
+        An Enclose account, and all it keeps on Enclose Cloud, you can delete yourself, at
+        any time, in Settings, Account.
         Depending on where you live you may have rights over personal data held about you,
         to see it, correct it or have it deleted. Ask through the contact below.
       </p>

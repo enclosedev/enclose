@@ -1,0 +1,59 @@
+// Enclose's server: accounts for now, and later what is kept of people's projects. See
+// docs/development.md ("The account server"). As it is here, with no environment named,
+// it is the server run on your own machine (`npm run dev`), with its database kept in
+// .wrangler/ and the sign-in codes it would send written in the terminal instead.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "enclose-cloud",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  // Better Auth keeps what each request is about with AsyncLocalStorage, Node's
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "BASE_URL": "http://localhost:8787",
+    // (no Turnstile on your own machine: see src/turnstile.ts)
+    "TURNSTILE_SITEKEY": ""
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "enclose",
+      "database_id": "local",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // what projects backed up on Enclose Cloud keep (src/backup.ts): kept on your own
+  // machine as the database is
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "enclose-files" }],
+  // what the pages load besides themselves: the font the site is set in (public/fonts,
+  // Inter, under the SIL Open Font License), served as it is, before the Worker
+  "assets": { "directory": "./public" },
+  "observability": { "enabled": true },
+  "env": {
+    // Enclose's own, on its Cloudflare account. A fork that hosts a server of its own
+    // puts its own database, address and Turnstile widget here. BETTER_AUTH_SECRET,
+    // RESEND_API_KEY and TURNSTILE_SECRET are set apart from this file
+    // (`wrangler secret put <name> --env production`).
+    "production": {
+      "vars": {
+        "BASE_URL": "https://cloud.enclose.dev",
+        // the "Enclose sign-in" widget's, made with `wrangler turnstile widget create`
+        "TURNSTILE_SITEKEY": "0x4AAAAAAF7s4qbrj3nelzye"
+      },
+      "routes": [{ "pattern": "cloud.enclose.dev", "custom_domain": true }],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "enclose",
+          // made with `wrangler d1 create enclose`, on Enclose's account
+          "database_id": "018e7e62-5a9f-4e4d-94f2-41b3d04f4d29",
+          "migrations_dir": "migrations"
+        }
+      ],
+      // what has run out, gone from the database once a day (src/tidy.ts)
+      "triggers": { "crons": ["17 4 * * *"] },
+      // made with `wrangler r2 bucket create enclose-files`, on Enclose's account
+      "r2_buckets": [{ "binding": "FILES", "bucket_name": "enclose-files" }]
+    }
+  }
+}

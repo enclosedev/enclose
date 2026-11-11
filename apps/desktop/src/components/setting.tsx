@@ -6,12 +6,16 @@ export function Group({
   title,
   children,
 }: {
-  title?: string
+  title?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
     <section className="flex flex-col gap-2">
-      {title && <h2 className="px-1 text-sm text-muted-foreground">{title}</h2>}
+      {title && (
+        <h2 className="flex items-center gap-1.5 px-1 text-sm text-muted-foreground">
+          {title}
+        </h2>
+      )}
       <div className="divide-y divide-border/60 rounded-2xl bg-card ring-1 ring-foreground/10">
         {children}
       </div>
@@ -32,6 +36,7 @@ export function Row({
   wrap,
   halves,
   flush,
+  balance,
   children,
 }: {
   title: React.ReactNode
@@ -39,6 +44,8 @@ export function Row({
   wrap?: boolean
   halves?: boolean
   flush?: boolean
+  /** break its lines evenly, rather than as far along as each goes */
+  balance?: boolean
   children?: React.ReactNode
 }) {
   return (
@@ -56,9 +63,18 @@ export function Row({
           wrap && "min-w-44 flex-1"
         )}
       >
-        <span className="text-sm font-medium">{title}</span>
+        <span className={cn("text-sm font-medium", balance && "text-balance")}>
+          {title}
+        </span>
         {detail && (
-          <span className="text-sm text-muted-foreground">{detail}</span>
+          <span
+            className={cn(
+              "text-sm text-muted-foreground",
+              balance && "text-balance"
+            )}
+          >
+            {detail}
+          </span>
         )}
       </div>
       {children && (

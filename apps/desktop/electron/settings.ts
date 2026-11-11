@@ -99,7 +99,17 @@ type Saved = Partial<Settings> & {
   providers?: Partial<Record<ProviderId, unknown>>
   /** the GitHub account projects are backed up to, and its tokens, sealed */
   github?: { account: Account; sealed: string }
+  /**
+   * The Enclose account signed in to, for each server it is kept on (Enclose's own, and
+   * any a run from a checkout signs in on), with what signs in to it sealed.
+   */
+  accounts?: Record<string, { email: string; name: string; sealed: string }>
+  /** for each server, the projects taken off Enclose Cloud there: not backed up again */
+  notBackedUp?: Record<string, string[]>
 }
+
+/** An Enclose account, as the app keeps it: who, and the token of its session. */
+export type KeptAccount = { email: string; name: string; token: string }
 
 export class SettingsStore {
   private readonly file: string
@@ -265,6 +275,59 @@ export class SettingsStore {
       : rest
     this.write()
     return true
+  }
+
+  /**
+   * The Enclose account signed in to on this server: null where there is none, or where
+   * what was kept cannot be had back.
+   */
+  account(server: string): KeptAccount | null {
+    const kept = this.saved.accounts?.[server]
+    if (!kept || !this.vault) return null
+    try {
+      return {
+        email: kept.email,
+        name: kept.name,
+        token: this.vault.unseal(kept.sealed),
+      }
+    } catch {
+      return null
+    }
+  }
+
+  /** Keep the account signed in to on this server, sealed, or forget it. Not kept where nothing can seal it. */
+  setAccount(server: string, account: KeptAccount | null): boolean {
+    if (account && !this.vault) return false
+    const accounts = { ...this.saved.accounts }
+    delete accounts[server]
+    if (account)
+      accounts[server] = {
+        email: account.email,
+        name: account.name,
+        sealed: this.vault!.seal(account.token),
+      }
+    const rest = { ...this.saved }
+    delete rest.accounts
+    this.saved = Object.keys(accounts).length > 0 ? { ...rest, accounts } : rest
+    this.write()
+    return true
+  }
+
+  /** The projects taken off Enclose Cloud on this server: not backed up again. */
+  notBackedUp(server: string): string[] {
+    return this.saved.notBackedUp?.[server] ?? []
+  }
+
+  setNotBackedUp(server: string, ids: string[]) {
+    const kept = { ...this.saved.notBackedUp }
+    if (ids.length) kept[server] = [...new Set(ids)]
+    else delete kept[server]
+    const rest = { ...this.saved }
+    delete rest.notBackedUp
+    this.saved = Object.keys(kept).length
+      ? { ...rest, notBackedUp: kept }
+      : rest
+    this.write()
   }
 
   private write() {

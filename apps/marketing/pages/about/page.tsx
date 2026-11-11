@@ -23,10 +23,10 @@ export default function About() {
 
       <h2>How it works</h2>
       <p>
-        Enclose has no account and no server of its own. It works through an agent you
-        installed and signed in to yourself, on your own subscription with its provider. A
-        project is a folder on your machine, with its history kept in git, and backed up to
-        your own GitHub account if you connect it. The{' '}
+        Enclose needs no account. It works through an agent you installed and signed in to
+        yourself, on your own subscription with its provider. A project is a folder on your
+        machine, with its history kept in git, and backed up if you choose: on Enclose
+        Cloud, free up to 5 GB with an Enclose account, or to your own GitHub account. The{' '}
         <a href="/privacy">privacy policy</a> says what the app sends anywhere.
       </p>
 

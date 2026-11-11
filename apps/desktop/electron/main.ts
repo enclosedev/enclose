@@ -86,6 +86,8 @@ import { Locks } from "./locks"
 import { zipOf } from "./zip"
 import { isRepository } from "./backup"
 import { Backups, type BackingUp } from "./backups"
+import { Account, ENCLOSE_SERVER, SCHEME } from "./account"
+import { CloudBackup } from "./cloud"
 import { Connection } from "./connection"
 import { git } from "./git"
 import { MESH_FORMATS, meshFile, trianglesOf, type MeshFormat } from "./meshes"
@@ -173,6 +175,9 @@ const ICONS = path.join(HERE, "../icons")
 //   ENCLOSE_ANALYTICS_KEY=<key>  send the count of how the app is used to that PostHog
 //                            project: run from a checkout it is sent nowhere otherwise
 //   ENCLOSE_GITHUB_CLIENT_ID, ENCLOSE_GITHUB_APP  back up through another GitHub App
+//   ENCLOSE_CLOUD_URL=<url>  sign in to an Enclose account on that server: run from a
+//                            checkout, the app signs in on the one apps/cloud runs on
+//                            this machine (`npm run dev` there), http://localhost:8787
 const CHECKOUT = !app.isPackaged
 const flag = (name: string) =>
   CHECKOUT
@@ -185,6 +190,13 @@ const EXAMPLES_FROM = (CHECKOUT && process.env.ENCLOSE_EXAMPLES_URL) || null
 const UPDATES_FROM = onThisMachine(process.env.ENCLOSE_UPDATES_URL)
 const ANALYTICS_KEY = (CHECKOUT && process.env.ENCLOSE_ANALYTICS_KEY) || null
 if (CHECKOUT) tryOtherApp(process.env)
+/** where the Enclose account is kept: the installed app, on Enclose's own server */
+const ACCOUNT_SERVER = CHECKOUT
+  ? (process.env.ENCLOSE_CLOUD_URL || "http://localhost:8787").replace(
+      /\/+$/,
+      ""
+    )
+  : ENCLOSE_SERVER
 /** what the systems the app runs on are called, where the count of its use says which */
 const SYSTEMS: Partial<Record<NodeJS.Platform, string>> = {
   darwin: "macOS",
@@ -270,6 +282,12 @@ let updates: Updates | null = null
 let updatesLog: Log | null = null
 /** GitHub, as projects are backed up to it, and backing them up */
 let connection: Connection
+/** the Enclose account, from Settings, Account */
+let account: Account | undefined
+/** the projects backed up on Enclose Cloud, for that account */
+let cloud: CloudBackup | undefined
+/** an enclose:// link the app was opened by before the account was there to be told */
+let linkWaiting: string | null = null
 let backups: Backups
 let backingUp: BackingUp = null
 /** the count of how the app is used: none is kept when it is run from a checkout */
@@ -475,6 +493,23 @@ const githubState = (): GitHubState => ({
   }),
 })
 const sendGitHub = () => send(CHANNEL.githubChanged, githubState())
+
+/**
+ * The app opened by an enclose:// link: the sign-in page handing back a sign-in. (On a
+ * Mac it comes as an event; elsewhere as what a second start of the app was given.)
+ */
+function linked(url: string) {
+  if (!url.startsWith(`${SCHEME}://`)) return
+  if (!account) {
+    linkWaiting = url
+    return
+  }
+  if (win) {
+    if (win.isMinimized()) win.restore()
+    win.focus()
+  }
+  void account.link(url)
+}
 
 /** The projects as backing them up has them. */
 function backed() {
@@ -1531,6 +1566,28 @@ function wire() {
     (_, id: string, trusted: unknown) =>
       projects.trust(String(id), trusted === true)
   )
+  ipcMain.handle(CHANNEL.accountGet, () => account!.state)
+  ipcMain.handle(CHANNEL.accountSignIn, () => account!.signIn())
+  ipcMain.handle(CHANNEL.accountOpenPage, () => account!.openPage())
+  ipcMain.handle(CHANNEL.accountPaste, (_, code: unknown) =>
+    account!.paste(String(code))
+  )
+  ipcMain.handle(CHANNEL.accountCancel, () => account!.cancel())
+  ipcMain.handle(CHANNEL.accountRefresh, () => account!.refresh())
+  ipcMain.handle(CHANNEL.accountSignOut, () => account!.signOut())
+  ipcMain.handle(CHANNEL.accountRemove, () => account!.remove())
+  ipcMain.handle(CHANNEL.cloudGet, () => cloud!.state)
+  ipcMain.handle(CHANNEL.cloudBackUp, () => cloud!.backUp())
+  ipcMain.handle(CHANNEL.cloudStop, () => cloud!.stop())
+  ipcMain.handle(CHANNEL.cloudProjects, () => cloud!.projects())
+  ipcMain.handle(CHANNEL.cloudChoose, (_, off: unknown) =>
+    cloud!.choose(
+      Array.isArray(off) ? off.filter((id) => typeof id === "string") : []
+    )
+  )
+  ipcMain.handle(CHANNEL.cloudReveal, (_, file: unknown) =>
+    cloud!.reveal(String(file))
+  )
   ipcMain.handle(CHANNEL.githubGet, () => githubState())
   ipcMain.handle(CHANNEL.githubConnect, () => {
     // (heard of as it goes: the window is not kept waiting on the user's typing)
@@ -2508,10 +2565,18 @@ process.on("unhandledRejection", (reason) =>
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
-  app.on("second-instance", () => {
+  app.on("second-instance", (_, argv) => {
+    // (a link, on Linux, starts the app again with it: this one is told instead)
+    const link = argv.find((arg) => arg.startsWith(`${SCHEME}://`))
+    if (link) return linked(link)
     if (!win) return
     if (win.isMinimized()) win.restore()
     win.focus()
+  })
+  // (on a Mac, before the app is ready too, where a link is what started it)
+  app.on("open-url", (event, url) => {
+    event.preventDefault()
+    linked(url)
   })
 
   void app.whenReady().then(() => {
@@ -2603,6 +2668,57 @@ if (!app.requestSingleInstanceLock()) {
         // every project there is, backed up now, with the window saying how far it has got
         void backups.all(true)
       },
+    })
+    account = new Account({
+      server: ACCOUNT_SERVER,
+      saved: () => settings.account(ACCOUNT_SERVER),
+      save: (kept) => settings.setAccount(ACCOUNT_SERVER, kept),
+      // (a run checking the app, with nobody at it, says where it would go instead)
+      open: (url) =>
+        CAPTURE ? console.log(`[open] ${url}`) : void shell.openExternal(url),
+      get: (url, init) => net.fetch(String(url), init),
+      onChange: (state) => {
+        send(CHANNEL.accountChanged, state)
+        // (backed up by itself, once the account has backups; nothing, signed out)
+        if (state.state !== "in") cloud?.signedOut()
+        else if (state.backup?.at) cloud?.keepUp(true)
+      },
+      // (from the browser, where the person signed in: the app is brought in front of it)
+      focus: () => {
+        if (!win) return
+        if (win.isMinimized()) win.restore()
+        app.focus({ steal: true })
+        win.focus()
+      },
+      record: (event) => analytics?.record(event),
+    })
+    // The installed app is what the system opens enclose:// links with (as it was
+    // packaged, and again here, for a Linux desktop that only goes by this): the way the
+    // page hands a sign-in back where the app could not listen for it on this machine.
+    // One run from a checkout is not: it would take the links from the app that is
+    // installed.
+    if (app.isPackaged) app.setAsDefaultProtocolClient(SCHEME)
+    if (linkWaiting) {
+      linked(linkWaiting)
+      linkWaiting = null
+    }
+    void account.refresh()
+    cloud = new CloudBackup({
+      server: ACCOUNT_SERVER,
+      token: () => account?.token ?? null,
+      storage: () =>
+        account?.state.state === "in" ? account.state.storage : null,
+      projects: () =>
+        backed().map(({ id, name, path }) => ({ id, name, path })),
+      git,
+      get: (url, init) => net.fetch(String(url), init),
+      onChange: (state) => send(CHANNEL.cloudChanged, state),
+      done: () => void account?.refresh(),
+      notBackedUp: () => settings.notBackedUp(ACCOUNT_SERVER),
+      setNotBackedUp: (ids) => settings.setNotBackedUp(ACCOUNT_SERVER, ids),
+      online: () => net.isOnline(),
+      reveal: (file) => shell.showItemInFolder(file),
+      record: (event, properties) => analytics?.record(event, properties),
     })
     backups = new Backups({
       git,
@@ -2843,9 +2959,13 @@ if (!app.requestSingleInstanceLock()) {
       updates.start()
     }
 
-    const given = process.argv
+    const args = process.argv
       .slice(app.isPackaged ? 1 : 2)
       .filter((arg) => !arg.startsWith("-"))
+    // (a link the app was started by, on Linux, is no project: it is the sign-in's)
+    const isLink = (arg: string) => arg.startsWith(`${SCHEME}://`)
+    for (const arg of args) if (isLink(arg)) linked(arg)
+    const given = args.filter((arg) => !isLink(arg))
     // (the projects there were before: one opened now has its model made as it is)
     const listed = projects.ids()
     let first: string | null = null

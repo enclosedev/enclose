@@ -3,11 +3,11 @@ import { REPOSITORY } from '../../shell/Header'
 
 export default function Terms() {
   return (
-    <Legal page="terms" title="Terms of Use" updated="17 October 2026">
+    <Legal page="terms" title="Terms of Use" updated="10 November 2026">
       <p>
         Enclose is an open-source project maintained by Glauber. These terms cover this
-        website and the Enclose app as it is downloaded from the project’s releases. Using
-        either means you accept them.
+        website, the Enclose app as it is downloaded from the project’s releases, and the
+        Enclose account and Enclose Cloud it offers. Using any of them means you accept them.
       </p>
 
       <h2>The app is open source</h2>
@@ -28,14 +28,37 @@ export default function Terms() {
       <h2>Your projects are yours</h2>
       <p>
         A project is a folder on your machine. The models, the files and what is said about
-        them are yours and stay there. The project runs no server that receives them, and the
-        app needs no account.
+        them are yours and stay there, unless you back them up. The app needs no account.
       </p>
       <p>
         If you connect GitHub, the app backs your projects up to private repositories on your
         own GitHub account. They are yours there too, kept by GitHub under its own terms.
         A backup can fall behind or fail, so do not make it the only copy of something that
         matters.
+      </p>
+
+      <h2>Your account and Enclose Cloud</h2>
+      <p>
+        An Enclose account is optional. With one, you can back your projects up on Enclose
+        Cloud, free, up to 5 GB for each account. What you back up stays yours: Enclose keeps
+        it to give it back to you, and claims no right to it beyond that. The{' '}
+        <a href="/privacy">privacy policy</a> says what is kept and where.
+      </p>
+      <p>
+        Keep your sign-in to yourself, and one account for each person. You are responsible
+        for what you back up: only what you have the right to keep, and nothing unlawful,
+        harmful, or meant to get around the room each account has. An account used that way,
+        or to attack or overload the service, may be suspended or deleted.
+      </p>
+      <p>
+        Enclose Cloud is new. A backup can fall behind or fail, and files over 95 MB are not
+        backed up, so do not make it the only copy of something that matters. The room each
+        account has, and what is offered for free, may change; if the service is ever
+        stopped, you will be told ahead of it where that can be done.
+      </p>
+      <p>
+        You can delete your account at any time, in Settings, Account. That deletes it, and
+        everything it kept on Enclose Cloud, for good.
       </p>
 
       <h2>Agents and their providers</h2>
@@ -72,8 +95,9 @@ export default function Terms() {
 
       <h2>Fair use</h2>
       <p>
-        Use the site and the app within the law. Do not use them to harm others, and do not
-        attack or overload the site or the services its downloads come from.
+        Use the site, the app and Enclose Cloud within the law. Do not use them to harm
+        others, and do not attack or overload the site, Enclose’s server, or the services its
+        downloads come from.
       </p>
 
       <h2>No charge</h2>
@@ -84,7 +108,8 @@ export default function Terms() {
 
       <h2>No warranty</h2>
       <p>
-        The site and the app are provided as they are, with no warranty of any kind, as far
+        The site, the app and Enclose Cloud are provided as they are, with no warranty of
+        any kind, as far
         as the law allows: none of merchantability, of fitness for a particular purpose, or
         of non-infringement. The license says the same of the code, in its sections 15 and
         16.
@@ -93,8 +118,8 @@ export default function Terms() {
       <h2>Limits of liability</h2>
       <p>
         As far as the law allows, the maintainer and the project’s contributors are not
-        liable for any loss or damage that comes of using the site or the app, or of not
-        being able to: lost work, lost data, lost profit, or anything indirect or
+        liable for any loss or damage that comes of using the site, the app or Enclose Cloud,
+        or of not being able to: lost work, lost data, lost profit, or anything indirect or
         consequential. Where the law does not allow a limit, that limit does not apply.
       </p>
 

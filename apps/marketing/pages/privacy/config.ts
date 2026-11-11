@@ -5,7 +5,7 @@ export function meta() {
     path: '/privacy',
     title: 'Privacy Policy: Enclose',
     description:
-      'What the Enclose app and website send anywhere, and what they do not: no account, projects kept on your Mac, and usage counts you can switch off.',
+      'What the Enclose app and website send anywhere, and what they do not: no account needed, projects kept on your machine unless you back them up, and usage counts you can switch off.',
   })
 }
 

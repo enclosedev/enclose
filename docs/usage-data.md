@@ -4,8 +4,9 @@ Enclose counts how it is used, so that what is worked on next is what people use
 installed app sends that count to [PostHog](https://posthog.com). Run from a checkout,
 it sends nothing.
 
-The app needs no account, and what it sends is tied to none. It goes under a name made
-up for your installation, a random one, the first time the app is run.
+The app needs no account, and what it sends is tied to none, even when you are signed in
+to an Enclose account. It goes under a name made up for your installation, a random one,
+the first time the app is run.
 
 ## What is sent
 
@@ -38,6 +39,10 @@ Each thing counted is an event: its name, and a few words and numbers that say w
 | `provider updated` | Which agent, and what came of it: updated, the same as it was, failed, or not answering after |
 | `update checked` | Of a look for a newer version asked for in the settings: whether one was found, and whether the look failed |
 | `update fetched` | The version |
+| `account signed in` | |
+| `account signed out` | |
+| `account deleted` | |
+| `cloud backup` | How a backup of the projects on Enclose Cloud went (done, stopped, out of reach, failed, or no room left); how many projects, how many files were sent, how many megabytes, and how long it took, in seconds |
 | `github connected` | |
 | `github disconnected` | |
 
