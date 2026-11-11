@@ -1330,7 +1330,7 @@ export function Settings() {
               >
                 {label}
                 {id === "account" && accountNew && (
-                  <span className="ml-1.5 rounded-full bg-amber-950 px-2 py-1 text-[9px] leading-none font-semibold tracking-wide text-amber-400">
+                  <span className="ml-1.5 rounded-full bg-amber-950/50 px-2 py-1 text-[9px] leading-none font-semibold tracking-wide text-amber-400">
                     NEW
                   </span>
                 )}
