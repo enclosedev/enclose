@@ -41,9 +41,14 @@ export const GROUPS: Group[] = [
         says: 'Grouping projects gives the agent their context: when one changes, it carries what that means over to the others.',
       },
       {
-        scene: 'github',
-        title: 'Backed up to GitHub.',
-        says: 'Every turn is a commit that says what changed, and each version has its own branch. Connect GitHub and every project is pushed to a private repository.',
+        scene: 'history',
+        title: 'A history of every change.',
+        says: 'Every turn is a commit that says what changed, and each version has its own branch, in git, in the project’s own folder.',
+      },
+      {
+        scene: 'cloud',
+        title: 'Backed up on Enclose Cloud.',
+        says: 'Sign in, and every project is backed up, free up to 5 GB. On another computer, download them as they were.',
       },
       {
         scene: 'agents',

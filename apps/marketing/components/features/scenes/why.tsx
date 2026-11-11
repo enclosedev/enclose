@@ -3,6 +3,7 @@ import {
   ChevronDownIcon,
   CornerLeftUpIcon,
   GitBranchIcon,
+  LockIcon,
   PinIcon,
   PlusIcon,
 } from 'lucide-react'
@@ -10,7 +11,7 @@ import type { ComponentType, ReactNode } from 'react'
 import type { Act } from '../../stageshow/act'
 import { ClaudeIcon } from '../../app/icons'
 import { Composer, Model, ProjectCard, Scene, type News } from '../fx'
-import { GitHubIcon, GrokIcon, OpenAIIcon, OpencodeIcon } from './marks'
+import { GrokIcon, OpenAIIcon, OpencodeIcon } from './marks'
 import './why.scss'
 
 // Why Enclose: the window round the model. Its projects, their conversations and
@@ -279,8 +280,8 @@ function Groups() {
   )
 }
 
-// ── Backed up to GitHub ───────────────────────────────────────────────────
-// The project's private repository, and its commits coming in one after another, each
+// ── A history of every change ─────────────────────────────────────────────
+// The project's history, and its commits coming in one after another, each
 // a turn of the agent's that says what it changed (a version's on its own branch): the
 // newest rises to the front, those before it go back, smaller and fainter, and the
 // oldest fades away. It goes round: one that has faded waits out of sight, under the
@@ -298,9 +299,9 @@ const COMMITS = [
 /** How long ago each is, by how far back in the stack it is. */
 const AGO = ['just now', '4 minutes ago', '1 hour ago', '3 hours ago', 'yesterday', 'yesterday']
 
-type GithubState = { newest: number }
+type HistoryState = { newest: number }
 
-async function githubScript(a: Act<GithubState>) {
+async function historyScript(a: Act<HistoryState>) {
   for (let i = 0; i < COMMITS.length; i++) {
     await a.wait(2000)
     await a.set((s) => ({ newest: (s.newest + 1) % COMMITS.length }))
@@ -325,22 +326,22 @@ function Commit({ title, branch, depth }: { title: string; branch: string; depth
   )
 }
 
-function Github() {
+function History() {
   return (
-    <Scene<GithubState>
-      className="fx-github"
+    <Scene<HistoryState>
+      className="fx-history"
       initial={{ newest: 0 }}
       poster={{ newest: 2 }}
-      script={githubScript}
+      script={historyScript}
     >
       {(s) => (
         <>
-          <header className="fx-github__repo">
-            <GitHubIcon />
-            <span className="fx-github__name">enclose-robot-arm</span>
-            <span className="fx-github__private">Private</span>
+          <header className="fx-history__repo">
+            <GitBranchIcon strokeWidth={1.75} />
+            <span className="fx-history__name">Robot arm</span>
+            <span className="fx-history__private">History</span>
           </header>
-          <div className="fx-github__stack">
+          <div className="fx-history__stack">
             {COMMITS.map((commit, index) => (
               <Commit
                 key={commit.title}
@@ -350,6 +351,81 @@ function Github() {
             ))}
           </div>
         </>
+      )}
+    </Scene>
+  )
+}
+
+// ── Backed up on Enclose Cloud ────────────────────────────────────────────
+// Back up, big, and nothing else. Pressed, the row of the settings it is in comes in
+// round it, and it becomes that row's Stop, with the files going up beside it, counted
+// as they go. Then how much of the 5 GB they take.
+
+/** What there is to back up: so many files, so many megabytes. */
+const FILES = 1204
+const MEGABYTES = 402
+
+type CloudState = { step: 'offer' | 'uploading' | 'done'; sent: number }
+const cloudStart: CloudState = { step: 'offer', sent: 0 }
+/** where the pointer rests between loops, away from the buttons */
+const CLOUD_REST = { wide: { x: 300, y: 470 }, compact: { x: 180, y: 290 } }
+
+async function cloudScript(a: Act<CloudState>) {
+  await a.wait(900)
+  await a.click('back-up')
+  await a.set({ step: 'uploading' })
+  a.mark('uploading')
+  // (out of the way of Stop, which the button has become)
+  await a.move(CLOUD_REST)
+  const steps = 16
+  for (let i = 1; i <= steps; i++) {
+    await a.wait(170)
+    // (quick at first, as small files are, then slower)
+    await a.set({ sent: 1 - (1 - i / steps) ** 1.6 })
+  }
+  await a.wait(350)
+  await a.set({ step: 'done' })
+  a.mark('done')
+  await a.wait(3600)
+  await a.snap(cloudStart)
+}
+
+const counted = (n: number) => n.toLocaleString('en-US')
+
+function Cloud() {
+  return (
+    <Scene<CloudState>
+      className="fx-cloud"
+      initial={cloudStart}
+      poster={{ step: 'done', sent: 1 }}
+      script={cloudScript}
+      cursor={{ at: CLOUD_REST }}
+    >
+      {(s) => (
+        <div className="fx-cloud__page" data-step={s.step}>
+          <div className="fx-cloud__card">
+            <span className="fx-cloud__words">
+              <span className="fx-cloud__title">
+                {s.step === 'done'
+                  ? `${MEGABYTES} MB of 5 GB used`
+                  : `Uploading ${counted(Math.round(FILES * s.sent))} of ${counted(FILES)} files`}
+              </span>
+              <span className="fx-cloud__detail">
+                {s.step === 'done'
+                  ? 'Your projects are backed up for free.'
+                  : `${Math.round(MEGABYTES * s.sent)} MB of ${MEGABYTES} MB`}
+              </span>
+            </span>
+          </div>
+          <span className="fx-cloud__bar">
+            <i style={{ width: `${(s.step === 'done' ? MEGABYTES / 5000 : s.sent) * 100}%` }} />
+          </span>
+          {/* Back up, and then Stop: one button, from the middle to the row's end */}
+          <span className="fx-cloud__button" data-target="back-up" data-cursor={s.step === 'offer' ? 'pointer' : undefined}>
+            <span className="fx-cloud__label fx-cloud__label--up">Back up</span>
+            <span className="fx-cloud__label fx-cloud__label--stop">Stop</span>
+          </span>
+        </div>
       )}
     </Scene>
   )
@@ -497,7 +573,8 @@ export const WHY: Record<string, ComponentType> = {
   projects: Projects,
   versions: Versions,
   groups: Groups,
-  github: Github,
+  history: History,
+  cloud: Cloud,
   agents: Agents,
 }
 

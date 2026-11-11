@@ -7,8 +7,8 @@ export default function Privacy() {
       <p>
         Enclose is an open-source project maintained by Glauber. This page says what the
         Enclose app and this website send anywhere, and what they do not. In short: the app
-        needs no account, your projects stay on your machine unless you back them up (on
-        Enclose Cloud, with an Enclose account, or to your own GitHub account), and the
+        needs no account, your projects stay on your machine unless you back them up on
+        Enclose Cloud, with an Enclose account, and the
         installed app counts how it is used, without your name, unless you switch that
         off. This website counts its visits, without cookies and without knowing whose they
         are.
@@ -61,8 +61,8 @@ export default function Privacy() {
         </li>
         <li>
           that an agent was switched on or off or updated, that a newer version was looked
-          for from the settings or an update fetched, and that GitHub was connected or
-          disconnected, without which account;
+          for from the settings or an update fetched, and, in versions before 0.0.23, that
+          GitHub was connected or disconnected, without which account;
         </li>
         <li>
           that an Enclose account was signed in to, signed out of or deleted, without which
@@ -136,30 +136,19 @@ export default function Privacy() {
         and the address it comes from, and nothing of your projects.
       </p>
 
-      <h2>Backing projects up to GitHub</h2>
+      <h2>Backups to GitHub, in earlier versions</h2>
       <p>
-        Only if you connect it, in Settings, Connections. You sign in on GitHub’s own site
-        with a code the app shows you, and install Enclose’s GitHub app on your account.
-        GitHub asks you there which of your repositories it may reach: all of them, or only
-        the ones you pick. In those, it is let make repositories, push to them, and manage
-        them, which GitHub counts as renaming and deleting them too. The app makes and
-        renames its own; it deletes none.
-      </p>
-      <p>
-        Once you have connected, each project the app keeps a history of goes to a private
-        repository of its own on your account, called <code>enclose-</code> and the
-        project’s name, and is pushed to after every change: its files, every version of
-        it, and the history’s messages, which say in a few words what was asked and what
-        changed. Your conversations themselves are not pushed. What signs the app in to
-        GitHub is kept on your machine, sealed by the system: with the macOS keychain, or on
-        Linux with its password store, such as GNOME Keyring or KWallet. Where there is none
-        to seal it with, it is not kept, and GitHub cannot be connected. Disconnecting
-        forgets it, and leaves the repositories on GitHub, yours to keep or delete. GitHub
-        keeps them under{' '}
+        Versions of the app before 0.0.23 could back projects up to your own GitHub account,
+        if you connected it in Settings, Connections: each project to a private repository
+        of its own, called <code>enclose-</code> and the project’s name, pushed to after
+        every change, through Enclose’s GitHub app. From 0.0.23 the app does not, and
+        forgets the GitHub sign-in it kept the first time it opens. The repositories it made
+        stay on GitHub, yours to keep or delete, under{' '}
         <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">
-          its own privacy statement
+          GitHub’s own privacy statement
         </a>
-        .
+        ; you can remove Enclose’s app from your account in GitHub’s settings, under
+        Applications.
       </p>
 
       <h2>Your Enclose account</h2>
@@ -194,7 +183,8 @@ export default function Privacy() {
       </ul>
       <p>
         It is kept in Cloudflare’s database in Western North America. The app keeps what
-        signs it in on your machine, sealed by the system as GitHub’s is (below). Deleting
+        signs it in on your machine, sealed by the system: with the macOS keychain, or on
+        Linux with its password store, such as GNOME Keyring or KWallet. Deleting
         your account, in Settings, Account, deletes all of it and everything backed up with
         it, at once.
       </p>
@@ -240,9 +230,9 @@ export default function Privacy() {
       <h2>What stays on your machine</h2>
       <p>
         Your conversations and your settings are kept on your machine and nowhere else, and
-        so are your projects, unless you back them up on Enclose Cloud or to GitHub. Removing
-        a project from the app forgets what was said about it, and leaves its folder, its
-        backup on Enclose Cloud and its repository on GitHub where there are those.
+        so are your projects, unless you back them up on Enclose Cloud. Removing a project
+        from the app forgets what was said about it, and leaves its folder, and its backup
+        on Enclose Cloud where there is one.
       </p>
 
       <h2>This website</h2>

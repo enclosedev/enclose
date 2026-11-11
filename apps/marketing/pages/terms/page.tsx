@@ -31,10 +31,9 @@ export default function Terms() {
         them are yours and stay there, unless you back them up. The app needs no account.
       </p>
       <p>
-        If you connect GitHub, the app backs your projects up to private repositories on your
-        own GitHub account. They are yours there too, kept by GitHub under its own terms.
-        A backup can fall behind or fail, so do not make it the only copy of something that
-        matters.
+        Versions of the app before 0.0.23 could back projects up to private repositories on
+        your own GitHub account. What is there is yours too, kept by GitHub under its own
+        terms.
       </p>
 
       <h2>Your account and Enclose Cloud</h2>

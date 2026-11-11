@@ -155,9 +155,9 @@
   }
 }
 
-// ── Backed up to GitHub ────────────────────────────────────────────────────
-.fx-github {
-  // the repository, in the card's corner, as GitHub names one
+// ── A history of every change ──────────────────────────────────────────────
+.fx-history {
+  // the project, in the card's corner, and that this is its history
   &__repo {
     position: absolute;
     top: 30px;
@@ -196,7 +196,7 @@
   }
 }
 
-// A commit, a card of its own in GitHub's dark look, where it is in the stack (its
+// A commit, a card of its own in a dark look like GitHub's, where it is in the stack (its
 // depth): at the front, then each further back higher, smaller and fainter, until it is
 // gone; and, gone, waiting under the front, to rise into it again.
 .fx-commit {
@@ -281,7 +281,7 @@
 }
 
 [data-layout='compact'] {
-  .fx-github__repo {
+  .fx-history__repo {
     top: 22px;
     left: 22px;
     font-size: 17px;
@@ -292,13 +292,192 @@
     }
   }
 
-  .fx-github__stack {
+  .fx-history__stack {
     top: 190px;
     left: 18px;
     width: 324px;
   }
 
   .fx-commit__title { font-size: 16px; }
+}
+
+// ── Backed up on Enclose Cloud ─────────────────────────────────────────────
+// A row of the settings, on their own dark ground, in the middle of the card, made
+// bigger; and the one button, which is Back up in the middle of it before the row is
+// there, and its Stop after.
+.fx.fx-cloud .ss-stage { background: #0a0a0a; }
+
+$cloud-ease: cubic-bezier(0.32, 0.72, 0, 1);
+
+.fx-cloud {
+  &__page {
+    --w: 400px;
+    --h: 76px;
+    --pad: 18px;
+    --stop: 58px;
+    --bar: 64px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: var(--w);
+    height: var(--h);
+    transform: translate(-50%, -50%) scale(1.2);
+    font-size: 14px;
+    line-height: 20px;
+  }
+
+  &__card {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 calc(var(--pad) * 2 + var(--stop) + var(--bar) + 12px) 0 var(--pad);
+    border-radius: 16px;
+    background: #171717;
+    box-shadow: 0 0 0 1px rgb(250 250 250 / 0.1);
+    transition:
+      opacity 0.45s ease,
+      transform 0.6s $cloud-ease;
+  }
+
+  &__words {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    transition: opacity 0.3s ease 0.2s;
+  }
+
+  &__title {
+    overflow: hidden;
+    color: var(--app-fg);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__detail {
+    overflow: hidden;
+    color: var(--app-muted);
+    font-variant-numeric: tabular-nums;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__bar {
+    position: absolute;
+    top: 50%;
+    right: calc(var(--pad) + var(--stop) + 12px);
+    width: var(--bar);
+    height: 6px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgb(250 250 250 / 0.12);
+    transform: translateY(-50%);
+    transition:
+      right 0.6s $cloud-ease,
+      width 0.6s $cloud-ease,
+      opacity 0.3s ease 0.25s;
+
+    i {
+      display: block;
+      min-width: 6px;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--app-fg);
+      transition: width 0.17s linear;
+    }
+  }
+
+  // At the row's end, as its Stop: an outlined button, small.
+  &__button {
+    position: absolute;
+    top: 50%;
+    left: calc(100% - var(--pad) - var(--stop));
+    width: var(--stop);
+    height: 30px;
+    border-radius: 999px;
+    background: rgb(250 250 250 / 0.05);
+    box-shadow: inset 0 0 0 1px rgb(250 250 250 / 0.12);
+    color: var(--app-fg);
+    font-weight: 500;
+    transform: translateY(-50%);
+    transition:
+      left 0.6s $cloud-ease,
+      width 0.6s $cloud-ease,
+      height 0.6s $cloud-ease,
+      background-color 0.4s ease,
+      box-shadow 0.4s ease,
+      color 0.4s ease,
+      opacity 0.3s ease,
+      font-size 0.6s $cloud-ease;
+
+    &[data-pressed] { scale: 0.96; }
+  }
+
+  // (both words in it, one over the other: the one it is shows)
+  &__label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    transition: opacity 0.3s ease;
+  }
+
+  // (Back up goes at once; Stop comes once the button is nearly its size)
+  &__label--up {
+    opacity: 0;
+    transition-duration: 0.12s;
+  }
+
+  &__label--stop { transition: opacity 0.25s ease 0.2s; }
+
+  // Before: Back up, big, in the middle, and nothing of the row round it.
+  [data-step='offer'] {
+    .fx-cloud__card {
+      opacity: 0;
+      transform: scale(0.94);
+    }
+
+    .fx-cloud__words,
+    .fx-cloud__bar { opacity: 0; transition-delay: 0s; }
+
+    .fx-cloud__button {
+      left: calc(50% - 88px);
+      width: 176px;
+      height: 58px;
+      background: var(--app-primary);
+      box-shadow: none;
+      color: #171717;
+      font-size: 19px;
+    }
+
+    .fx-cloud__label--up { opacity: 1; }
+
+    .fx-cloud__label--stop {
+      opacity: 0;
+      transition-delay: 0s;
+    }
+  }
+
+  // After: no Stop, and the bar at the row's end in its place.
+  [data-step='done'] {
+    .fx-cloud__card { padding-right: calc(var(--pad) * 2 + var(--bar) + 20px); }
+
+    .fx-cloud__bar {
+      right: var(--pad);
+      width: calc(var(--bar) + 20px);
+    }
+
+    .fx-cloud__button { opacity: 0; }
+  }
+}
+
+// (on a phone, smaller, and as wide as the card has room for)
+[data-layout='compact'] {
+  .fx-cloud__page { transform: translate(-50%, -50%) scale(0.82); }
 }
 
 // ── The agent you already pay for ──────────────────────────────────────────
