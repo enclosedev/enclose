@@ -44,6 +44,9 @@ export type AccountDeps = {
   onChange: (state: AccountState) => void
   /** bring the app forward: signed in, by the page handing it back to the app */
   focus?: () => void
+  /** whether this computer has been signed in on before, and that it has been now */
+  signedInBefore: () => boolean
+  signedIn: () => void
   /** something to be counted (the app's usage data) */
   record: (
     event: "account signed in" | "account signed out" | "account deleted"
@@ -75,6 +78,8 @@ export class Account {
     this.deps = deps
     this.shownServer = deps.server === ENCLOSE_SERVER ? null : deps.server
     this.kept = deps.saved()
+    // (signed in already, from before this was kept: Account is not new here)
+    if (this.kept) deps.signedIn()
     this.now = this.kept
       ? {
           state: "in",
@@ -85,11 +90,21 @@ export class Account {
           trouble: null,
           server: this.shownServer,
         }
-      : { state: "out", trouble: null, server: this.shownServer }
+      : this.outState(null)
   }
 
   get state(): AccountState {
     return this.now
+  }
+
+  /** Signed out, with what went wrong where something did. */
+  private outState(trouble: string | null): AccountState {
+    return {
+      state: "out",
+      trouble,
+      server: this.shownServer,
+      fresh: !this.deps.signedInBefore(),
+    }
   }
 
   /** What signs in to the server, where the app is signed in: for backing up (cloud.ts). */
@@ -107,7 +122,7 @@ export class Account {
     this.deps.save(null)
     this.pending = null
     this.stopListening()
-    this.set({ state: "out", trouble, server: this.shownServer })
+    this.set(this.outState(trouble))
   }
 
   /**
@@ -129,7 +144,12 @@ export class Account {
     if (port !== null) query.set("loopback", String(port))
     const url = `${this.deps.server}/sign-in?${query}`
     this.pending = { state, verifier, url }
-    this.set({ state: "signing-in", url, server: this.shownServer })
+    this.set({
+      state: "signing-in",
+      url,
+      server: this.shownServer,
+      fresh: !this.deps.signedInBefore(),
+    })
     this.deps.open(url)
   }
 
@@ -142,7 +162,7 @@ export class Account {
     if (this.now.state !== "signing-in") return
     this.pending = null
     this.stopListening()
-    this.set({ state: "out", trouble: null, server: this.shownServer })
+    this.set(this.outState(null))
   }
 
   /**
@@ -156,7 +176,7 @@ export class Account {
     if (trouble) {
       this.pending = null
       this.stopListening()
-      this.set({ state: "out", trouble, server: this.shownServer })
+      this.set(this.outState(trouble))
     }
   }
 
@@ -222,7 +242,7 @@ export class Account {
     else if (this.pending) {
       this.pending = null
       this.stopListening()
-      this.set({ state: "out", trouble, server: this.shownServer })
+      this.set(this.outState(trouble))
     }
     response
       .writeHead(302, {
@@ -309,7 +329,7 @@ export class Account {
     }
     if (!this.deps.save(kept)) {
       const trouble = "This machine has nowhere to keep the sign-in safely."
-      this.set({ state: "out", trouble, server: this.shownServer })
+      this.set(this.outState(trouble))
       return trouble
     }
     this.kept = kept
@@ -322,6 +342,7 @@ export class Account {
       trouble: null,
       server: this.shownServer,
     })
+    this.deps.signedIn()
     this.deps.record("account signed in")
     void this.refresh()
     return null
