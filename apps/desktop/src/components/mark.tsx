@@ -3,24 +3,18 @@ import { cn } from "cn"
 
 import {
   beads,
-  choreograph,
   ends,
   EXTENT,
   letter,
   LETTER_WIDTH,
-  LOOP,
   MARK,
   REST,
-  rests,
-  viewAt,
+  tumbling,
   type Axis,
   type View,
 } from "@/lib/mark"
 
-/** Where the mark rests between its moves, the last of them being where it began. */
-const RESTS = rests(REST, choreograph(LOOP.seed, LOOP.moves))
-
-/** Where the mark is seen from, as time passes: it is turned over like a cube in the hand. */
+/** Where the mark is seen from, as time passes: it tumbles, on all its axes at once. */
 function useTurning(moving: boolean): View {
   const [view, setView] = React.useState(REST)
   React.useEffect(() => {
@@ -29,7 +23,7 @@ function useTurning(moving: boolean): View {
     let frame = 0
     const started = performance.now()
     const draw = (now: number) => {
-      setView(viewAt(RESTS, (now - started) / 1000, LOOP.turn, LOOP.hold))
+      setView(tumbling(REST, (now - started) / 1000))
       frame = requestAnimationFrame(draw)
     }
     frame = requestAnimationFrame(draw)

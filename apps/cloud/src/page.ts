@@ -1,8 +1,7 @@
 // The page the app opens in the browser to sign in: an email, then the code sent to it.
 // Once the code is right, the page hands the app what it signs in with: to the app on
 // this machine, where the app said it listens there (`loopback`, its port at 127.0.0.1),
-// or else by an enclose:// link. It shows the same as a code to paste into the app, for
-// where neither reaches it.
+// or else by an enclose:// link.
 //
 // The app opens the page with what the electron plugin asks for in its address
 // (client_id, state, code_challenge), and the page passes those on as it signs in: it
@@ -94,14 +93,6 @@ button:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
 #person:empty { display: none; }
 .bad { margin-top: 16px; color: var(--bad); font-size: 16px; }
 .bad:empty { display: none; }
-code {
-  display: block; width: 100%; margin-top: 24px; padding: 14px 18px; border-radius: 14px;
-  background: var(--raised); color: var(--fg); text-align: left; letter-spacing: 0;
-  font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
-  word-break: break-all; user-select: all;
-}
-#copy { width: 100%; margin-top: 10px; }
-.note { margin-top: 16px; color: var(--faint); font-size: 14px; letter-spacing: 0; }
 footer {
   display: flex; gap: 20px; justify-content: center; padding: 24px;
   color: var(--faint); font-size: 14px; letter-spacing: 0;
@@ -230,9 +221,8 @@ function linkFor(identifier) {
   return { token }
 }
 
-/** Hand the app the sign-in: by the link, and as the code to paste where that fails. */
+/** Hand the app the sign-in: on this machine, or else by the link. */
 function handOver(token) {
-  $("token").textContent = token
   show("done-step")
   // (a page the browser goes to, and not a request from this one: a browser asks first
   // before a site may send requests to this machine, and lets it go to a page there.
@@ -346,10 +336,6 @@ $("code").addEventListener("input", () => {
   if (code.value.length === 6 && !$("verify").disabled) $("code-form").requestSubmit()
 })
 $("other").addEventListener("click", () => { say(""); show("email-step"); $("email").focus() })
-$("copy").addEventListener("click", async () => {
-  await navigator.clipboard.writeText($("token").textContent)
-  $("copy").textContent = "Copied"
-})
 `
 
 /** Where the browser goes once the app has the sign-in, where the tab is not closed. */
@@ -452,10 +438,7 @@ export function signInPage(
   </section>
   <section id="done-step" hidden>
     <h1>You're signed in</h1>
-    <p>Going back to Enclose. If it didn't open, paste this code into Enclose:</p>
-    <code id="token"></code>
-    <button id="copy" type="button">Copy code</button>
-    <p class="note">Paste it into the Enclose app and nowhere else: nobody from Enclose will ever ask you for it.</p>
+    <p>Going back to Enclose.</p>
   </section>
   <section id="lost-step" hidden>
     <h1>Start from Enclose</h1>

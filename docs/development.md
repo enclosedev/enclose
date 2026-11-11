@@ -444,11 +444,13 @@ How signing in goes:
    moment and comes forward, and sends the browser on to `/signed-in`, which closes the
    tab where the browser lets it (where nothing came before in the tab, as after the
    email's code) or goes on to enclose.dev (as after Google's or Apple's pages). Where the app could
-   not listen, the page hands it over as `enclose://auth/callback#token=…`; and either
-   way it shows it as a code to paste.
+   not listen, the page hands it over as `enclose://auth/callback#token=…`.
 3. The app sends that, with its secret, to `/api/auth/electron/token`, and is given the
    session's token. It keeps it sealed in its settings, and sends it with each request
-   after (`Authorization: Bearer …`).
+   after (`Authorization: Bearer …`), and never a cookie (`toEnclose` in
+   [`electron/main.ts`](../apps/desktop/electron/main.ts)): Electron's fetch keeps the
+   cookies servers set, and a session cookie kept from signing in would have the server
+   ask for an origin, which the app's requests cannot say.
 
 Only the installed app is opened by `enclose://` links (the `protocols` it is packaged
 with, in [`scripts/dist.mjs`](../apps/desktop/scripts/dist.mjs)). One run from a checkout

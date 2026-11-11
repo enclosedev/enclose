@@ -48,6 +48,21 @@ export const RESTING_WIDTH =
     MARK.dot) /
   EXTENT
 
+/**
+ * Tumbling, as it is while something is waited for: round and over at once, and
+ * smoothly, the seconds a whole turn of each takes. Neither a share of the other, so it
+ * turns on all its axes together, and back as it began every `TUMBLE.home` seconds.
+ */
+export const TUMBLE = { around: 2.4, over: 3.6, home: 7.2 }
+
+/** Where the tumbling mark is seen from, `seconds` after it set off from `start`. */
+export function tumbling(start: View, seconds: number): View {
+  return {
+    azimuth: start.azimuth + (360 * seconds) / TUMBLE.around,
+    elevation: start.elevation + (360 * seconds) / TUMBLE.over,
+  }
+}
+
 /** The moves it makes before it is home again, and the seconds each takes and rests. */
 export const LOOP = { moves: 5, seed: 10, turn: 0.5, hold: 0.1 }
 

@@ -8,10 +8,9 @@ import type {
   CloudState,
   TooBig,
 } from "@shared/api"
-import { Logo } from "@/components/mark"
+import { Logo, Mark } from "@/components/mark"
 import { Group, Row } from "@/components/setting"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -700,8 +699,8 @@ const BACKDROP =
 
 /**
  * Signing in, over everything while it is under way: the page is open in the browser,
- * and the app waits for it. Where its link does not reach the app, the code the page
- * shows is pasted here instead. Put away (Esc, Cancel, or a click past it), it stops.
+ * and the app waits for it to hand the sign-in back. Put away (Esc, Cancel, or a click
+ * past it), it stops.
  */
 function SignIn({ account }: { account: AccountState }) {
   return (
@@ -718,75 +717,17 @@ function SignIn({ account }: { account: AccountState }) {
           aria-label="Sign in to Enclose"
           className={POPUP}
         >
-          <Logo size={28} />
+          {/* (turning over and over, while the browser is waited for) */}
+          <Mark moving size={44} />
           <Dialog.Description className="text-sm text-balance text-muted-foreground">
             Finish signing in in your browser.
-            <br />
-            <span className="inline-flex items-center gap-1.5 text-foreground">
-              <Spinner className="size-3.5" />
-              Waiting for the browser
-            </span>
           </Dialog.Description>
-          <Button
-            variant="outline"
-            onClick={() => void window.cad.account.openPage()}
-          >
-            Open the page again
-          </Button>
-          <PasteCode />
           <Dialog.Close render={<Button variant="ghost" />}>
             Cancel
           </Dialog.Close>
         </Dialog.Popup>
       </Dialog.Portal>
     </Dialog.Root>
-  )
-}
-
-/**
- * The code the sign-in page shows, pasted. (Inside the dialog, it starts empty each time
- * the dialog opens.)
- */
-function PasteCode() {
-  const [code, setCode] = React.useState("")
-  const [trouble, setTrouble] = React.useState<string | null>(null)
-  const [busy, setBusy] = React.useState(false)
-
-  const paste = async (event: React.FormEvent) => {
-    event.preventDefault()
-    if (!code.trim() || busy) return
-    setBusy(true)
-    setTrouble(await window.cad.account.paste(code))
-    setBusy(false)
-  }
-
-  return (
-    <form
-      onSubmit={(event) => void paste(event)}
-      className="flex w-full flex-col gap-2"
-    >
-      <label htmlFor="sign-in-code" className="text-sm text-muted-foreground">
-        Or paste the code the page shows
-      </label>
-      <div className="flex gap-2">
-        <Input
-          id="sign-in-code"
-          value={code}
-          onChange={(event) => setCode(event.target.value)}
-          spellCheck={false}
-          autoComplete="off"
-          className="font-mono"
-        />
-        <Button type="submit" disabled={!code.trim() || busy}>
-          {busy ? <Spinner /> : "Sign in"}
-        </Button>
-      </div>
-      {trouble && (
-        <p role="alert" className="text-sm text-destructive">
-          {trouble}
-        </p>
-      )}
-    </form>
   )
 }
 

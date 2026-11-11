@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest"
 import {
   beads,
   choreograph,
+  TUMBLE,
+  tumbling,
   ends,
   letter,
   LOOP,
@@ -140,5 +142,19 @@ describe("viewAt", () => {
     expect(viewAt(views, LOOP.moves * beat, LOOP.turn, LOOP.hold)).toEqual(
       views[0]
     )
+  })
+})
+
+describe("tumbling", () => {
+  const same = (a: { azimuth: number; elevation: number }, b: typeof a) =>
+    (((a.azimuth - b.azimuth) % 360) + 360) % 360 < 1e-9 &&
+    (((a.elevation - b.elevation) % 360) + 360) % 360 < 1e-9
+
+  it("goes round and over at once, and is home again as it began", () => {
+    expect(tumbling(REST, 0)).toEqual(REST)
+    const midway = tumbling(REST, TUMBLE.home / 3)
+    expect(midway.azimuth).not.toBe(REST.azimuth)
+    expect(midway.elevation).not.toBe(REST.elevation)
+    expect(same(tumbling(REST, TUMBLE.home), REST)).toBe(true)
   })
 })

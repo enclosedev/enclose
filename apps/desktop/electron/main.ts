@@ -190,6 +190,15 @@ const EXAMPLES_FROM = (CHECKOUT && process.env.ENCLOSE_EXAMPLES_URL) || null
 const UPDATES_FROM = onThisMachine(process.env.ENCLOSE_UPDATES_URL)
 const ANALYTICS_KEY = (CHECKOUT && process.env.ENCLOSE_ANALYTICS_KEY) || null
 if (CHECKOUT) tryOtherApp(process.env)
+/**
+ * A request to Enclose's server, signed in with the account's token (Authorization:
+ * Bearer) and never with a cookie: none is sent, nor kept of what it answers. (Electron's
+ * fetch keeps cookies, and a session cookie kept from signing in would have the server
+ * ask the app's next requests for an origin, which they cannot say.)
+ */
+const toEnclose: typeof fetch = (url, init) =>
+  net.fetch(String(url), { ...init, credentials: "omit" })
+
 /** where the Enclose account is kept: the installed app, on Enclose's own server */
 const ACCOUNT_SERVER = CHECKOUT
   ? (process.env.ENCLOSE_CLOUD_URL || "http://localhost:8787").replace(
@@ -2683,7 +2692,7 @@ if (!app.requestSingleInstanceLock()) {
       // (a run checking the app, with nobody at it, says where it would go instead)
       open: (url) =>
         CAPTURE ? console.log(`[open] ${url}`) : void shell.openExternal(url),
-      get: (url, init) => net.fetch(String(url), init),
+      get: toEnclose,
       onChange: (state) => {
         send(CHANNEL.accountChanged, state)
         // (backed up by itself, once the account has backups; nothing, signed out)
@@ -2718,7 +2727,7 @@ if (!app.requestSingleInstanceLock()) {
       projects: () =>
         backed().map(({ id, name, path }) => ({ id, name, path })),
       git,
-      get: (url, init) => net.fetch(String(url), init),
+      get: toEnclose,
       onChange: (state) => send(CHANNEL.cloudChanged, state),
       done: () => void account?.refresh(),
       notBackedUp: () => settings.notBackedUp(ACCOUNT_SERVER),
