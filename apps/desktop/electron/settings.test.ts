@@ -172,6 +172,13 @@ describe("SettingsStore", () => {
     expect(open.account("https://cloud.enclose.dev")).toBeNull()
   })
 
+  it("keeps that this computer has been signed in on, for good", () => {
+    const store = new SettingsStore(file, DEFAULTS)
+    expect(store.signedInBefore()).toBe(false)
+    store.setSignedIn()
+    expect(new SettingsStore(file, DEFAULTS).signedInBefore()).toBe(true)
+  })
+
   it("keeps the projects taken off Enclose Cloud, for each server", () => {
     const store = new SettingsStore(file, DEFAULTS)
     store.setNotBackedUp("https://cloud.enclose.dev", ["a", "b", "a"])

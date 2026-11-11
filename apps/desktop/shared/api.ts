@@ -902,11 +902,17 @@ export type GitHubState = {
  * with (by an enclose:// link, or pasted). in: signed in, with how much the account
  * keeps of the most it may, once the server has said (null until then), and what went
  * wrong asking it, where something did. `server` is where the account is kept, where
- * that is not Enclose's own (a server run from a checkout): null where it is.
+ * that is not Enclose's own (a server run from a checkout): null where it is. `fresh`:
+ * this computer has never been signed in on (and Account is new to it, in the settings).
  */
 export type AccountState =
-  | { state: "out"; trouble: string | null; server: string | null }
-  | { state: "signing-in"; url: string; server: string | null }
+  | {
+      state: "out"
+      trouble: string | null
+      server: string | null
+      fresh: boolean
+    }
+  | { state: "signing-in"; url: string; server: string | null; fresh: boolean }
   | {
       state: "in"
       email: string

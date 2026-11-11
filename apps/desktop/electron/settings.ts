@@ -106,6 +106,8 @@ type Saved = Partial<Settings> & {
   accounts?: Record<string, { email: string; name: string; sealed: string }>
   /** for each server, the projects taken off Enclose Cloud there: not backed up again */
   notBackedUp?: Record<string, string[]>
+  /** this computer has been signed in to an Enclose account on, once at least */
+  signedIn?: true
 }
 
 /** An Enclose account, as the app keeps it: who, and the token of its session. */
@@ -311,6 +313,18 @@ export class SettingsStore {
     this.saved = Object.keys(accounts).length > 0 ? { ...rest, accounts } : rest
     this.write()
     return true
+  }
+
+  /** Whether this computer has been signed in to an Enclose account on, ever. */
+  signedInBefore(): boolean {
+    return this.saved.signedIn === true
+  }
+
+  /** It has been, now: kept for good. */
+  setSignedIn() {
+    if (this.saved.signedIn) return
+    this.saved = { ...this.saved, signedIn: true }
+    this.write()
   }
 
   /** The projects taken off Enclose Cloud on this server: not backed up again. */

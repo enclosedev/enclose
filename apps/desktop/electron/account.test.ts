@@ -75,7 +75,12 @@ function server() {
   }
 }
 
-function account(saved: KeptAccount | null = null, at = SERVER) {
+function account(
+  saved: KeptAccount | null = null,
+  at = SERVER,
+  before = false
+) {
+  let signedIn = before
   const site = server()
   let kept = saved
   const states: AccountState[] = []
@@ -94,6 +99,8 @@ function account(saved: KeptAccount | null = null, at = SERVER) {
     onChange: (state) => states.push(state),
     record: (event) => recorded.push(event),
     focus: () => focus++,
+    signedInBefore: () => signedIn,
+    signedIn: () => (signedIn = true),
   }
   const made = new Account(deps)
   return {
@@ -268,7 +275,12 @@ describe("signing in", () => {
     const { made } = account()
     await made.signIn()
     made.cancel()
-    expect(made.state).toEqual({ state: "out", trouble: null, server: SERVER })
+    expect(made.state).toEqual({
+      state: "out",
+      trouble: null,
+      server: SERVER,
+      fresh: true,
+    })
   })
 })
 
@@ -308,7 +320,37 @@ describe("signed in", () => {
 
   it("says nothing of the server where it is Enclose's own", () => {
     const { made } = account(null, ENCLOSE_SERVER)
-    expect(made.state).toEqual({ state: "out", trouble: null, server: null })
+    expect(made.state).toEqual({
+      state: "out",
+      trouble: null,
+      server: null,
+      fresh: true,
+    })
+  })
+})
+
+describe("new to this computer", () => {
+  it("is, until it is signed in on, and is not again after", async () => {
+    const { made, site, opened } = account()
+    expect(made.state).toMatchObject({ state: "out", fresh: true })
+    await made.signIn()
+    expect(made.state).toMatchObject({ state: "signing-in", fresh: true })
+    await made.paste(site.page(opened[0]).token)
+    site.sessions.add("the-session")
+    await made.signOut()
+    expect(made.state).toMatchObject({ state: "out", fresh: false })
+  })
+
+  it("is not, where one was signed in already from before", () => {
+    const { made } = account({
+      email: "ada@example.com",
+      name: "",
+      token: "the-session",
+    })
+    expect(made.state.state).toBe("in")
+    // (signed out by the server later: still not new)
+    const fresh = account(null, SERVER, true)
+    expect(fresh.made.state).toMatchObject({ state: "out", fresh: false })
   })
 })
 

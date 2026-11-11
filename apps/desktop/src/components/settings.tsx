@@ -1255,6 +1255,9 @@ const BESIDE: Partial<Record<SectionId, () => React.ReactNode>> = {
 export function Settings() {
   const close = useStore((state) => state.setSettingsOpen)
   const [open, setOpen] = React.useState<SectionId>("general")
+  const accountNew = useStore(
+    (state) => state.account.state !== "in" && state.account.fresh
+  )
   const Page = PAGES[open]
   const Beside = BESIDE[open]
   const section = SECTIONS.find((item) => item.id === open)
@@ -1311,6 +1314,8 @@ export function Settings() {
               <Logo size={LOGO_SIZE} />
             </div>
             {SECTIONS.map(({ id, label }) => (
+              // Account is marked new where this computer has never been signed in on.
+              // (Taken out in a release to come, once accounts are new to nobody.)
               <button
                 key={id}
                 type="button"
@@ -1324,6 +1329,11 @@ export function Settings() {
                 )}
               >
                 {label}
+                {id === "account" && accountNew && (
+                  <span className="ml-1.5 rounded-[4px] bg-amber-400 px-1 py-px text-[9px] leading-none font-semibold tracking-wide text-black">
+                    NEW
+                  </span>
+                )}
               </button>
             ))}
           </nav>

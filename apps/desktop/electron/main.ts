@@ -2678,6 +2678,8 @@ if (!app.requestSingleInstanceLock()) {
       server: ACCOUNT_SERVER,
       saved: () => settings.account(ACCOUNT_SERVER),
       save: (kept) => settings.setAccount(ACCOUNT_SERVER, kept),
+      signedInBefore: () => settings.signedInBefore(),
+      signedIn: () => settings.setSignedIn(),
       // (a run checking the app, with nobody at it, says where it would go instead)
       open: (url) =>
         CAPTURE ? console.log(`[open] ${url}`) : void shell.openExternal(url),

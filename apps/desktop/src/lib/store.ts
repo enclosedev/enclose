@@ -1350,7 +1350,8 @@ export const useStore = create<State>()((set, get) => ({
     backingUp: null,
     failures: [],
   },
-  account: { state: "out", trouble: null, server: null },
+  // (not said to be new before the app has said so: the label would come and go)
+  account: { state: "out", trouble: null, server: null, fresh: false },
   cloud: { state: "idle", tooBig: [] },
   access: savedAccess(saved(ACCESS_KEY)),
   providers: [],
