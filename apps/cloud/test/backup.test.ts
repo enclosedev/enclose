@@ -352,3 +352,43 @@ async function snapshotsTake(user: string): Promise<number> {
     .first<{ size: number }>()
   return row?.size ?? 0
 }
+
+describe("letting old versions go", () => {
+  it("deletes the files only the snapshots let go of had, and frees their room", async () => {
+    const token = await signedIn("versions@example.com")
+    const user = await userOf(token)
+    const versions = SNAPSHOTS_KEPT + 3
+    const hashes: string[] = []
+    for (let version = 0; version < versions; version++) {
+      const text = `version ${version}`
+      hashes.push(await hashOf(text))
+      await send(token, hashes[version], text)
+    }
+    for (let version = 0; version < versions - 1; version++)
+      await snapshot(token, [
+        { path: "part.step", hash: hashes[version], size: 9 },
+      ])
+    // sent a while ago, and so no longer waiting on a snapshot to come
+    await env.DB.prepare(`update "file" set "createdAt" = 0 where "userId" = ?`)
+      .bind(user)
+      .run()
+    await snapshot(token, [
+      { path: "part.step", hash: hashes[versions - 1], size: 9 },
+    ])
+
+    const asked = (await (await missing(token, hashes)).json()) as {
+      missing: string[]
+    }
+    expect(asked.missing.sort()).toEqual(hashes.slice(0, 3).sort())
+    for (const hash of hashes.slice(0, 3))
+      expect(await env.FILES.get(`u/${user}/files/${hash}`)).toBeNull()
+    expect(await env.FILES.get(`u/${user}/files/${hashes[3]}`)).not.toBeNull()
+    // the versions kept, each as long as it is
+    let kept = 0
+    for (let version = 3; version < versions; version++)
+      kept += `version ${version}`.length
+    expect((await account(token)).storage.used).toBe(
+      kept + (await snapshotsTake(user))
+    )
+  })
+})

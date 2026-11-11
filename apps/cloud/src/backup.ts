@@ -27,6 +27,7 @@ export const PROJECTS_LIMIT = 500
 /** How big a request's JSON may be, bytes: a snapshot's, and every other's. */
 const SNAPSHOT_BODY = 10 * 1024 ** 2
 const OTHER_BODY = 256 * 1024
+const HOUR = 60 * 60 * 1000
 /** The row of `usage` that is all accounts together. */
 const ALL = "*"
 
@@ -257,13 +258,15 @@ export async function backup(
     // Which files the project uses, said before they are looked for: a project taken off
     // Enclose Cloud meanwhile (removeProjects) then leaves them be.
     const hashes = [...new Set(files.map((one) => one.hash))]
+    const now = Date.now()
     for (let at = 0; at < hashes.length; at += HASHES_AT_ONCE)
       await env.DB.prepare(
-        `insert or ignore into "project_file" ("userId", "projectId", "hash") select ?, ?, value from json_each(?)`
+        `insert into "project_file" ("userId", "projectId", "hash", "lastSeen") select ?, ?, value, ? from json_each(?) where true on conflict ("userId", "projectId", "hash") do update set "lastSeen" = excluded."lastSeen"`
       )
         .bind(
           user,
           project.id,
+          now,
           JSON.stringify(hashes.slice(at, at + HASHES_AT_ONCE))
         )
         .run()
@@ -303,7 +306,7 @@ export async function backup(
         files.length,
         files.reduce((sum, one) => sum + one.size, 0),
         size,
-        Date.now()
+        now
       )
       .run()
     await prune(env, user, project.id)
@@ -337,8 +340,9 @@ export async function backup(
 }
 
 /**
- * The oldest snapshots of a project, past SNAPSHOTS_KEPT, gone: the files they had stay,
- * for the project uses them (a project's files go with the project, removeProjects).
+ * The oldest snapshots of a project, past SNAPSHOTS_KEPT, gone, and the files only they
+ * had: those none of the snapshots kept has used (`lastSeen` before the oldest of them),
+ * and no other project uses (collect).
  */
 async function prune(env: Env, user: string, project: string) {
   const { results: old } = await env.DB.prepare(
@@ -358,6 +362,54 @@ async function prune(env: Env, user: string, project: string) {
     user,
     old.reduce((sum, row) => sum + row.size, 0)
   )
+  const oldest = await env.DB.prepare(
+    `select min("createdAt") as at from "snapshot" where "userId" = ? and "projectId" = ?`
+  )
+    .bind(user, project)
+    .first<{ at: number | null }>()
+  if (oldest?.at === null || oldest?.at === undefined) return
+  await env.DB.prepare(
+    `delete from "project_file" where "userId" = ? and "projectId" = ? and "lastSeen" < ?`
+  )
+    .bind(user, project, oldest.at)
+    .run()
+  // (a file sent this last while, for a snapshot yet to come, is let be)
+  await collect(env, user, Date.now() - HOUR)
+}
+
+/**
+ * Every file of the account's that no project uses any more (and, where `before` is said,
+ * that was sent before then), gone: what says it is kept first, and what is kept after,
+ * so that cut short in between, a file is left over, never missed. How many bytes that
+ * frees.
+ */
+async function collect(
+  env: Env,
+  user: string,
+  before = Number.POSITIVE_INFINITY
+): Promise<number> {
+  const { results: unused } = await env.DB.prepare(
+    `select "hash", "size" from "file" f where "userId" = ? and "createdAt" < ? and not exists (select 1 from "project_file" p where p."userId" = f."userId" and p."hash" = f."hash")`
+  )
+    .bind(user, Number.isFinite(before) ? before : Number.MAX_SAFE_INTEGER)
+    .all<{ hash: string; size: number }>()
+  for (let at = 0; at < unused.length; at += HASHES_AT_ONCE)
+    await env.DB.prepare(
+      `delete from "file" where "userId" = ? and "hash" in (select value from json_each(?))`
+    )
+      .bind(
+        user,
+        JSON.stringify(
+          unused.slice(at, at + HASHES_AT_ONCE).map((row) => row.hash)
+        )
+      )
+      .run()
+  const keys = unused.map((row) => fileKey(user, row.hash))
+  for (let at = 0; at < keys.length; at += 1000)
+    await env.FILES.delete(keys.slice(at, at + 1000))
+  const freed = unused.reduce((sum, row) => sum + row.size, 0)
+  await release(env, user, freed)
+  return freed
 }
 
 /**
@@ -384,35 +436,17 @@ export async function removeProjects(
       `delete from "project_file" where "userId" = ? and "projectId" in (select value from json_each(?))`
     ).bind(user, ids),
   ])
-  // what no project uses any more
-  const { results: unused } = await env.DB.prepare(
-    `select "hash", "size" from "file" f where "userId" = ? and not exists (select 1 from "project_file" p where p."userId" = f."userId" and p."hash" = f."hash")`
-  )
-    .bind(user)
-    .all<{ hash: string; size: number }>()
-  for (let at = 0; at < unused.length; at += HASHES_AT_ONCE)
-    await env.DB.prepare(
-      `delete from "file" where "userId" = ? and "hash" in (select value from json_each(?))`
+  for (let at = 0; at < snapshots.length; at += 1000)
+    await env.FILES.delete(
+      snapshots.slice(at, at + 1000).map((row) => snapshotKey(user, row.id))
     )
-      .bind(
-        user,
-        JSON.stringify(
-          unused.slice(at, at + HASHES_AT_ONCE).map((row) => row.hash)
-        )
-      )
-      .run()
-  const keys = [
-    ...snapshots.map((row) => snapshotKey(user, row.id)),
-    ...unused.map((row) => fileKey(user, row.hash)),
-  ]
-  for (let at = 0; at < keys.length; at += 1000)
-    await env.FILES.delete(keys.slice(at, at + 1000))
-  const freed = unused.reduce((sum, row) => sum + row.size, 0)
   await release(
     env,
     user,
-    freed + snapshots.reduce((sum, row) => sum + row.size, 0)
+    snapshots.reduce((sum, row) => sum + row.size, 0)
   )
+  // what no project uses any more
+  const freed = await collect(env, user)
   return freed
 }
 

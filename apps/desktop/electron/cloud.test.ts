@@ -3,7 +3,7 @@ import { createHash } from "node:crypto"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { CloudState } from "../shared/api"
 import type { Git } from "./backup"
@@ -347,6 +347,27 @@ describe("backing up on Enclose Cloud", () => {
       here: true,
       on: false,
     })
+  })
+
+  it("backs a project turned back on up, though a backup was under way", async () => {
+    const a = project({ "a.txt": "a" })
+    const b = project({ "b.txt": "b" })
+    const site = server()
+    const { cloud } = backup(
+      [
+        { id: "a", name: "A", path: a },
+        { id: "b", name: "B", path: b },
+      ],
+      site
+    )
+    ;(cloud as unknown as { deps: CloudDeps }).deps.setNotBackedUp(["b"])
+    const going = cloud.backUp()
+    // turned back on while that one is at it
+    expect(await cloud.choose([])).toBeNull()
+    await going
+    await vi.waitFor(() =>
+      expect(site.snapshots.map((sent) => sent.project.id)).toContain("b")
+    )
   })
 
   it("waits for a connection, and goes on by itself", async () => {

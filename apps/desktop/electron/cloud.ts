@@ -92,6 +92,8 @@ export class CloudBackup {
   private now: CloudState = { state: "idle", tooBig: [] }
   /** the backup under way: stops when this is aborted */
   private running: AbortController | null = null
+  /** and how it ends */
+  private run: Promise<void> | null = null
   /** the files hashed before, as they were then: not read again while unchanged */
   private readonly hashes = new Map<
     string,
@@ -141,12 +143,16 @@ export class CloudBackup {
     if (!this.busy) void this.backUp()
   }
 
-  /** Stop backing up: what was sent is kept, and not sent again next time. */
-  stop() {
+  /**
+   * Stop backing up: what was sent is kept, and not sent again next time. Done once the
+   * backup under way has seen it, and ended.
+   */
+  stop(): Promise<void> {
     if (this.retry) clearTimeout(this.retry)
     this.retry = null
     this.running?.abort()
     if (!this.running) this.set({ state: "idle", tooBig: [] })
+    return this.run ?? Promise.resolve()
   }
 
   /** Signed out: nothing is backed up, and nothing said of how it went. */
@@ -156,8 +162,18 @@ export class CloudBackup {
     this.set({ state: "idle", tooBig: [] })
   }
 
-  /** Back the projects up now. */
-  async backUp(): Promise<void> {
+  /** Back the projects up now: done once it is (the one under way, where there is one). */
+  backUp(): Promise<void> {
+    if (this.run) return this.run
+    if (!this.deps.token()) return Promise.resolve()
+    const run = this.backingUp().finally(() => {
+      if (this.run === run) this.run = null
+    })
+    this.run = run
+    return run
+  }
+
+  private async backingUp(): Promise<void> {
     if (this.running || !this.deps.token()) return
     if (this.retry) clearTimeout(this.retry)
     this.retry = null
@@ -303,7 +319,8 @@ export class CloudBackup {
    * the rest backed up. What went wrong, where something did.
    */
   async choose(off: string[]): Promise<string | null> {
-    this.stop()
+    // (the backup under way ended first: the one after it backs up what is chosen now)
+    await this.stop()
     const removing = [...new Set(off)]
     if (removing.length)
       try {

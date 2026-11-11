@@ -488,7 +488,8 @@ them together `SERVICE_LIMIT`, in [`src/account.ts`](../apps/cloud/src/account.t
 room is kept as it changes, in `usage`, and taken there before a file or a snapshot is
 kept, so that uploads at once cannot both have the last of it. No file over 95 MB is
 taken, since one request carries it; the last 30 snapshots of each project are kept
-(`SNAPSHOTS_KEPT`), and 500 projects an account (`PROJECTS_LIMIT`). The backup routes are
+(`SNAPSHOTS_KEPT`), and a file only older ones had goes with them (each project's files
+say when a snapshot last had them: `lastSeen`), and 500 projects an account (`PROJECTS_LIMIT`). The backup routes are
 reached with the app's token alone (`Authorization: Bearer`), not the cookie the sign-in
 page leaves in the browser. Deleting the account deletes everything it keeps in R2.
 
