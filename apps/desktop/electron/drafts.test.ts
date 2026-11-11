@@ -38,6 +38,7 @@ function make() {
     },
     env: () => process.env,
     onChange: () => changes++,
+    settle: SETTLE_MS,
   })
 }
 
@@ -66,6 +67,11 @@ afterEach(() => {
  * what is written the instant after (in the app it is begun as the turn is, well before)
  */
 const watched = () => new Promise((done) => setTimeout(done, 500))
+
+/** how long a script is let be in these tests before the model is built (1 s in the app) */
+const SETTLE_MS = 100
+/** long enough after a script is written that a draft would have been made by now */
+const LONG_ENOUGH_MS = SETTLE_MS + 500
 
 /** how long a draft is waited for: a build, under the load of every other test */
 const WAIT_MS = 10_000
@@ -121,7 +127,7 @@ describe("Drafts", { timeout: 15_000 }, () => {
     await vi.waitFor(() => expect(asked).toEqual(["sh build.sh"]), {
       timeout: WAIT_MS,
     })
-    await new Promise((done) => setTimeout(done, 1500))
+    await new Promise((done) => setTimeout(done, LONG_ENOUGH_MS))
     expect(drafts.shown("p")).toBeNull()
     expect(fs.existsSync(path.join(top, "drafts", "p"))).toBe(false)
   })
@@ -160,7 +166,7 @@ describe("Drafts", { timeout: 15_000 }, () => {
     drafts.sync()
     await watched()
     write("model.py", "")
-    await new Promise((done) => setTimeout(done, 1600))
+    await new Promise((done) => setTimeout(done, LONG_ENOUGH_MS))
     expect(drafts.shown("p")).toBeNull()
     expect(fs.statSync(manifest).mtimeMs).toBeLessThan(Date.now() - 30_000)
     // and it was heard: brought up to date, the exporter makes one
@@ -177,7 +183,7 @@ describe("Drafts", { timeout: 15_000 }, () => {
     drafts.sync()
     await watched()
     write("model.py", "")
-    await new Promise((done) => setTimeout(done, 1600))
+    await new Promise((done) => setTimeout(done, LONG_ENOUGH_MS))
     expect(drafts.shown("p")).toBeNull()
     expect(changes).toBe(0)
     // none was made unseen, either: with an agent at work now, there is still none

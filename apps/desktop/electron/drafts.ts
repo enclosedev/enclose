@@ -44,6 +44,8 @@ export type DraftsDeps = {
   env: () => NodeJS.ProcessEnv
   /** a draft was made to be shown, or one that was shown was put away */
   onChange: () => void
+  /** how long a script is let be before the model is built, ms (SETTLE_MS where not said) */
+  settle?: number
 }
 
 /**
@@ -140,7 +142,7 @@ export class Drafts {
             setTimeout(() => {
               this.timers.delete(id)
               this.make(id)
-            }, SETTLE_MS)
+            }, this.deps.settle ?? SETTLE_MS)
           )
         })
       )

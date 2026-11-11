@@ -1,6 +1,7 @@
 // For the tests of the agents' own runners: a turn that keeps what is done with it, and
 // a stand-in for an agent's command, which is a script that speaks its protocol.
 import fs from "node:fs"
+import os from "node:os"
 import path from "node:path"
 
 import type { ContextUse, PermissionAnswer, ThreadItem } from "../shared/api"
@@ -108,9 +109,31 @@ readline.createInterface({ input: process.stdin }).on("line", async (line) => {
 })
 process.stdin.on("end", () => process.exit(0))
 ${body}
-`,
-    { mode: 0o755 }
+`
   )
+  // macOS looks over an executable the first time it is run, which is most of what
+  // starting a new one takes (some 150 ms, every test over): what is run is a link to the
+  // one launcher, looked over once, which runs the script beside the link
+  if (process.platform === "win32") return file
+  const command = file.replace(/\.mjs$/, "")
+  fs.symlinkSync(launcher(), command)
+  return command
+}
+
+/** The one command every stand-in for an agent is a link to: it runs the script beside it. */
+function launcher() {
+  const file = path.join(os.tmpdir(), "enclose-fake-agent.mjs")
+  const script = `#!/usr/bin/env node
+import { pathToFileURL } from "node:url"
+await import(pathToFileURL(process.argv[1] + ".mjs").href)
+`
+  // written only where it is not as it should be: each time it is, it is new, and looked
+  // over again (and several tests may be at it at once, so it is put in place whole)
+  if (!fs.existsSync(file) || fs.readFileSync(file, "utf8") !== script) {
+    const next = `${file}.${process.pid}`
+    fs.writeFileSync(next, script, { mode: 0o755 })
+    fs.renameSync(next, file)
+  }
   return file
 }
 
