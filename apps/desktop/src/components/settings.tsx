@@ -1299,7 +1299,9 @@ export function Settings() {
         aria-modal
         aria-label="Settings"
         tabIndex={-1}
-        className="no-drag absolute inset-y-0 left-0 flex w-205 max-w-full animate-in flex-col rounded-r-xl bg-background shadow-2xl ring-1 ring-foreground/10 duration-200 fade-in-0 outline-none slide-in-from-left-3"
+        // (its words aren't selected by a drag across them, as the app's own aren't; what
+        // is typed in its fields still is)
+        className="no-drag absolute inset-y-0 left-0 flex w-205 max-w-full animate-in flex-col rounded-r-xl bg-background shadow-2xl ring-1 ring-foreground/10 duration-200 fade-in-0 outline-none select-none slide-in-from-left-3"
       >
         {/* room for the window's traffic lights, and something to drag it by */}
         <div className="drag h-12 shrink-0" />

@@ -61,7 +61,15 @@ export function AccountPage() {
       )}
       {account.server && (
         <p className="-mt-4 px-1 text-sm text-muted-foreground">
-          On the server at {account.server}
+          On the server at{" "}
+          <a
+            href={account.server}
+            target="_blank"
+            rel="noreferrer"
+            className="underline underline-offset-4 hover:text-foreground"
+          >
+            {account.server}
+          </a>
         </p>
       )}
       <SignIn account={account} />

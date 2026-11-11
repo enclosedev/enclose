@@ -4,7 +4,7 @@
 // (Nothing but the handler is exported from here: the Workers runtime takes each thing
 // this module exports for something it answers requests with, and will not start
 // otherwise.)
-import { STORAGE_LIMIT, type AccountReply } from "./account"
+import { onThisMachine, STORAGE_LIMIT, type AccountReply } from "./account"
 import { authFor, providersOf } from "./auth"
 import { backedUp, backup, usedBy } from "./backup"
 import { tidy } from "./tidy"
@@ -152,7 +152,15 @@ export default {
     if (url.pathname === "/signed-in" && request.method === "GET")
       return html(signedInPage)
 
-    if (url.pathname === "/") return Response.redirect(SITE, 302)
+    // (the server people use sends its visitors to the site; one run on your own machine
+    // says what it is)
+    if (url.pathname === "/")
+      return onThisMachine(env)
+        ? new Response(
+            "Enclose's account server, running on this machine. The app run from a checkout signs in here.\n",
+            { headers: { "content-type": "text/plain; charset=utf-8" } }
+          )
+        : Response.redirect(SITE, 302)
 
     return json({ message: "Not found." }, 404)
   },
