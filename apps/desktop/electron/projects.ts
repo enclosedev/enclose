@@ -1192,7 +1192,12 @@ export class Projects {
       lookOver?: Written
     },
     /** the group it goes in; a new one of its own where none is given, or it is gone */
-    into?: string | null
+    into?: string | null,
+    /**
+     * the id it goes by, where it has one already: a project restored from Enclose Cloud
+     * keeps the one it was backed up under, and goes on being backed up as that
+     */
+    id?: string
   ): string {
     const real = fs.realpathSync(dir)
     // (one whose folder was not there is the same project, with all that was kept of it)
@@ -1212,7 +1217,7 @@ export class Projects {
         now
       )
     const project: Saved = {
-      id: newId(),
+      id: id && !this.saved.some((p) => p.id === id) ? id : newId(),
       path: real,
       ...(made
         ? {

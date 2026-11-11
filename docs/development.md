@@ -481,7 +481,14 @@ paths and hashes (`POST /v1/backup/snapshots`). A project unchanged since its la
 snapshot makes no new one. `GET /v1/backup/projects` lists each as last backed up, and
 `POST /v1/backup/remove` takes projects off, with each file no other project has used
 (which files each has used is kept in `project_file`); the app then backs them up no
-more (`notBackedUp` in its settings).
+more (`notBackedUp` in its settings). A project is brought back (restored) from its last
+snapshot (`GET /v1/backup/projects/<id>`) and each of its files
+(`GET /v1/backup/files/<hash>`), each checked against its hash as it is written, into a
+folder of its own where new projects go; it is added to the app under the id it was
+backed up as, so that it goes on being backed up as the same project, and its model is
+made again (what the model's build makes is not backed up). What a build deeper in a
+project makes is, though: `.gitignore`'s `build/` is every build folder to git, a circuit
+board's among them, which the model is made with and which is long to make again.
 
 Each account may keep 5 GB (`STORAGE_LIMIT`), files and snapshots together, and all of
 them together `SERVICE_LIMIT`, in [`src/account.ts`](../apps/cloud/src/account.ts). That

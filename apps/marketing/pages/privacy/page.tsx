@@ -66,9 +66,9 @@ export default function Privacy() {
         </li>
         <li>
           that an Enclose account was signed in to, signed out of or deleted, without which
-          account, and how a backup on Enclose Cloud went: whether it was done, stopped or
-          failed, how many projects and files, how many megabytes were sent, and how long it
-          took.
+          account, and how a backup on Enclose Cloud, or bringing projects back from it,
+          went: whether it was done, stopped or failed, how many projects and files, how
+          many megabytes, and how long it took.
         </li>
       </ul>
       <p>
@@ -203,7 +203,8 @@ export default function Privacy() {
       <p>
         Only if you back up, from Settings, Account. Then each project you back up goes to
         Enclose Cloud: its files, but those its <code>.gitignore</code> leaves out (as what
-        its build makes) and any over 95 MB; and its name. Your conversations and your
+        the model’s build makes, which is made again from the rest; what a circuit board’s
+        build makes is kept) and any over 95 MB; and its name. Your conversations and your
         settings are not sent. Each file is sent once, under a fingerprint of its contents
         (SHA-256), and each time a project has changed, which files it had then is kept as
         well, so that its last 30 versions are kept too. While the app is open, it backs up
