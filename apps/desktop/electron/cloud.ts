@@ -450,7 +450,16 @@ export class CloudBackup {
       // with the model's (`build/` is every build folder to git): a circuit board's,
       // say, which the model is made with, and which is long to make again
       const ignored = await this.deps.git(
-        ["ls-files", "--others", "--ignored", "--exclude-standard", "-z"],
+        // (only what is in a build folder: not the whole of node_modules, say)
+        [
+          "ls-files",
+          "--others",
+          "--ignored",
+          "--exclude-standard",
+          "-z",
+          "--",
+          ":(glob)**/build/**",
+        ],
         dir
       )
       if (listed.code === 0)
@@ -576,21 +585,38 @@ export class CloudBackup {
         const dir = this.deps.makeFolder(name)
         making = dir
         const queue = [...byHash]
+        // one file failing stops the others, and all of them have stopped before the
+        // folder is taken away: none writes into it after
+        const halt = new AbortController()
+        const signal = AbortSignal.any([running.signal, halt.signal])
         const worker = async () => {
-          for (let next = queue.shift(); next; next = queue.shift()) {
-            const [hash, { size, paths }] = next
-            await this.fetchInto(dir, hash, paths, running.signal)
-            files = { ...files, done: files.done + paths.length }
-            bytes = { ...bytes, done: bytes.done + size * paths.length }
-            this.set(
-              { state: "downloading", project: name, files, bytes },
-              true
-            )
+          try {
+            for (let next = queue.shift(); next; next = queue.shift()) {
+              const [hash, { size, paths }] = next
+              await this.fetchInto(dir, hash, paths, signal)
+              files = { ...files, done: files.done + paths.length }
+              bytes = { ...bytes, done: bytes.done + size * paths.length }
+              this.set(
+                { state: "downloading", project: name, files, bytes },
+                true
+              )
+            }
+          } catch (error) {
+            halt.abort()
+            throw error
           }
         }
-        await Promise.all(
+        const settled = await Promise.allSettled(
           Array.from({ length: Math.min(AT_ONCE, queue.length) }, worker)
         )
+        const failed = settled.filter(
+          (one): one is PromiseRejectedResult => one.status === "rejected"
+        )
+        // (what went wrong first, not the others stopping for it)
+        if (failed.length)
+          throw (
+            failed.find((one) => !(one.reason instanceof Stopped)) ?? failed[0]
+          ).reason
         making = null
         this.deps.addProject(dir, name, kept.project.id)
         // (brought back: backed up again, whatever was said of it before)
@@ -615,7 +641,9 @@ export class CloudBackup {
               ? "Couldn't reach Enclose Cloud. Check your connection and try again."
               : error instanceof Mismatch
                 ? "A file didn't come back as it was backed up. Try again."
-                : troubleOf(error),
+                : onDisk(error)
+                  ? diskTrouble(error)
+                  : troubleOf(error),
         })
       }
     } finally {
@@ -670,8 +698,10 @@ export class CloudBackup {
         fs.createWriteStream(first),
         { signal }
       )
-    } catch {
+    } catch (error) {
       if (signal.aborted) throw new Stopped()
+      // (this computer's own trouble, as no room left, is not the network's)
+      if (onDisk(error)) throw error
       throw new Offline()
     }
     if (digest.digest("hex") !== hash) throw new Mismatch()
@@ -755,6 +785,23 @@ export class CloudBackup {
       throw error
     }
   }
+}
+
+/** Whether an error is this computer's own, in writing a file (as its disk being full). */
+function onDisk(error: unknown): error is NodeJS.ErrnoException {
+  return (
+    error instanceof Error &&
+    typeof (error as NodeJS.ErrnoException).code === "string" &&
+    typeof (error as NodeJS.ErrnoException).syscall === "string"
+  )
+}
+
+function diskTrouble(error: NodeJS.ErrnoException): string {
+  if (error.code === "ENOSPC")
+    return "There isn't room for it on this computer. Free some space and try again."
+  if (error.code === "EACCES" || error.code === "EPERM")
+    return "Enclose can't write to the projects folder. Check it in Settings, General."
+  return "Couldn't write the files on this computer. Try again."
 }
 
 function troubleOf(error: unknown): string {

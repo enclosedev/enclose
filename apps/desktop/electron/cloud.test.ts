@@ -47,6 +47,8 @@ function server(room = 5 * 1024 ** 3) {
   const removed: string[] = []
   /** files given back other than as they were sent (to stand in for one gone wrong) */
   const served = new Map<string, Buffer>()
+  /** files given back only after a while */
+  const slow = new Set<string>()
   let down = false
   let full = false
   const get = (async (url: string | URL | Request, init: RequestInit = {}) => {
@@ -60,6 +62,8 @@ function server(room = 5 * 1024 ** 3) {
     }
     const file = /^\/v1\/backup\/files\/(\w+)$/.exec(route)
     if (file && (init.method ?? "GET") === "GET") {
+      if (slow.has(file[1]))
+        await new Promise((resolve) => setTimeout(resolve, 300))
       const body = served.get(file[1]) ?? bodies.get(file[1])
       return body
         ? new Response(new Uint8Array(body))
@@ -113,6 +117,7 @@ function server(room = 5 * 1024 ** 3) {
     puts,
     removed,
     served,
+    slow,
     goDown: (is: boolean) => (down = is),
     fill: () => (full = true),
   }
@@ -524,6 +529,42 @@ describe("backing up on Enclose Cloud", () => {
     })
     expect(other.added).toEqual([])
     expect(fs.readdirSync(other.restoreInto)).toEqual([])
+  })
+
+  it("leaves no folder, where a file fails while another is still on its way", async () => {
+    const dir = project({ "bad.step": "goes wrong", "slow.step": "comes late" })
+    const site = server()
+    await backup([{ id: "p1", name: "Stool", path: dir }], site).cloud.backUp()
+    site.served.set(hashOf("goes wrong"), Buffer.from("something else"))
+    site.slow.add(hashOf("comes late"))
+    const other = backup([], site)
+    await other.cloud.restore(["p1"])
+    expect(other.cloud.state).toMatchObject({
+      state: "failed",
+      trouble: expect.stringMatching(/didn't come back/),
+    })
+    // and none, once the late one would have come
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    expect(fs.readdirSync(other.restoreInto)).toEqual([])
+  })
+
+  it("says so where this computer won't take the files, not that the server is away", async () => {
+    const dir = project({ "parts/a.step": "a" })
+    const site = server()
+    await backup([{ id: "p1", name: "Stool", path: dir }], site).cloud.backUp()
+    const other = backup([], site)
+    const deps = (other.cloud as unknown as { deps: CloudDeps }).deps
+    deps.makeFolder = (name) => {
+      const locked = path.join(other.restoreInto, name)
+      fs.mkdirSync(locked)
+      fs.chmodSync(locked, 0o555)
+      return locked
+    }
+    await other.cloud.restore(["p1"])
+    expect(other.cloud.state).toMatchObject({
+      state: "failed",
+      trouble: expect.stringMatching(/can't write to the projects folder/),
+    })
   })
 
   it("writes nothing outside the project's folder", async () => {
