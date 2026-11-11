@@ -44,6 +44,8 @@ export type AccountDeps = {
   onChange: (state: AccountState) => void
   /** bring the app forward: signed in, by the page handing it back to the app */
   focus?: () => void
+  /** the system it runs on, for what is said of it: the app's own, where none is given */
+  platform?: NodeJS.Platform
   /** whether this computer has been signed in on before, and that it has been now */
   signedInBefore: () => boolean
   signedIn: () => void
@@ -60,6 +62,16 @@ type Reply = {
   user: { email: string; name: string }
   storage: { used: number; limit: number }
   backup?: { projects: number; at: number | null }
+}
+
+/**
+ * What is said where the sign-in cannot be kept safely: on Linux, a desktop with no
+ * password store (a bare window manager, often), and what to install for one.
+ */
+const NO_KEEPING = {
+  linux:
+    "Enclose keeps your sign-in in the system's password store, and this computer has none. Install GNOME Keyring or KWallet, then sign in again.",
+  default: "This computer has nowhere to keep the sign-in safely.",
 }
 
 export class Account {
@@ -328,7 +340,10 @@ export class Account {
       token: data.token,
     }
     if (!this.deps.save(kept)) {
-      const trouble = "This machine has nowhere to keep the sign-in safely."
+      const trouble =
+        (this.deps.platform ?? process.platform) === "linux"
+          ? NO_KEEPING.linux
+          : NO_KEEPING.default
       this.set(this.outState(trouble))
       return trouble
     }

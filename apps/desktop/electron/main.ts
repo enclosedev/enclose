@@ -2701,10 +2701,19 @@ if (!app.requestSingleInstanceLock()) {
       },
       // (from the browser, where the person signed in: the app is brought in front of it)
       focus: () => {
-        if (!win) return
-        if (win.isMinimized()) win.restore()
+        const at = win
+        if (!at) return
+        if (at.isMinimized()) at.restore()
         app.focus({ steal: true })
-        win.focus()
+        at.focus()
+        // A desktop that keeps a window from coming forward by itself (GNOME on Wayland,
+        // say): it asks to be looked at instead, its icon marked until it is.
+        if (process.platform !== "darwin")
+          setTimeout(() => {
+            if (at.isDestroyed() || at.isFocused()) return
+            at.flashFrame(true)
+            at.once("focus", () => at.flashFrame(false))
+          }, 300)
       },
       record: (event) => analytics?.record(event),
     })

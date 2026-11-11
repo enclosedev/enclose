@@ -329,6 +329,24 @@ describe("signed in", () => {
   })
 })
 
+describe("nowhere to keep the sign-in", () => {
+  it("says on Linux what to install for a password store", async () => {
+    for (const [platform, said] of [
+      ["linux", /Install GNOME Keyring or KWallet/],
+      ["darwin", /nowhere to keep the sign-in safely/],
+    ] as const) {
+      const { made, site, opened } = account()
+      const deps = (made as unknown as { deps: AccountDeps }).deps
+      deps.platform = platform
+      deps.save = () => false
+      await made.signIn()
+      expect(await made.paste(site.page(opened[0]).token)).toMatch(said)
+      expect(made.state).toMatchObject({ state: "out", trouble: said })
+      made.cancel()
+    }
+  })
+})
+
 describe("new to this computer", () => {
   it("is, until it is signed in on, and is not again after", async () => {
     const { made, site, opened } = account()
