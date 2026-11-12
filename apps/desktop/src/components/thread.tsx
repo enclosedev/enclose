@@ -1085,7 +1085,7 @@ export function Thread({ project }: { project: Project }) {
       ref={panel}
       // (a ground of its own, for the light that goes across it to go behind the rest;
       // and its icons in the lines of the buttons over the view)
-      className="thin-icons relative isolate flex shrink-0 flex-col border-l bg-chat"
+      className="thin-icons relative isolate flex shrink-0 flex-col border-l bg-chat selection:bg-black/10 dark:selection:bg-white/10"
       // however wide it was dragged, the view keeps its share of a narrower window
       style={{
         width,
