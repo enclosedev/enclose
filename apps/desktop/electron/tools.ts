@@ -121,17 +121,22 @@ function seeing(
   return [
     appTool(
       "screenshot",
-      "The 3D viewport exactly as the user sees it right now, as an image: same camera, same exploded/section/see-through settings.",
+      "The 3D viewport exactly as the user sees it right now, as an image: same camera, same exploded/section/see-through settings. Where the user has another project open in the app, it is this project's model drawn off screen as the view opens with it, and a note says so.",
       {},
       async () => {
         try {
           const shot = (await ask("screenshot")) as {
             data: string
             mimeType: string
+            /** said with a picture that is not of the view as the user has it */
+            note?: string
           }
           return {
             content: [
               { type: "image", data: shot.data, mimeType: shot.mimeType },
+              ...(shot.note
+                ? [{ type: "text" as const, text: shot.note }]
+                : []),
             ],
           }
         } catch (error) {

@@ -14,6 +14,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { bridge } from "@/components/viewport/bridge"
+import { askedElsewhere } from "@/components/viewport/elsewhere"
 import { Viewport } from "@/components/viewport/viewport"
 import { appKey } from "@/lib/app-keys"
 import { useInspiration } from "@/lib/inspiration"
@@ -32,9 +33,19 @@ function useViewportRequests() {
         const fail = (error: string) =>
           window.cad.viewport.respond({ id, ok: false, error })
         const { activeId, selection } = useStore.getState()
+        // A project that is not on screen is drawn, and its parts read, off screen. It
+        // has nothing picked out in it, and its tools run only in the view.
         if (request.projectId !== activeId) {
-          return fail(
-            "The app is showing a different project right now, so this one is not on screen."
+          if (request.kind === "selection")
+            return window.cad.viewport.respond({ id, ok: true, data: null })
+          if (request.kind === "tools" || request.kind === "tool")
+            return fail(
+              "This project is not the one open in the app right now, and its tools run only in the view. The screenshot and parts tools work without it being open; ask the user to open it to try the tools."
+            )
+          return void askedElsewhere(request.projectId, request.kind).then(
+            (data) => window.cad.viewport.respond({ id, ok: true, data }),
+            (error: unknown) =>
+              fail(error instanceof Error ? error.message : String(error))
           )
         }
         if (request.kind === "selection") {

@@ -54,8 +54,10 @@ fork it to make it otherwise.
 
 On top of what the agent can already do, the app gives it three tools: a screenshot of
 the view as you see it, the list of parts with their groups and sizes, and your current
-selection. It has two more for a project's own tools, the ones it makes for you to work
-the model with: how they stand, with the error of one that did not load, and a hand on
+selection. While you have another project open, an agent at work on this one still sees
+its model: the app draws it off screen, the way it looks when the project is opened, and
+tells the agent so. It has two more for a project's own tools, the ones it makes for you
+to work the model with: how they stand, with the error of one that did not load, and a hand on
 one of their controls, so that it can try what it made and look at the model before it
 says it is done. It has one that an [assembly guide](#assembly-guides) is written with:
 the agent gives the guide, and the app checks it against the model and files it. And it
