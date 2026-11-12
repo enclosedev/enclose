@@ -43,7 +43,11 @@ function useViewportRequests() {
               "This project is not the one open in the app right now, and its tools run only in the view. The screenshot and parts tools work without it being open; ask the user to open it to try the tools."
             )
           return void askedElsewhere(request.projectId, request.kind).then(
-            (data) => window.cad.viewport.respond({ id, ok: true, data }),
+            (data) => {
+              if (request.kind === "screenshot")
+                window.cad.analytics.used("elsewhere")
+              window.cad.viewport.respond({ id, ok: true, data })
+            },
             (error: unknown) =>
               fail(error instanceof Error ? error.message : String(error))
           )

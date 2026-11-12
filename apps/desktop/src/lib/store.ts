@@ -602,6 +602,7 @@ type BoardWay = Exclude<
   | "silent"
   | "made-order"
   | "own-order"
+  | "elsewhere"
   | "update-all"
 >
 

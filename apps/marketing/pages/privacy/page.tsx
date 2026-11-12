@@ -56,8 +56,10 @@ export default function Privacy() {
           alone or hidden, the blueprint, the assembly guides, a reference scene, a project’s
           own tools, a circuit board, the inspiration board) and how a circuit board was
           looked at (its technical view, its schematic, a layer of its copper, on a hand),
-          and that the model was drawn in Render, a part given a material, or the sounds
-          turned off, once for a run of the app;
+          and that the model was drawn in Render, a part given a material, the sounds
+          turned off, the projects listed by when they were made or in your own order, or
+          a project that was not on screen drawn off screen for its agent to see, once for
+          a run of the app;
         </li>
         <li>
           that an agent was switched on or off or updated, that a newer version was looked

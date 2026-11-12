@@ -841,8 +841,9 @@ export type Settings = {
  * be put into, and in PCB mode how a board is looked at (its technical view, its
  * schematic, a layer of its copper under the top, and the hand it is shown on in 3D);
  * the Render look, a material given to a part by hand, the sidebar listing projects by
- * when they were made or in the user's own order, and the app and its agents updated
- * together ("Update all").
+ * when they were made or in the user's own order, a project that is not on screen drawn
+ * off screen for an agent to see, and the app and its agents updated together ("Update
+ * all").
  * The rest of what is counted happens in the app's own process.
  */
 export const FEATURES = [
@@ -865,6 +866,7 @@ export const FEATURES = [
   "silent",
   "made-order",
   "own-order",
+  "elsewhere",
   "update-all",
 ] as const
 export type Feature = (typeof FEATURES)[number]
