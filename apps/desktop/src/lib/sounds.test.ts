@@ -24,6 +24,7 @@ const conversation = (
   gist: null,
   failed: false,
   updatedAt: 0,
+  askedAt: null,
   queued: [],
   versioning: false,
   job: null,

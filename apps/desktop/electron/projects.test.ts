@@ -395,6 +395,7 @@ describe("Projects", () => {
       id: group,
       name: "Mic",
       pinned: false,
+      addedAt: expect.any(Number),
     })
     // and the user calls it what they like, even what it is called already
     projects.renameGroup(group, "Mic")

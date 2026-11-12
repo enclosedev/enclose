@@ -1692,6 +1692,22 @@ export const compactedSaid = (tokens?: number) =>
 const lastAt = (conversation: Conversation) =>
   conversation.items.at(-1)?.at ?? 0
 
+/**
+ * When the user last sent a message in a conversation, of their own: not one the app
+ * sent for them (a look over opened files, a change handed over, and the like). Null if
+ * they have sent none.
+ */
+const askedAt = (conversation: Conversation) =>
+  conversation.items.findLast(
+    (item) =>
+      item.kind === "user" &&
+      !item.lookOver &&
+      !item.version &&
+      item.madeFrom === undefined &&
+      item.handedFrom === undefined &&
+      item.fitting === undefined
+  )?.at ?? null
+
 /** When a conversation began: one with nothing said in it yet is the latest there is. */
 const begun = (conversation: Conversation) =>
   conversation.items[0]?.at ?? Infinity
@@ -2122,6 +2138,7 @@ export class Threads {
               : null,
           failed: latest?.kind === "notice" && latest.tone === "error",
           updatedAt: lastAt(conversation),
+          askedAt: askedAt(conversation),
           queued: waiting
             .filter((one) => one.conversation === conversation)
             .map((one) => one.item),

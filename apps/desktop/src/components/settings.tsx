@@ -51,6 +51,7 @@ import {
 } from "@/lib/navigation"
 import { MAC } from "@/lib/platform"
 import { TURN_SPEED, usePreferences, ZOOM_SPEED } from "@/lib/preferences"
+import { groupsOf, inOrder } from "@/lib/project-order"
 import { play } from "@/lib/sounds"
 import { dated } from "@/lib/saved"
 import { useStore } from "@/lib/store"
@@ -181,6 +182,7 @@ function General() {
   const units = usePreferences((state) => state.units)
   const datedFiles = usePreferences((state) => state.datedFiles)
   const sounds = usePreferences((state) => state.sounds)
+  const projectOrder = usePreferences((state) => state.projectOrder)
   const change = usePreferences((state) => state.change)
   const [settings, setSettings] = React.useState<AppSettings | null>(null)
   React.useEffect(() => {
@@ -248,6 +250,45 @@ function General() {
             onCheckedChange={(on) =>
               void window.cad.settings.setLookOver(on).then(setSettings)
             }
+          />
+        </Row>
+      </Group>
+      <Group title="Sidebar">
+        <Row
+          title="Project order"
+          detail={
+            projectOrder === "asked"
+              ? "Projects you last sent a message in come first. Pinned groups stay at the top."
+              : projectOrder === "created"
+                ? "Projects made last come first. Pinned groups stay at the top."
+                : "In the order you drag them to in the sidebar. Pinned groups stay at the top."
+          }
+        >
+          <Choice
+            label="Project order"
+            value={projectOrder}
+            onChange={(value) =>
+              change(
+                value === "manual"
+                  ? // by hand, they start out as they are listed now
+                    {
+                      projectOrder: value,
+                      manualOrder: groupsOf(
+                        inOrder(
+                          useStore.getState().projects,
+                          projectOrder,
+                          usePreferences.getState().manualOrder
+                        )
+                      ),
+                    }
+                  : { projectOrder: value }
+              )
+            }
+            options={[
+              { value: "asked", label: "Last message" },
+              { value: "created", label: "Created" },
+              { value: "manual", label: "Manual" },
+            ]}
           />
         </Row>
       </Group>

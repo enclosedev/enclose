@@ -49,6 +49,8 @@ import {
 import { useControlHeld } from "@/lib/keys"
 import { sizeOf } from "@/lib/model"
 import { MAC } from "@/lib/platform"
+import { usePreferences } from "@/lib/preferences"
+import { inOrder } from "@/lib/project-order"
 import { useStack, useStore } from "@/lib/store"
 import { ago, elapsed, useNow } from "@/lib/time"
 
@@ -308,6 +310,17 @@ function byGroup(projects: Project[]): Listed[] {
     else listed.push({ group: project.group, projects: [project] })
   }
   return listed
+}
+
+/** The projects' groups as the list has them, in the order chosen in the settings. */
+function useListed(): Listed[] {
+  const projects = useStore((state) => state.projects)
+  const order = usePreferences((state) => state.projectOrder)
+  const manual = usePreferences((state) => state.manualOrder)
+  return React.useMemo(
+    () => byGroup(inOrder(projects, order, manual)),
+    [projects, order, manual]
+  )
 }
 
 /**
@@ -630,15 +643,19 @@ function Tucked({
   faded = false,
   children,
   ref,
+  onPointerDown,
 }: {
   away: boolean
   faded?: boolean
   children: React.ReactNode
   ref?: React.Ref<HTMLDivElement>
+  /** a press on it, which may become a drag of its group to another place in the list */
+  onPointerDown?: React.PointerEventHandler<HTMLDivElement>
 }) {
   return (
     <div
       ref={ref}
+      onPointerDown={onPointerDown}
       inert={away || faded}
       data-away={away || faded || undefined}
       className={cn(
@@ -727,10 +744,9 @@ function ProjectMenu({
 }) {
   const removeProject = useStore((state) => state.removeProject)
   const recolour = useStore((state) => state.recolour)
-  const projects = useStore((state) => state.projects)
   const [card, ...inside] = children
   // the groups it can go in, and whether it has others with it where it is
-  const groups = byGroup(projects)
+  const groups = useListed()
   const others = groups.filter(({ group }) => group.id !== project.group.id)
   const alone =
     groups.find(({ group }) => group.id === project.group.id)?.projects
@@ -902,6 +918,220 @@ function useSliding(order: string) {
   }, [order])
 }
 
+/** How far a press on a card goes before it is a drag, and not a click (px). */
+const DRAG_FROM = 5
+/** The room the list keeps between one thing and the next (gap-1.5, px). */
+const BETWEEN = 6
+/** How long the groups a dragged one passes take to make way for it. */
+const MAKING_WAY = "transform 200ms cubic-bezier(0.32, 0.72, 0, 1)"
+
+/** What is in the list of a group: its heading and its cards, top to bottom. */
+const partsOf = ({ group, projects }: Listed) =>
+  [`group-${group.id}`, ...projects.map((project) => project.id)]
+    .map((id) => cards.get(id))
+    .filter((card): card is HTMLElement => card !== undefined)
+
+/**
+ * A group taken by its heading or any of its cards and dragged up or down the list, to
+ * another place: the groups it passes make way for it, and where it is let go of is
+ * where it is put (`onPut`, with every group's id in the new order). Pinned groups are
+ * moved among themselves, over the rest, and the rest among themselves. Esc puts it back.
+ * Gives what a press on a group's heading or card is handed to; null where nothing can
+ * be dragged.
+ */
+function useGroupDrag(
+  groups: Listed[],
+  can: boolean,
+  onPut: (order: string[]) => void
+) {
+  const now = React.useRef({ groups, onPut })
+  React.useLayoutEffect(() => {
+    now.current = { groups, onPut }
+  })
+  const press = React.useCallback(
+    (groupId: string) => (event: React.PointerEvent<HTMLElement>) => {
+      if (event.button !== 0 || event.ctrlKey || event.metaKey) return
+      // (what is written in, on a card, is no part of it to drag)
+      if ((event.target as HTMLElement).closest("input, textarea")) return
+      const { groups } = now.current
+      const from = groups.findIndex(({ group }) => group.id === groupId)
+      if (from < 0) return
+      const pinned = groups[from].group.pinned
+      const startY = event.clientY
+      type Block = {
+        at: number
+        parts: HTMLElement[]
+        top: number
+        mid: number
+      }
+      let dragging: {
+        blocks: Block[]
+        mine: Block
+        tall: number
+        least: number
+        most: number
+        to: number
+      } | null = null
+
+      const begin = () => {
+        // the groups it can go among: the pinned ones, or the rest
+        const blocks = groups
+          .map((listed, at) => ({ listed, at }))
+          .filter(({ listed }) => listed.group.pinned === pinned)
+          .map(({ listed, at }) => {
+            const parts = partsOf(listed)
+            const top = parts[0].getBoundingClientRect().top
+            const bottom = parts.at(-1)!.getBoundingClientRect().bottom
+            return { at, parts, top, mid: (top + bottom) / 2, bottom }
+          })
+        if (blocks.length < 2) return null
+        const mine = blocks.find((block) => block.at === from)!
+        const tall = mine.bottom - mine.top + BETWEEN
+        document.body.style.userSelect = "none"
+        document.body.style.cursor = "grabbing"
+        for (const part of mine.parts) {
+          part.style.position = "relative"
+          part.style.zIndex = "30"
+        }
+        for (const block of blocks)
+          if (block !== mine)
+            for (const part of block.parts) part.style.transition = MAKING_WAY
+        return {
+          blocks,
+          mine,
+          tall,
+          // no further than the first of them, or the last
+          least: blocks[0].top - mine.top,
+          most: blocks.at(-1)!.bottom - mine.bottom,
+          to: from,
+        }
+      }
+
+      const follow = (by: number) => {
+        if (!dragging) return
+        const { blocks, mine, tall, least, most } = dragging
+        const moved = Math.min(most, Math.max(least, by))
+        const mid = mine.mid + moved
+        let to = mine.at
+        for (const block of blocks) {
+          if (block === mine) continue
+          // one it has gone past moves over into the room it left (even, at the end
+          // of the list, as it is where two as tall as each other meet)
+          const shift =
+            block.at > mine.at && block.mid <= mid
+              ? -tall
+              : block.at < mine.at && block.mid >= mid
+                ? tall
+                : 0
+          if (shift < 0) to = Math.max(to, block.at)
+          if (shift > 0) to = Math.min(to, block.at)
+          for (const part of block.parts)
+            part.style.transform = shift ? `translateY(${shift}px)` : ""
+        }
+        for (const part of mine.parts)
+          part.style.transform = `translateY(${moved}px)`
+        dragging.to = to
+      }
+
+      const clear = () => {
+        document.body.style.userSelect = ""
+        document.body.style.cursor = ""
+        for (const block of dragging?.blocks ?? [])
+          for (const part of block.parts) {
+            part.style.transition = ""
+            part.style.transform = ""
+            part.style.position = ""
+            part.style.zIndex = ""
+          }
+      }
+
+      const stop = () => {
+        window.removeEventListener("pointermove", onMove)
+        window.removeEventListener("pointerup", onUp)
+        window.removeEventListener("pointercancel", onCancel)
+        window.removeEventListener("keydown", onKey, true)
+      }
+
+      // the click a drag ends in is not one: it opens nothing
+      const swallowClick = () => {
+        const swallow = (click: MouseEvent) => {
+          click.stopPropagation()
+          click.preventDefault()
+        }
+        window.addEventListener("click", swallow, { capture: true, once: true })
+        setTimeout(() =>
+          window.removeEventListener("click", swallow, { capture: true })
+        )
+      }
+
+      /** Put the groups back where they were, sliding there. */
+      const back = () => {
+        notePlaces()
+        const noted = were
+        clear()
+        were = null
+        if (!noted) return
+        for (const block of dragging?.blocks ?? [])
+          for (const part of block.parts) {
+            const id = [...cards].find(([, card]) => card === part)?.[0]
+            const was = id === undefined ? undefined : noted.get(id)
+            if (was === undefined) continue
+            const off = was - part.getBoundingClientRect().top
+            if (Math.abs(off) < 1) continue
+            part.animate(
+              [{ transform: `translateY(${off}px)` }, { transform: "none" }],
+              { duration: 200, easing: "cubic-bezier(0.32, 0.72, 0, 1)" }
+            )
+          }
+      }
+
+      function onMove(move: PointerEvent) {
+        const by = move.clientY - startY
+        if (!dragging) {
+          if (Math.abs(by) < DRAG_FROM) return
+          dragging = begin()
+          if (!dragging) return stop()
+        }
+        follow(by)
+      }
+      function onUp() {
+        stop()
+        if (!dragging) return
+        swallowClick()
+        const { to } = dragging
+        if (to === from) return back()
+        const order = now.current.groups.map(({ group }) => group.id)
+        const [moving] = order.splice(from, 1)
+        order.splice(to, 0, moving)
+        // (from where it was let go of, and the others from where they made way to)
+        notePlaces()
+        clear()
+        now.current.onPut(order)
+      }
+      function onCancel() {
+        stop()
+        if (dragging) back()
+      }
+      function onKey(key: KeyboardEvent) {
+        if (key.key !== "Escape" || !dragging) return
+        key.preventDefault()
+        key.stopPropagation()
+        stop()
+        back()
+        // and the press that is still down is let go of to no end
+        swallowClick()
+      }
+
+      window.addEventListener("pointermove", onMove)
+      window.addEventListener("pointerup", onUp)
+      window.addEventListener("pointercancel", onCancel)
+      window.addEventListener("keydown", onKey, true)
+    },
+    []
+  )
+  return can && groups.length > 1 ? press : null
+}
+
 /** One of the app's examples, in the list of what a project is started from. */
 function ExampleItem({ example }: { example: Example }) {
   const startExample = useStore((state) => state.startExample)
@@ -967,7 +1197,12 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
   const starting = useStore((state) => Object.keys(state.starting).length > 0)
   const [adding, setAdding] = React.useState(false)
   const now = useNow()
-  const groups = byGroup(projects)
+  const groups = useListed()
+  const change = usePreferences((state) => state.change)
+  // a group dragged to another place puts the list in the user's own order, from then on
+  const drag = useGroupDrag(groups, !oneProject && !alone, (order) =>
+    change({ projectOrder: "manual", manualOrder: order })
+  )
   useSliding(
     groups
       .map(({ group, projects }) =>
@@ -1002,6 +1237,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
             ref={holding(`group-${group.id}`)}
             away={oneProject}
             faded={alone}
+            onPointerDown={drag?.(group.id)}
           >
             <GroupHeading group={group} />
           </Tucked>,
@@ -1011,6 +1247,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
               ref={holding(project.id)}
               away={oneProject && project.id !== activeId}
               faded={alone}
+              onPointerDown={drag?.(group.id)}
             >
               <ProjectCard project={project} now={now} />
             </Tucked>

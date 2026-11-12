@@ -5,7 +5,14 @@ open one (Cmd+O) or to start a new project (Cmd+N). STEP, STL and OBJ files can 
 dropped and opened the same way: see [Starting from CAD files](#starting-from-cad-files).
 
 The cards are listed by group, under a heading for each (see [Groups](#groups)): the
-newest group at the top, under any that are pinned. With more of them than the window has
+group you last sent a message in at the top, under any that are pinned. A group made since
+then counts from when it was made, so a new project comes in at the top. To list them by
+when they were made instead, the newest first, set Settings, General, Project order to
+**Created**. Or drag a group, by its heading or any of its cards, up or down the list to
+put the groups in your own order: Project order is then **Manual**, and a new project
+comes in at the top until you drag it somewhere else. Pinned groups stay above the rest
+in every order, and are dragged among themselves; Esc puts a group being dragged back.
+With more of them than the window has
 room for, the cards scroll and the + stays where it can be reached, over the settings
 button.
 

@@ -947,6 +947,7 @@ export class Projects {
         id: p.group ?? p.id,
         name: g?.name ?? null,
         pinned: g?.pinned !== undefined,
+        addedAt: g?.addedAt ?? p.addedAt,
       }
       if (this.unavailable.has(p.id))
         return {

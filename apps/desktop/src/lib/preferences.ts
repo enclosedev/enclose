@@ -5,6 +5,7 @@ import { create } from "zustand"
 
 import { SETTLE_DAYS } from "@/lib/conversations"
 import { PRESETS, type Buttons, type Drag } from "@/lib/navigation"
+import type { ProjectOrder } from "@/lib/project-order"
 
 /** auto: told apart by how the scroll moves. Or always the one, or always the other. */
 export type Scrolling = "auto" | "trackpad" | "wheel"
@@ -47,6 +48,10 @@ export type Preferences = Buttons & {
   format: Format
   /** a sound is played when an agent is done, needs the user, fails, or makes a board */
   sounds: boolean
+  /** the order the sidebar lists projects in (see project-order.ts) */
+  projectOrder: ProjectOrder
+  /** the groups' ids in the order they were last dragged to in the sidebar */
+  manualOrder: string[]
 }
 
 export const TURN_SPEED = { min: 0.4, max: 2.5 }
@@ -67,6 +72,8 @@ const DEFAULTS: Preferences = {
   datedFiles: true,
   format: "step",
   sounds: true,
+  projectOrder: "asked",
+  manualOrder: [],
 }
 const KEY = "enclose:preferences"
 
@@ -117,6 +124,13 @@ function saved(): Preferences {
           ? read.format
           : DEFAULTS.format,
       sounds: read.sounds !== false,
+      projectOrder:
+        read.projectOrder === "created" || read.projectOrder === "manual"
+          ? read.projectOrder
+          : DEFAULTS.projectOrder,
+      manualOrder: Array.isArray(read.manualOrder)
+        ? read.manualOrder.filter((id) => typeof id === "string")
+        : DEFAULTS.manualOrder,
     }
   } catch {
     return DEFAULTS

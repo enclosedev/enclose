@@ -28,6 +28,7 @@ const left = (
   gist: null,
   failed: false,
   updatedAt: NOW - days * DAY,
+  askedAt: null,
   queued: [],
   versioning: false,
   job: null,

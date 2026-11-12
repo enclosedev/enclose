@@ -596,7 +596,13 @@ function enteredNow(view: View, before: Entered[]): Entered[] {
 /** How a board is looked at in PCB mode, where that is counted (FEATURES). */
 type BoardWay = Exclude<
   Feature,
-  Entered | "render" | "material" | "silent" | "update-all"
+  | Entered
+  | "render"
+  | "material"
+  | "silent"
+  | "made-order"
+  | "own-order"
+  | "update-all"
 >
 
 /**
@@ -2795,8 +2801,19 @@ export function connect() {
   adoptColours()
   // sounds off, as the app starts or once they are turned off: counted, once a run
   if (!usePreferences.getState().sounds) cad.analytics.used("silent")
+  // and the projects listed by when they were made, or in the user's own order, likewise
+  const ordered = {
+    created: "made-order",
+    manual: "own-order",
+    asked: null,
+  } as const
+  const order = ordered[usePreferences.getState().projectOrder]
+  if (order) cad.analytics.used(order)
   usePreferences.subscribe((now, was) => {
     if (was.sounds && !now.sounds) cad.analytics.used("silent")
+    const order = ordered[now.projectOrder]
+    if (order && was.projectOrder !== now.projectOrder)
+      cad.analytics.used(order)
   })
   // what is waiting to be sent is kept as it changes, so that the window can be loaded
   // again without losing it

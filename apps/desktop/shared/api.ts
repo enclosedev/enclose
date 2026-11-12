@@ -114,6 +114,11 @@ export type ConversationSummary = {
   /** when something was last said or done in it (ms) */
   updatedAt: number
   /**
+   * when the user last sent a message in it (ms), one of their own and not one the app
+   * sent for them: null if they have sent none
+   */
+  askedAt: number | null
+  /**
    * What was said in it while it was being answered, in the order it was said: each
    * waits for the turn before it to be over. One left waiting by a turn that was stopped,
    * or did not get through, waits to be sent by hand.
@@ -272,10 +277,10 @@ export type Project = {
   /**
    * The group it is listed in, with the other projects that are parts of the same
    * thing: what that goes by (null for a new project's, until it is given a name, and
-   * listed as New Project), and whether the user pinned it to the top of the list. The
-   * list has the projects of a group one after another.
+   * listed as New Project), whether the user pinned it to the top of the list, and when
+   * it was made (ms). The list has the projects of a group one after another.
    */
-  group: { id: string; name: string | null; pinned: boolean }
+  group: { id: string; name: string | null; pinned: boolean; addedAt: number }
 }
 
 /** What a group of projects with no name of its own yet is listed as. */
@@ -835,8 +840,9 @@ export type Settings = {
  * What the window tells the app was put to use, for that count: the things the view can
  * be put into, and in PCB mode how a board is looked at (its technical view, its
  * schematic, a layer of its copper under the top, and the hand it is shown on in 3D);
- * the Render look, a material given to a part by hand, and the app and its agents
- * updated together ("Update all").
+ * the Render look, a material given to a part by hand, the sidebar listing projects by
+ * when they were made or in the user's own order, and the app and its agents updated
+ * together ("Update all").
  * The rest of what is counted happens in the app's own process.
  */
 export const FEATURES = [
@@ -857,6 +863,8 @@ export const FEATURES = [
   "render",
   "material",
   "silent",
+  "made-order",
+  "own-order",
   "update-all",
 ] as const
 export type Feature = (typeof FEATURES)[number]
