@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/tooltip"
 import { Writing } from "@/components/writing"
 import type { Model } from "@/lib/model"
-import { usePreferences } from "@/lib/preferences"
+import { FORMAT_LABELS, usePreferences } from "@/lib/preferences"
 import { savingParts } from "@/lib/saved"
 import { goesBy, useStore, type Note, type Selection } from "@/lib/store"
 import type { LoadedPart } from "./load"
@@ -317,7 +317,10 @@ export function PartMarks({
             </PopoverContent>
           </Popover>
           {download && (
-            <Does label="Download part" onClick={() => void download.save()}>
+            <Does
+              label={`Download part (${FORMAT_LABELS[format]})`}
+              onClick={() => void download.save()}
+            >
               <DownloadIcon />
             </Does>
           )}

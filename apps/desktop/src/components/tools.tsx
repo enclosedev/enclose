@@ -46,7 +46,7 @@ import {
 import { useInspiration } from "@/lib/inspiration"
 import { oneFile, sizeOf } from "@/lib/model"
 import { MAC } from "@/lib/platform"
-import { usePreferences, type Format } from "@/lib/preferences"
+import { FORMAT_LABELS, usePreferences, type Format } from "@/lib/preferences"
 import { savedAs, saveForWeb } from "@/lib/saved"
 import {
   BOARD_AS,
@@ -206,12 +206,10 @@ export function Switch({
 }
 
 /** What the model's files can be saved as, in the order they are offered. */
-const FORMATS: { value: Format; label: string }[] = [
-  { value: "step", label: "STEP" },
-  { value: "stl", label: "STL" },
-  { value: "obj", label: "OBJ" },
-  { value: "web", label: "Web" },
-]
+const FORMATS = (["step", "stl", "obj", "web"] as const).map((value) => ({
+  value,
+  label: FORMAT_LABELS[value],
+}))
 
 /**
  * The model as files, to take elsewhere: a button that brings up the ways there are to
@@ -255,14 +253,23 @@ function Downloads({
         <TooltipTrigger
           render={
             <DropdownMenuTrigger
-              render={<Button variant="ghost" size="icon" className={ROUND} />}
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(ROUND, "relative")}
+                />
+              }
             />
           }
         >
-          <DownloadIcon />
-          <span className="sr-only">Download</span>
+          <DownloadIcon className="size-3.5" />
+          <FormatRing label={kind} />
+          <span className="sr-only">{`Download (${kind})`}</span>
         </TooltipTrigger>
-        {!open && <TooltipContent side="left">Download</TooltipContent>}
+        {!open && (
+          <TooltipContent side="left">{`Download (${kind})`}</TooltipContent>
+        )}
       </Tooltip>
       {/* (wide enough for a name and a size on one line) */}
       <DropdownMenuContent side="left" align="start" className="w-60">
@@ -553,6 +560,43 @@ function partsSaid(parts: string[]): string {
   const last =
     parts.length > 4 ? `${parts.length - 3} more` : parts[parts.length - 1]
   return shown.length ? `${shown.join(", ")} and ${last}` : last
+}
+
+/** Where the letters of the format stand, from the button's middle, in its own pixels. */
+const RING_RADIUS = 12.2
+
+/**
+ * What the model is saved as, written once along the top of the inside of the button
+ * that saves it, curved as the button is, above its arrow.
+ */
+function FormatRing({ label }: { label: string }) {
+  const id = React.useId()
+  const r = RING_RADIUS
+  return (
+    <svg
+      viewBox="0 0 36 36"
+      aria-hidden
+      className="pointer-events-none absolute inset-0 size-full text-muted-foreground"
+    >
+      <path
+        id={id}
+        // over the top, from left to right: the letters stand on it, outward
+        d={`M${18 - r} 18 A${r} ${r} 0 0 1 ${18 + r} 18`}
+        fill="none"
+      />
+      <text
+        fill="currentColor"
+        fontSize="5.4"
+        fontWeight="600"
+        letterSpacing="0.6"
+        textAnchor="middle"
+      >
+        <textPath href={`#${id}`} startOffset="50%">
+          {label.toUpperCase()}
+        </textPath>
+      </text>
+    </svg>
+  )
 }
 
 /**

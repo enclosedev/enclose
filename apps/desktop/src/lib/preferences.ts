@@ -26,6 +26,14 @@ export type Unit = "mm" | "in"
  */
 export type Format = "step" | "stl" | "obj" | "web"
 
+/** What each format is called where it is chosen, and wherever a file is saved as it. */
+export const FORMAT_LABELS: Record<Format, string> = {
+  step: "STEP",
+  stl: "STL",
+  obj: "OBJ",
+  web: "Web",
+}
+
 export type Preferences = Buttons & {
   /** what a scroll is taken to come from */
   scrolling: Scrolling

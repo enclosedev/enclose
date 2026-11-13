@@ -53,6 +53,10 @@ sight.
   STL and OBJ are made of what the view draws, which keeps within a fiftieth of a
   millimetre of every curve, and every part has them. A part made of a mesh has no STEP
   file (see [Meshes](projects.md#meshes)).
+  What is chosen stays chosen, for every project, and is what every other download
+  button saves too: the Download button has it written inside, above its arrow; its
+  tooltip and those of the arrows below say it (Download part (STEP)); and a group's
+  card shows it beside the group's size.
 - The arrow that comes up beside a part's name, in the list, saves that part, in what
   was chosen there.
 - The arrow beside a group's name saves the files of all its parts, in a folder named

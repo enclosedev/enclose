@@ -4,7 +4,7 @@ import { DownloadIcon, EyeOffIcon, SquareDashedIcon } from "lucide-react"
 
 import { LOOSE } from "@/lib/arrange"
 import { sizeOf, type Download, type Part } from "@/lib/model"
-import { usePreferences, type Format } from "@/lib/preferences"
+import { FORMAT_LABELS, usePreferences, type Format } from "@/lib/preferences"
 import { NO_SWEEP, sweptTo, toggled, toggledAll } from "@/lib/several"
 import { savingParts } from "@/lib/saved"
 import { useStore, type Only } from "@/lib/store"
@@ -227,7 +227,7 @@ const PartCard = React.memo(function PartCard({
       </button>
       {file && (
         <Save
-          label={`Download ${part.label}`}
+          label={`Download ${part.label} (${FORMAT_LABELS[format]})`}
           className="absolute right-0 bottom-0.5 -mr-1.5 opacity-0 group-hover/part:opacity-100 focus-visible:opacity-100"
           onClick={() => void file.save()}
         />
@@ -485,15 +485,18 @@ export const PartsPanel = React.memo(function PartsPanel({
                 {gone && <EyeOffIcon className={HIDDEN} />}
                 {saving && (
                   <>
-                    <span className="ml-auto shrink-0 pl-1.5 text-xs text-muted-foreground tabular-nums">
-                      {size}
+                    {/* what is saved, as the menu of the whole model has it */}
+                    <span className="ml-auto shrink-0 pl-1.5 text-xs whitespace-nowrap text-muted-foreground tabular-nums">
+                      {[format === "web" ? "GLB" : FORMAT_LABELS[format], size]
+                        .filter(Boolean)
+                        .join(" ")}
                     </span>
                     <Save
-                      label={
+                      label={`${
                         saving.files === 1
                           ? `Download ${group.label}`
                           : `Download the ${saving.files} parts of ${group.label}`
-                      }
+                      } (${FORMAT_LABELS[format]})`}
                       // its arrow stands where the card's room begins
                       className="-mr-1.5"
                       onClick={() => void saving.save()}
