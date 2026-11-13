@@ -220,7 +220,9 @@ const FORMATS: { value: Format; label: string }[] = [
  * the list of parts. Each is had as STEP, for CAD, as the build wrote it; or as a mesh,
  * STL for a slicer or OBJ for a 3D program, made of what the view draws; or for a web
  * page, a GLB in the colours and materials the user sees, which goes into the project's
- * own web folder and not where they pick, as the page that has it is the project's too.
+ * own web folder and not where they pick, as the page that has it is the project's too:
+ * with a script that moves it as the project's tools do, and a page of it at work, which
+ * Preview opens in a browser.
  * What is chosen here is what the list of parts saves, too.
  */
 function Downloads({
@@ -295,6 +297,13 @@ function Downloads({
             >
               Full model
               <Size kind="GLB" />
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                void saveForWeb(projectId, loaded, called, null, "page")
+              }
+            >
+              Preview
             </DropdownMenuItem>
           </DropdownMenuGroup>
         ) : format === "step" ? (

@@ -28,14 +28,27 @@ sight.
   - **STL**, for a slicer: one mesh of all that is saved, in millimetres with Z up.
   - **OBJ**, for a 3D program: each part an object of its own, under its name, in
     millimetres with Z up.
-  - **Web**, for a web page: one GLB file, as three.js or `<model-viewer>` takes it, in
-    the colours and materials the model has in the app. It goes into the project
-    itself, in its `web` folder, under the model's name (`web/table-clock.glb`), over
-    the one saved there before, and not where you choose: a page that shows the model
-    has it from there, and has it as it is now each time it is saved again. In it each
-    part is a node named by its id under a node for its group, in metres with Y up, as
-    glTF has it; the name each goes by is in its extras. A material's grain (oak, felt)
-    is left out: the part is the material's colour.
+  - **Web**, for a web page: the model as one GLB file, as three.js or `<model-viewer>`
+    takes it, in the colours and materials it has in the app. It goes into the project
+    itself, in its `web` folder, under the model's name, and not where you choose. The
+    whole model is saved with two more files beside it:
+    - `web/table-clock.glb`: the model. Each part is a node named by its id under a
+      node for its group, in metres with Y up, as glTF has it; the name each goes by is
+      in its extras. A material's grain (oak, felt) is left out: the part is the
+      material's colour.
+    - `web/table-clock.js`: the project's [tools](project-tools.md), which move the
+      model on a page as they do in the app, and what runs them. A page loads the GLB,
+      hands its scene to `enclose()` from this file, and has the tools' controls to set
+      and press; the file's first lines say how.
+    - `web/table-clock.html`: a page of the model with the tools' controls beside it, to
+      see the model at work as a site would show it, and to take from for a page of
+      your own.
+
+    **Full model** saves them and opens Finder, or the file manager, on them. **Preview**
+    saves them and opens the page in your browser: the app serves the folder to this
+    machine for that, since a browser will not run the page opened as a file. Each save
+    writes over what was saved under that name before, so a page that has them from
+    the folder has the model as it is now.
 
   STL and OBJ are made of what the view draws, which keeps within a fiftieth of a
   millimetre of every curve, and every part has them. A part made of a mesh has no STEP
@@ -46,7 +59,7 @@ sight.
   after the group, inside one you choose. A group of one part saves that part's file,
   as the part's own arrow does.
   For the web, a part or a group is one GLB of its own in the `web` folder, under the
-  part's id or the group's name.
+  part's id or the group's name, without the tools or a page.
 
 What is saved, other than for the web, has the day it was saved before its name, the year, the month and the
 day: `2026_10_11_table-clock.step`. So do the folder a group's files go in, the zip

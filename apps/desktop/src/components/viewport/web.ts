@@ -15,6 +15,8 @@ import * as THREE from "three"
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js"
 
 import type { Model } from "@/lib/model"
+import { currentPalette } from "@/lib/palette"
+import type { WebPage } from "@shared/api"
 import { materialOf, type PartMaterial } from "@shared/materials"
 import type { LoadedPart } from "./load"
 import { ownMaterial, physicalOf } from "./materials"
@@ -147,5 +149,29 @@ export async function webModel(
       if (object instanceof THREE.Mesh)
         (object.material as THREE.Material).dispose()
     })
+  }
+}
+
+/**
+ * What the whole model's script and page are saved with, besides its GLB: its parts as
+ * its tools are told of them (as the view tells them, see viewport.tsx), and the colours
+ * a tool can give a part, as the light look has them.
+ */
+export function webPageOf(loaded: WebSource): WebPage {
+  return {
+    title: loaded.model.title ?? "Model",
+    parts: loaded.parts.map((part) => {
+      const box = part.box.clone().applyMatrix4(part.home)
+      return {
+        id: part.part.id,
+        label: part.part.label,
+        group: part.part.group,
+        min: box.min.toArray(),
+        max: box.max.toArray(),
+      }
+    }),
+    palette: { ...currentPalette("light") },
+    // (the version of three the app draws with, from the web: 0.186, its latest fix)
+    three: `0.${THREE.REVISION}`,
   }
 }

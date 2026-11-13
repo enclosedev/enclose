@@ -795,6 +795,37 @@ export const OWN_SCENE = "own"
  */
 export type ToolSource = { id: string; file: string; source: string }
 
+/** A part of the model as a tool on a web page is told of it: where it is as built, in mm. */
+export type WebPart = {
+  id: string
+  label: string
+  group: string
+  min: Vec3
+  max: Vec3
+}
+
+/** What the whole model is saved for the web with, besides its GLB (see electron/web-export.ts). */
+export type WebPage = {
+  /** what the page is called */
+  title: string
+  parts: WebPart[]
+  /** the palette's colours, in the light look, as a tool gives a part one */
+  palette: Record<string, string>
+  /** the version of three.js the page has from the web: the app's own */
+  three: string
+}
+
+/** A model, or some of its parts, saved for the web. */
+export type WebSave = {
+  /** what its files are called, without what they are: "clock" */
+  name: string
+  glb: ArrayBuffer
+  /** of the whole model: a script of its tools and a page go with it */
+  page: WebPage | null
+  /** what is opened once it is saved: the folder, or the page in a browser */
+  open: "folder" | "page"
+}
+
 /**
  * Something an agent has a project's tool do, as a hand would: set one of its controls
  * to a value, or press one of a row of buttons.
@@ -1085,16 +1116,14 @@ export type CadApi = {
     ): Promise<boolean>
     /**
      * save the model for a web page, a GLB the window has made of it (see
-     * viewport/web.ts), into the project's own web folder as `name`, over one of that
-     * name there already: where a page has it, it has it from there. What it was saved
-     * as, from the top of the project's folder ("web/clock.glb"); null where it could not
-     * be saved
+     * viewport/web.ts), into the project's own web folder as `name`.glb, over one of
+     * that name there already: where a page has it, it has it from there. With `page`,
+     * the whole model's, and with it a script of the project's tools and a page that
+     * shows it (electron/web-export.ts). Then the folder is shown with the GLB in it, or
+     * the page opened in a browser. What the GLB was saved as, from the top of the
+     * project's folder ("web/clock.glb"); null where it could not be saved
      */
-    saveWeb(
-      projectId: string,
-      name: string,
-      data: ArrayBuffer
-    ): Promise<string | null>
+    saveWeb(projectId: string, save: WebSave): Promise<string | null>
     /**
      * save a drawing the app has made of a model, an SVG, somewhere the user picks:
      * `name` is what the file is called unless they call it something else

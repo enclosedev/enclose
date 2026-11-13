@@ -62,6 +62,13 @@ system notice in the app's name and to reach the app's own storage.) One that go
 wrong, or never comes back from a frame, is stopped and says why in its tab, with a
 button that takes that to the agent.
 
+## On a web page
+
+A model saved for the web (Download, Web) takes its tools with it: the page saved
+beside it has their controls, and they move the model there as they do in the app (see
+[Saving the model](parts.md#saving-the-model)). Making a model work a certain way on a
+web page is making a tool that does it.
+
 ## Examples
 
 [`examples/clock`](../examples/clock) is a project to try it on, and the rest of the app

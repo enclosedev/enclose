@@ -58,8 +58,8 @@ const api: CadApi = {
         how,
         called
       ),
-    saveWeb: (projectId, name, data) =>
-      ipcRenderer.invoke(CHANNEL.modelSaveWeb, projectId, name, data),
+    saveWeb: (projectId, save) =>
+      ipcRenderer.invoke(CHANNEL.modelSaveWeb, projectId, save),
     saveDrawing: (name, svg) =>
       ipcRenderer.invoke(CHANNEL.modelSaveDrawing, name, svg),
     saveDrawings: (folder, drawings) =>

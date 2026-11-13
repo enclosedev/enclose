@@ -6,7 +6,7 @@ import path from "node:path"
 import { build as bundle } from "esbuild"
 import { build as buildWindow } from "vite"
 
-import { guide, main, preload } from "./electron-build.mjs"
+import { guide, main, preload, web } from "./electron-build.mjs"
 import { writeLicenses } from "./licenses.mjs"
 
 const window = await buildWindow()
@@ -14,6 +14,7 @@ const [, , page] = await Promise.all([
   bundle(main),
   bundle(preload),
   bundle({ ...guide, metafile: true }),
+  bundle(web),
 ])
 
 // the files each bundler took, as paths: Vite's modules, and esbuild's inputs

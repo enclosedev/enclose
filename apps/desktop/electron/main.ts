@@ -43,6 +43,7 @@ import {
   type Seen,
   type Settings,
   type ToolSource,
+  type WebSave,
   type Undone,
   type Update,
   type Vec3,
@@ -106,6 +107,7 @@ import {
 } from "./imports"
 import { fetched, startFrom } from "./examples"
 import { archived, archiveName, GuideServer } from "./guide-page"
+import { webPage, WebPreview, webScript } from "./web-export"
 import { standInName } from "./names"
 import { groupNameOf } from "./naming"
 import { Pace } from "./pace"
@@ -274,6 +276,7 @@ const toolServer = new ToolServer()
  * Where a project's assembly guides are served as pages, for a browser to open: each
  * from the project's folder and its model as they then are.
  */
+const webPreview = new WebPreview((id) => projects.get(id)?.path ?? null)
 const guideServer = new GuideServer(path.join(HERE, "guide"), (id) => {
   const project = projects.get(id)
   return project?.manifest
@@ -1975,29 +1978,61 @@ function wire() {
   )
   ipcMain.handle(
     CHANNEL.modelSaveWeb,
-    async (
-      _,
-      id: string,
-      name: unknown,
-      data: unknown
-    ): Promise<string | null> => {
+    async (_, id: string, save: unknown): Promise<string | null> => {
       const project = projects.get(id)
-      if (!project || !(data instanceof ArrayBuffer)) return null
-      const called = path.basename(String(name)).replace(/^\.+/, "")
-      if (!called.endsWith(".glb")) return null
+      const given = save as Partial<WebSave> | null
+      if (!project || !(given?.glb instanceof ArrayBuffer)) return null
+      const name = path
+        .basename(String(given.name))
+        .replace(/^\.+/, "")
+        .replace(/\.glb$/, "")
+      if (!name) return null
+      const page =
+        given.page && Array.isArray(given.page.parts) ? given.page : null
+      const folder = path.join(project.path, WEB_FOLDER)
+      const at = path.join(folder, `${name}.glb`)
+      let tools: ToolSource[] = []
       try {
-        const folder = path.join(project.path, WEB_FOLDER)
         await fs.promises.mkdir(folder, { recursive: true })
-        await fs.promises.writeFile(
-          path.join(folder, called),
-          Buffer.from(data)
-        )
+        await fs.promises.writeFile(at, Buffer.from(given.glb))
+        if (page) {
+          // (the runtime, bundled by itself beside the app: see src/web/runtime.ts)
+          const runtime = await fs.promises.readFile(
+            path.join(HERE, "web", "runtime.js"),
+            "utf8"
+          )
+          tools = readTools(project.path)
+          await fs.promises.writeFile(
+            path.join(folder, `${name}.js`),
+            webScript(name, runtime, tools, page)
+          )
+          await fs.promises.writeFile(
+            path.join(folder, `${name}.html`),
+            webPage(name, page)
+          )
+        }
       } catch (error) {
         console.error("Could not save the model for the web", error)
         return null
       }
-      analytics?.record("model saved", { as: "files", format: "web", files: 1 })
-      return `${WEB_FOLDER}/${called}`
+      // It went where the user did not pick: shown there, in Finder or the file manager.
+      // Or its page is opened, served as a site would serve it: from a file, a browser
+      // will not load what it loads.
+      if (!CAPTURE) {
+        if (page && given.open === "page")
+          void shell.openExternal(
+            await webPreview.address(project.id, `${name}.html`)
+          )
+        else shell.showItemInFolder(at)
+      }
+      analytics?.record("model saved", {
+        as: "files",
+        format: "web",
+        files: page ? 3 : 1,
+        tools: tools.length,
+        opened: page && given.open === "page" ? "page" : "folder",
+      })
+      return `${WEB_FOLDER}/${name}.glb`
     }
   )
   ipcMain.handle(
@@ -3104,6 +3139,7 @@ function letGo() {
   threads?.close()
   toolServer.close()
   guideServer.close()
+  webPreview.close()
   projects?.close()
   previews.close()
   drafts?.close()

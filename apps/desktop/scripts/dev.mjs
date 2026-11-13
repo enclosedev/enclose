@@ -8,7 +8,7 @@ import path from "node:path"
 import { context } from "esbuild"
 import { createServer } from "vite"
 
-import { guide, main, preload } from "./electron-build.mjs"
+import { guide, main, preload, web } from "./electron-build.mjs"
 import { namedElectron } from "./electron-name.mjs"
 
 const electron = namedElectron()
@@ -84,6 +84,8 @@ for (const options of [main, preload]) {
 // The page of an assembly guide is read from disk each time one is opened: built again
 // on save, it is there the next time, and nothing has to be restarted for it.
 await (await context(guide)).watch()
+// and so is what a model saved for the web is moved by
+await (await context(web)).watch()
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {

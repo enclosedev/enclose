@@ -29,25 +29,28 @@ export const webName = (name: string): string =>
 /**
  * Save some of the model (all of it, where no parts are given) for a web page: a GLB,
  * into the project's web folder as `name`.glb, over what was saved there as that before,
- * so that a page that has it from there has it as it is now. No day goes before its
- * name: a page asks for it by name. Says where it went.
+ * so that a page that has it from there has it as it is now. All of it is saved with a
+ * script of the project's tools and a page that shows it at work, and the page is opened
+ * in a browser where `open` asks for it; otherwise the folder is shown. No day goes
+ * before a name: a page asks for it by name. Says where it went.
  */
 export async function saveForWeb(
   projectId: string,
   loaded: WebSource,
   name: string,
-  parts: string[] | null = null
+  parts: string[] | null = null,
+  open: "folder" | "page" = "folder"
 ): Promise<boolean> {
   // (had only when asked for: three.js's exporter is not wanted before then, and the
   // store would bring the whole window into what only works out a name)
-  const [{ webModel }, { useStore }] = await Promise.all([
+  const [{ webModel, webPageOf }, { useStore }] = await Promise.all([
     import("@/components/viewport/web"),
     import("@/lib/store"),
   ])
   const { say, colours, materials } = useStore.getState()
-  let data: ArrayBuffer
+  let glb: ArrayBuffer
   try {
-    data = await webModel(loaded, {
+    glb = await webModel(loaded, {
       parts,
       colours: colours[projectId],
       materials: materials[projectId],
@@ -57,11 +60,12 @@ export async function saveForWeb(
     say("It could not be made for the web")
     return false
   }
-  const saved = await window.cad.model.saveWeb(
-    projectId,
-    `${webName(name)}.glb`,
-    data
-  )
+  const saved = await window.cad.model.saveWeb(projectId, {
+    name: webName(name),
+    glb,
+    page: parts ? null : webPageOf(loaded),
+    open,
+  })
   say(saved ? `Saved in the project as ${saved}` : "It could not be saved")
   return saved !== null
 }

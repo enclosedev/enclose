@@ -45,3 +45,22 @@ export const guide = {
   loader: { ".woff2": "dataurl" },
   logLevel: "warning",
 }
+
+/**
+ * What makes a model saved for the web move as its tools move it in the app
+ * (src/web/runtime.ts): a script that gives `EncloseRuntime`, which the app writes into
+ * the model's web/<name>.js with the tools themselves (electron/web-export.ts). It has
+ * nothing of three.js in it: the page that loads it has its own.
+ */
+export const web = {
+  entryPoints: { runtime: "src/web/runtime.ts" },
+  outdir: "dist-electron/web",
+  platform: "browser",
+  format: "iife",
+  globalName: "EncloseRuntime",
+  target: "es2020",
+  bundle: true,
+  minify: true,
+  alias: { "@": "./src", "@shared": "./shared" },
+  logLevel: "warning",
+}
