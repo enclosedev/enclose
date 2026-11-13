@@ -54,7 +54,7 @@ sight.
   millimetre of every curve, and every part has them. A part made of a mesh has no STEP
   file (see [Meshes](projects.md#meshes)).
   What is chosen stays chosen, for every project, and is what every other download
-  button saves too: the Download button has it written inside, above its arrow; its
+  button saves too: the Download button has it written under it; its
   tooltip and those of the arrows below say it (Download part (STEP)); and a group's
   card shows it beside the group's size.
 - The arrow that comes up beside a part's name, in the list, saves that part, in what

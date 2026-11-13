@@ -248,161 +248,165 @@ function Downloads({
     if (saved) say(`Saved ${count} parts as a zip`)
   }
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <Tooltip disableHoverablePopup>
-        <TooltipTrigger
-          render={
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(ROUND, "relative")}
-                />
-              }
-            />
-          }
-        >
-          <DownloadIcon className="size-3.5" />
-          <FormatRing label={kind} />
-          <span className="sr-only">{`Download (${kind})`}</span>
-        </TooltipTrigger>
-        {!open && (
-          <TooltipContent side="left">{`Download (${kind})`}</TooltipContent>
-        )}
-      </Tooltip>
-      {/* (wide enough for a name and a size on one line) */}
-      <DropdownMenuContent side="left" align="start" className="w-60">
-        <ToggleGroup
-          aria-label="Format"
-          variant="outline"
-          size="sm"
-          spacing={0}
-          className="w-full p-1"
-          value={[format]}
-          // one is always chosen: pressing the chosen one again changes nothing
-          onValueChange={(chosen) => {
-            const next = chosen.find((one) => one !== format) as
-              Format | undefined
-            if (next) change({ format: next })
-          }}
-        >
-          {FORMATS.map((option) => (
-            <ToggleGroupItem
-              key={option.value}
-              value={option.value}
-              className="flex-1 aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary/85 aria-pressed:hover:text-primary-foreground"
-            >
-              {option.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        {format === "web" ? (
-          <DropdownMenuGroup>
-            <DropdownMenuItem
-              onClick={() => void saveForWeb(projectId, loaded, called)}
-            >
-              Full model
-              <Size kind="GLB" />
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() =>
-                void saveForWeb(projectId, loaded, called, null, "page")
-              }
-            >
-              Preview
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        ) : format === "step" ? (
-          step || apart.length > 0 ? (
+    // what it saves as, written under it: what the list of parts saves as too
+    <div className="flex flex-col items-center gap-1">
+      <DropdownMenu open={open} onOpenChange={setOpen}>
+        <Tooltip disableHoverablePopup>
+          <TooltipTrigger
+            render={
+              <DropdownMenuTrigger
+                render={
+                  <Button variant="ghost" size="icon" className={ROUND} />
+                }
+              />
+            }
+          >
+            <DownloadIcon />
+            <span className="sr-only">{`Download (${kind})`}</span>
+          </TooltipTrigger>
+          {!open && (
+            <TooltipContent side="left">{`Download (${kind})`}</TooltipContent>
+          )}
+        </Tooltip>
+        {/* (wide enough for a name and a size on one line) */}
+        <DropdownMenuContent side="left" align="start" className="w-60">
+          <ToggleGroup
+            aria-label="Format"
+            variant="outline"
+            size="sm"
+            spacing={0}
+            className="w-full p-1"
+            value={[format]}
+            // one is always chosen: pressing the chosen one again changes nothing
+            onValueChange={(chosen) => {
+              const next = chosen.find((one) => one !== format) as
+                Format | undefined
+              if (next) change({ format: next })
+            }}
+          >
+            {FORMATS.map((option) => (
+              <ToggleGroupItem
+                key={option.value}
+                value={option.value}
+                className="flex-1 aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary/85 aria-pressed:hover:text-primary-foreground"
+              >
+                {option.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          {format === "web" ? (
             <DropdownMenuGroup>
-              {step && (
-                <DropdownMenuItem
-                  onClick={() =>
-                    void window.cad.model.saveCopy(
-                      projectId,
-                      step.file,
-                      savedAs(step.name)
-                    )
-                  }
-                >
-                  Full model
-                  <Size kind={kind} bytes={step.bytes} />
-                </DropdownMenuItem>
-              )}
-              {apart.length > 0 && (
+              <DropdownMenuItem
+                onClick={() => void saveForWeb(projectId, loaded, called)}
+              >
+                Full model
+                <Size kind="GLB" />
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  void saveForWeb(projectId, loaded, called, null, "page")
+                }
+              >
+                Preview
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          ) : format === "step" ? (
+            step || apart.length > 0 ? (
+              <DropdownMenuGroup>
+                {step && (
+                  <DropdownMenuItem
+                    onClick={() =>
+                      void window.cad.model.saveCopy(
+                        projectId,
+                        step.file,
+                        savedAs(step.name)
+                      )
+                    }
+                  >
+                    Full model
+                    <Size kind={kind} bytes={step.bytes} />
+                  </DropdownMenuItem>
+                )}
+                {apart.length > 0 && (
+                  <DropdownMenuItem
+                    onClick={() =>
+                      void window.cad.model
+                        .saveArchive(
+                          projectId,
+                          apart.map(({ file, name }) => ({ file, name })),
+                          savedAs(`${called}-parts.zip`)
+                        )
+                        .then(zipped(apart.length))
+                    }
+                  >
+                    Zip with parts
+                    {/* (what the files in it come to: the archive itself is smaller) */}
+                    <Size
+                      kind={kind}
+                      bytes={apart.reduce((all, file) => all + file.bytes, 0)}
+                    />
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuGroup>
+            ) : (
+              // a model made of a mesh, or built without them
+              <p className="px-2 py-1.5 text-xs text-balance text-muted-foreground">
+                This model has no STEP files. It can be saved as STL or OBJ.
+              </p>
+            )
+          ) : (
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                onClick={() =>
+                  void window.cad.model.saveMeshes(
+                    projectId,
+                    format,
+                    [
+                      {
+                        name: `${called}.${format}`,
+                        parts: every.map((part) => part.id),
+                      },
+                    ],
+                    "file",
+                    savedAs(`${called}.${format}`)
+                  )
+                }
+              >
+                Full model
+                <Size kind={kind} />
+              </DropdownMenuItem>
+              {every.length > 1 && (
                 <DropdownMenuItem
                   onClick={() =>
                     void window.cad.model
-                      .saveArchive(
+                      .saveMeshes(
                         projectId,
-                        apart.map(({ file, name }) => ({ file, name })),
+                        format,
+                        every.map((part) => ({
+                          name: `${part.id}.${format}`,
+                          parts: [part.id],
+                        })),
+                        "zip",
                         savedAs(`${called}-parts.zip`)
                       )
-                      .then(zipped(apart.length))
+                      .then(zipped(every.length))
                   }
                 >
                   Zip with parts
-                  {/* (what the files in it come to: the archive itself is smaller) */}
-                  <Size
-                    kind={kind}
-                    bytes={apart.reduce((all, file) => all + file.bytes, 0)}
-                  />
+                  <Size kind={kind} />
                 </DropdownMenuItem>
               )}
             </DropdownMenuGroup>
-          ) : (
-            // a model made of a mesh, or built without them
-            <p className="px-2 py-1.5 text-xs text-balance text-muted-foreground">
-              This model has no STEP files. It can be saved as STL or OBJ.
-            </p>
-          )
-        ) : (
-          <DropdownMenuGroup>
-            <DropdownMenuItem
-              onClick={() =>
-                void window.cad.model.saveMeshes(
-                  projectId,
-                  format,
-                  [
-                    {
-                      name: `${called}.${format}`,
-                      parts: every.map((part) => part.id),
-                    },
-                  ],
-                  "file",
-                  savedAs(`${called}.${format}`)
-                )
-              }
-            >
-              Full model
-              <Size kind={kind} />
-            </DropdownMenuItem>
-            {every.length > 1 && (
-              <DropdownMenuItem
-                onClick={() =>
-                  void window.cad.model
-                    .saveMeshes(
-                      projectId,
-                      format,
-                      every.map((part) => ({
-                        name: `${part.id}.${format}`,
-                        parts: [part.id],
-                      })),
-                      "zip",
-                      savedAs(`${called}-parts.zip`)
-                    )
-                    .then(zipped(every.length))
-                }
-              >
-                Zip with parts
-                <Size kind={kind} />
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuGroup>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <span
+        aria-hidden
+        className="text-[8px] leading-none font-medium tracking-wide text-muted-foreground uppercase select-none"
+      >
+        {kind}
+      </span>
+    </div>
   )
 }
 
@@ -560,43 +564,6 @@ function partsSaid(parts: string[]): string {
   const last =
     parts.length > 4 ? `${parts.length - 3} more` : parts[parts.length - 1]
   return shown.length ? `${shown.join(", ")} and ${last}` : last
-}
-
-/** Where the letters of the format stand, from the button's middle, in its own pixels. */
-const RING_RADIUS = 12.2
-
-/**
- * What the model is saved as, written once along the top of the inside of the button
- * that saves it, curved as the button is, above its arrow.
- */
-function FormatRing({ label }: { label: string }) {
-  const id = React.useId()
-  const r = RING_RADIUS
-  return (
-    <svg
-      viewBox="0 0 36 36"
-      aria-hidden
-      className="pointer-events-none absolute inset-0 size-full text-muted-foreground"
-    >
-      <path
-        id={id}
-        // over the top, from left to right: the letters stand on it, outward
-        d={`M${18 - r} 18 A${r} ${r} 0 0 1 ${18 + r} 18`}
-        fill="none"
-      />
-      <text
-        fill="currentColor"
-        fontSize="5.4"
-        fontWeight="600"
-        letterSpacing="0.6"
-        textAnchor="middle"
-      >
-        <textPath href={`#${id}`} startOffset="50%">
-          {label.toUpperCase()}
-        </textPath>
-      </text>
-    </svg>
-  )
 }
 
 /**
