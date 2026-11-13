@@ -2,6 +2,7 @@
 // saved on, where the settings ask for it. So that a folder of files had from a project
 // over the weeks lists them in the order they were had, and tells this week's from last.
 // And what saves parts of a model, in the format that is chosen for that.
+import type { WebSource } from "@/components/viewport/web"
 import { partFile, type Download } from "@/lib/model"
 import { usePreferences, type Format } from "@/lib/preferences"
 
@@ -18,6 +19,53 @@ export function dated(name: string, on: Date = new Date()): string {
 export const savedAs = (name: string): string =>
   usePreferences.getState().datedFiles ? dated(name) : name
 
+/** A name as a page's address has it: small letters, figures and dashes. */
+export const webName = (name: string): string =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "model"
+
+/**
+ * Save some of the model (all of it, where no parts are given) for a web page: a GLB,
+ * into the project's web folder as `name`.glb, over what was saved there as that before,
+ * so that a page that has it from there has it as it is now. No day goes before its
+ * name: a page asks for it by name. Says where it went.
+ */
+export async function saveForWeb(
+  projectId: string,
+  loaded: WebSource,
+  name: string,
+  parts: string[] | null = null
+): Promise<boolean> {
+  // (had only when asked for: three.js's exporter is not wanted before then, and the
+  // store would bring the whole window into what only works out a name)
+  const [{ webModel }, { useStore }] = await Promise.all([
+    import("@/components/viewport/web"),
+    import("@/lib/store"),
+  ])
+  const { say, colours, materials } = useStore.getState()
+  let data: ArrayBuffer
+  try {
+    data = await webModel(loaded, {
+      parts,
+      colours: colours[projectId],
+      materials: materials[projectId],
+    })
+  } catch (error) {
+    console.error("Could not make the model for the web", error)
+    say("It could not be made for the web")
+    return false
+  }
+  const saved = await window.cad.model.saveWeb(
+    projectId,
+    `${webName(name)}.glb`,
+    data
+  )
+  say(saved ? `Saved in the project as ${saved}` : "It could not be saved")
+  return saved !== null
+}
+
 /**
  * Some of a model's parts, to be saved in the format chosen: how many files that comes
  * to, how big they are together where that is known, and what saves them. One part is
@@ -30,13 +78,31 @@ export function savingParts(
   downloads: Download[],
   format: Format,
   parts: { id: string; label: string }[],
-  folder: string
+  folder: string,
+  /** the model as the view has it: what a GLB for the web is made of */
+  loaded?: WebSource
 ): {
   files: number
   bytes: number | null
   save: () => Promise<boolean>
 } | null {
   if (parts.length === 0) return null
+  // (for a page, one file of them together, however many they are)
+  if (format === "web") {
+    if (!loaded) return null
+    const ids = parts.map((part) => part.id)
+    return {
+      files: 1,
+      bytes: null,
+      save: () =>
+        saveForWeb(
+          projectId,
+          loaded,
+          parts.length === 1 ? ids[0] : folder,
+          ids
+        ),
+    }
+  }
   if (format !== "step") {
     const sets = parts.map((part) => ({
       name: `${part.id}.${format}`,

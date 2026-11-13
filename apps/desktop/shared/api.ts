@@ -1084,6 +1084,18 @@ export type CadApi = {
       called: string
     ): Promise<boolean>
     /**
+     * save the model for a web page, a GLB the window has made of it (see
+     * viewport/web.ts), into the project's own web folder as `name`, over one of that
+     * name there already: where a page has it, it has it from there. What it was saved
+     * as, from the top of the project's folder ("web/clock.glb"); null where it could not
+     * be saved
+     */
+    saveWeb(
+      projectId: string,
+      name: string,
+      data: ArrayBuffer
+    ): Promise<string | null>
+    /**
      * save a drawing the app has made of a model, an SVG, somewhere the user picks:
      * `name` is what the file is called unless they call it something else
      */
@@ -1505,6 +1517,7 @@ export const CHANNEL = {
   modelSaveCopies: "model:save-copies",
   modelSaveArchive: "model:save-archive",
   modelSaveMeshes: "model:save-meshes",
+  modelSaveWeb: "model:save-web",
   modelSaveDrawing: "model:save-drawing",
   modelSaveDrawings: "model:save-drawings",
   modelNameGroup: "model:name-group",

@@ -28,6 +28,14 @@ sight.
   - **STL**, for a slicer: one mesh of all that is saved, in millimetres with Z up.
   - **OBJ**, for a 3D program: each part an object of its own, under its name, in
     millimetres with Z up.
+  - **Web**, for a web page: one GLB file, as three.js or `<model-viewer>` takes it, in
+    the colours and materials the model has in the app. It goes into the project
+    itself, in its `web` folder, under the model's name (`web/table-clock.glb`), over
+    the one saved there before, and not where you choose: a page that shows the model
+    has it from there, and has it as it is now each time it is saved again. In it each
+    part is a node named by its id under a node for its group, in metres with Y up, as
+    glTF has it; the name each goes by is in its extras. A material's grain (oak, felt)
+    is left out: the part is the material's colour.
 
   STL and OBJ are made of what the view draws, which keeps within a fiftieth of a
   millimetre of every curve, and every part has them. A part made of a mesh has no STEP
@@ -37,8 +45,10 @@ sight.
 - The arrow beside a group's name saves the files of all its parts, in a folder named
   after the group, inside one you choose. A group of one part saves that part's file,
   as the part's own arrow does.
+  For the web, a part or a group is one GLB of its own in the `web` folder, under the
+  part's id or the group's name.
 
-What is saved has the day it was saved before its name, the year, the month and the
+What is saved, other than for the web, has the day it was saved before its name, the year, the month and the
 day: `2026_10_11_table-clock.step`. So do the folder a group's files go in, the zip
 archive, and a [blueprint](blueprints.md#saving)'s sheets; the files inside a folder or
 an archive keep their own names. The settings turn this off (General, Downloads).

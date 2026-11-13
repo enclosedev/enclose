@@ -149,6 +149,7 @@ function Title({
  */
 const PartCard = React.memo(function PartCard({
   part,
+  loaded,
   projectId,
   downloads,
   format,
@@ -157,6 +158,8 @@ const PartCard = React.memo(function PartCard({
   onPress,
 }: {
   part: Part
+  /** the model as the view has it: what a part is saved for the web from */
+  loaded: LoadedModel
   projectId: string
   downloads: Download[]
   format: Format
@@ -170,8 +173,8 @@ const PartCard = React.memo(function PartCard({
   const hover = useStore((state) => state.hover)
   const url = usePartPicture(part.id)
   const file = React.useMemo(
-    () => savingParts(projectId, downloads, format, [part], part.label),
-    [projectId, downloads, format, part]
+    () => savingParts(projectId, downloads, format, [part], part.label, loaded),
+    [projectId, downloads, format, part, loaded]
   )
   return (
     <div className="group/part relative w-37.5 shrink-0">
@@ -253,7 +256,8 @@ const PartCard = React.memo(function PartCard({
  *
  * A part's file is saved from the arrow that comes up beside its name, and the files of
  * all a group's parts, together in a folder, from the arrow beside the group's: as STEP,
- * STL or OBJ, whichever was last chosen where the model is downloaded.
+ * STL or OBJ, whichever was last chosen where the model is downloaded. Or for the web,
+ * where that was: one GLB of them, into the project's web folder.
  *
  * A part that was put out of sight in the view (H) is dim here, and so is a group all
  * of whose parts were. Picking one of those brings it back, and does no more than that.
@@ -429,7 +433,8 @@ export const PartsPanel = React.memo(function PartsPanel({
             model.downloads,
             format,
             parts,
-            group.label
+            group.label,
+            loaded
           )
           const size = saving?.bytes ? sizeOf(saving.bytes) : null
           const pickAll = (too: boolean) => {
@@ -502,6 +507,7 @@ export const PartsPanel = React.memo(function PartsPanel({
                   <PartCard
                     key={part.id}
                     part={part}
+                    loaded={loaded}
                     projectId={projectId}
                     downloads={model.downloads}
                     format={format}

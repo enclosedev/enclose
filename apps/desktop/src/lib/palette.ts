@@ -77,10 +77,15 @@ export function setPalettes(
 }
 
 /** The palette's colours as the window is drawn now: of the look it is in. */
-export function currentPalette(): Record<PaletteName, string> {
+export function currentPalette(
+  /** a look of its own, whatever the window is in: a file that leaves the app is light */
+  look?: "light" | "dark"
+): Record<PaletteName, string> {
   const dark =
-    typeof document !== "undefined" &&
-    document.documentElement.classList.contains("dark")
+    look === undefined
+      ? typeof document !== "undefined" &&
+        document.documentElement.classList.contains("dark")
+      : look === "dark"
   return drawing[dark ? "dark" : "light"]
 }
 
@@ -96,12 +101,13 @@ export function currentPalette(): Record<PaletteName, string> {
 export function drawnIn(
   given: string | null,
   turn: number,
-  boards = false
+  boards = false,
+  look?: "light" | "dark"
 ): string {
   const found = ofPalette(given, turn)
   if (typeof found !== "object") return found
   const name = boards && found.name === BOARD ? BOARD_STAND_IN : found.name
-  return currentPalette()[name]
+  return currentPalette(look)[name]
 }
 
 /**

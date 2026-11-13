@@ -57,6 +57,7 @@ import {
   isPictureFile,
   pastedLink,
 } from "../shared/inspiration-format"
+import { WEB_FOLDER } from "../shared/manifest-format"
 import { PICTURE_TYPES } from "../shared/pictures"
 import {
   COLOURS_FILE,
@@ -1970,6 +1971,33 @@ function wire() {
         files: saved,
       })
       return true
+    }
+  )
+  ipcMain.handle(
+    CHANNEL.modelSaveWeb,
+    async (
+      _,
+      id: string,
+      name: unknown,
+      data: unknown
+    ): Promise<string | null> => {
+      const project = projects.get(id)
+      if (!project || !(data instanceof ArrayBuffer)) return null
+      const called = path.basename(String(name)).replace(/^\.+/, "")
+      if (!called.endsWith(".glb")) return null
+      try {
+        const folder = path.join(project.path, WEB_FOLDER)
+        await fs.promises.mkdir(folder, { recursive: true })
+        await fs.promises.writeFile(
+          path.join(folder, called),
+          Buffer.from(data)
+        )
+      } catch (error) {
+        console.error("Could not save the model for the web", error)
+        return null
+      }
+      analytics?.record("model saved", { as: "files", format: "web", files: 1 })
+      return `${WEB_FOLDER}/${called}`
     }
   )
   ipcMain.handle(

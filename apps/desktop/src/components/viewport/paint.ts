@@ -26,17 +26,20 @@ export function skinColour(
   skin: Pick<Skin, "color">,
   dark: boolean,
   /** the colour the user has given the part, if they have given it one */
-  chosen: string | null = null
+  chosen: string | null = null,
+  /** the look whose palette it is in: the window's, unless another is asked for */
+  look?: "light" | "dark"
 ): THREE.Color {
   // (one picked by hand is drawn as it was picked; one of the palette's as the palette is)
   if (chosen)
     return new THREE.Color(
-      chosen.startsWith("#") ? chosen : drawnIn(chosen, turn)
+      chosen.startsWith("#") ? chosen : drawnIn(chosen, turn, false, look)
     )
   const ofFile =
     part.paint === "bare" && skin.color ? `#${skin.color.getHexString()}` : null
   // what the file colours on a board is what is on it, not the board
-  if (part.board) return new THREE.Color(drawnIn(ofFile ?? BOARD, turn))
+  if (part.board)
+    return new THREE.Color(drawnIn(ofFile ?? BOARD, turn, false, look))
   // what is clear has no colour but one it was given: its group's is not its own
   if (part.clear && !part.color) return new THREE.Color(CLEAR)
   if (part.metal) {
@@ -44,7 +47,7 @@ export function skinColour(
     if (dark && color.getHSL({ h: 0, s: 0, l: 0 }).l < 0.25) color.set(STEEL)
     return color
   }
-  return new THREE.Color(drawnIn(ofFile ?? part.color, turn, boards))
+  return new THREE.Color(drawnIn(ofFile ?? part.color, turn, boards, look))
 }
 
 /** How a part's surface takes the light. */

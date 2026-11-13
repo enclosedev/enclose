@@ -47,7 +47,7 @@ import { useInspiration } from "@/lib/inspiration"
 import { oneFile, sizeOf } from "@/lib/model"
 import { MAC } from "@/lib/platform"
 import { usePreferences, type Format } from "@/lib/preferences"
-import { savedAs } from "@/lib/saved"
+import { savedAs, saveForWeb } from "@/lib/saved"
 import {
   BOARD_AS,
   BOARD_KEYS,
@@ -210,6 +210,7 @@ const FORMATS: { value: Format; label: string }[] = [
   { value: "step", label: "STEP" },
   { value: "stl", label: "STL" },
   { value: "obj", label: "OBJ" },
+  { value: "web", label: "Web" },
 ]
 
 /**
@@ -217,8 +218,10 @@ const FORMATS: { value: Format; label: string }[] = [
  * have it. All of it in one file, every part in its place; or its parts, each in a file
  * of its own, in one archive. One part of it, or the parts of one group, are had from
  * the list of parts. Each is had as STEP, for CAD, as the build wrote it; or as a mesh,
- * STL for a slicer or OBJ for a 3D program, made of what the view draws. What is chosen
- * here is what the list of parts saves, too.
+ * STL for a slicer or OBJ for a 3D program, made of what the view draws; or for a web
+ * page, a GLB in the colours and materials the user sees, which goes into the project's
+ * own web folder and not where they pick, as the page that has it is the project's too.
+ * What is chosen here is what the list of parts saves, too.
  */
 function Downloads({
   loaded,
@@ -285,7 +288,16 @@ function Downloads({
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
-        {format === "step" ? (
+        {format === "web" ? (
+          <DropdownMenuGroup>
+            <DropdownMenuItem
+              onClick={() => void saveForWeb(projectId, loaded, called)}
+            >
+              Full model
+              <Size kind="GLB" />
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        ) : format === "step" ? (
           step || apart.length > 0 ? (
             <DropdownMenuGroup>
               {step && (

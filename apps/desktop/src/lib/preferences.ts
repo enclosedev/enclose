@@ -20,8 +20,11 @@ export type Pivot = "view" | "selection" | "pointer"
 /** What a length is said in: millimetres, or inches. */
 export type Unit = "mm" | "in"
 
-/** What the model's files are saved as: STEP, for CAD; or a mesh, STL or OBJ. */
-export type Format = "step" | "stl" | "obj"
+/**
+ * What the model's files are saved as: STEP, for CAD; a mesh, STL or OBJ; or a GLB for a
+ * web page, into the project's web folder.
+ */
+export type Format = "step" | "stl" | "obj" | "web"
 
 export type Preferences = Buttons & {
   /** what a scroll is taken to come from */
@@ -120,7 +123,7 @@ function saved(): Preferences {
       units: read.units === "in" ? "in" : DEFAULTS.units,
       datedFiles: read.datedFiles !== false,
       format:
-        read.format === "stl" || read.format === "obj"
+        read.format === "stl" || read.format === "obj" || read.format === "web"
           ? read.format
           : DEFAULTS.format,
       sounds: read.sounds !== false,

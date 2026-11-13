@@ -26,7 +26,7 @@ Each thing counted is an event: its name, and a few words and numbers that say w
 | `version made main` | |
 | `version discarded` | |
 | `change turned back` | Whether it was undone or redone |
-| `model saved` | Whether as CAD files or as drawings; for STL or OBJ, which; and how many |
+| `model saved` | Whether as CAD files or as drawings; for STL, OBJ or the web, which; and how many |
 | `assembly guide asked for` | The agent, its model, the effort and the permissions; whether it was of the whole model |
 | `assembly guide written` | How many steps |
 | `assembly guide opened` | |

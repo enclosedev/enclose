@@ -122,7 +122,10 @@ export function PartMarks({
   const format = usePreferences((state) => state.format)
   const download = piece
     ? null
-    : savingParts(projectId, model.downloads, format, [part], part.label)
+    : savingParts(projectId, model.downloads, format, [part], part.label, {
+        model,
+        parts: [loaded],
+      })
   const written = writing !== null
   const at = React.useMemo(() => placeOn(loaded, point), [loaded, point])
   // a colour or a material is being chosen, here: clicking anywhere else on the part is

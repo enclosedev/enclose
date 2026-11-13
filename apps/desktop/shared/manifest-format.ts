@@ -21,6 +21,12 @@ export const CONFIG_NAMES = ["enclose.json"]
 export const REFERENCE_NAME = "enclose.reference.json"
 export const REFERENCE_FOLDER = "reference"
 
+/**
+ * Where in a project the model is saved for a web page (a GLB the app makes of it, see
+ * src/components/viewport/web.ts), and where the agent puts what else a page needs.
+ */
+export const WEB_FOLDER = "web"
+
 export const MANIFEST_FORMAT = `A model is a folder holding one manifest (a JSON file named enclose.model.json) and the
 files it names. Every path in the manifest is relative to the manifest. Units are
 millimetres, Z is up.

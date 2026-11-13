@@ -7,7 +7,7 @@
   example or from CAD files
 - [The view](view.md): moving around, the set views, shading, and how a model is drawn
 - [Picking parts out](selecting.md): a click, a box, and saying what should change
-- [Parts and groups](parts.md): the list of parts, saving them as STEP, STL or OBJ, and
+- [Parts and groups](parts.md): the list of parts, saving them as STEP, STL, OBJ or for the web, and
   finding a part by name
 - [Section, explode and grid](section-explode-grid.md)
 - [Reference scenes](reference-scenes.md): the model beside things of a known size
