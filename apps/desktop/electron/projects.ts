@@ -966,6 +966,7 @@ export class Projects {
           boards: null,
           colours: { revision: 0, parts: {}, materials: {} },
           assembling: false,
+          turning: false,
           undo: null,
           redo: null,
           conversations: [],
@@ -1002,6 +1003,8 @@ export class Projects {
         },
         // whether one is being made is known to whoever has the conversations
         assembling: false,
+        // and whether it is being made another version is, too
+        turning: false,
         // what can be taken back is kept elsewhere (changes.ts), and said by whoever
         // has both
         undo: null,

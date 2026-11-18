@@ -387,6 +387,7 @@ const list = (): Project[] =>
         // (the model as an agent writes it is loaded as one built again is)
         revision: project.revision + drafts.stamp(project.id),
         assembling: threads.assembling(project.id),
+        turning: turning.has(project.id),
         undo: undo && { what: undo.what, at: undo.at, took: tookOf(undo) },
         redo: redo && {
           what: redo.what,
@@ -571,6 +572,24 @@ function keepColours(id: string) {
  */
 async function turnTo(id: string, conversationId: string): Promise<boolean> {
   if (!projects.get(id)) return false
+  // the view says the model is about to be another, for as long as that takes
+  const another = versions.on(id) !== conversationId
+  if (another) {
+    turning.add(id)
+    broadcast()
+  }
+  try {
+    return await turningTo(id, conversationId)
+  } finally {
+    // (where it was not told already, with the model it was turned to)
+    if (another && turning.delete(id)) broadcast()
+  }
+}
+
+/** The projects whose folder is being made another conversation's (see turnTo). */
+const turning = new Set<string>()
+
+async function turningTo(id: string, conversationId: string): Promise<boolean> {
   const kept = settings.get().versions
   // What was asked to be committed of the folder as it is goes in first, on the branch
   // of the conversation it is now: it is that one's, and not the one's it is to be.
@@ -582,6 +601,8 @@ async function turnTo(id: string, conversationId: string): Promise<boolean> {
     last: project.manifest && path.relative(project.path, project.manifest),
   })
   if (!turned || !kept || !projects.get(id)) return kept
+  // told in the same breath as the model it was turned to, not a moment before it
+  turning.delete(id)
   // what was done to the model by hand goes the way its files went
   send(CHANNEL.versionsTurned, id, turned)
   if (turned.restored) {

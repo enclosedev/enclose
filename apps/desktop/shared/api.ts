@@ -260,6 +260,11 @@ export type Project = {
    * view: the turn Claude is on in it is that.
    */
   assembling: boolean
+  /**
+   * Its folder is being made another of its versions': the model on screen is still the
+   * one it is turning from (see electron/versions.ts).
+   */
+  turning: boolean
   /** the latest thing Claude did to its files that can be taken back, and put back */
   undo: Undoable | null
   redo: Undoable | null

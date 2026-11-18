@@ -34,6 +34,7 @@ import { Updates } from "@/components/updates"
 import { Switch, Tools } from "@/components/tools"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
 import { Welcome } from "@/components/welcome"
 import {
   arranged,
@@ -60,6 +61,7 @@ import {
   calledAs,
   calledScene,
   exploding,
+  useStack,
   useStore,
   type Called,
   type Note,
@@ -574,6 +576,25 @@ function AtWork({
 }
 
 /**
+ * At the foot of the view while the model on screen is about to be another version's:
+ * which one is being opened. (A spinner, not a light across the parts or the words: the
+ * view is too busy then for those to go smoothly, and a spinner is turned apart from it.)
+ */
+function Switching({ project }: { project: Project }) {
+  const { open } = useStack(project, useNow(60_000))
+  const name = open ? (open.name ?? `Version ${open.version}`) : "the version"
+  return (
+    <Floating
+      role="status"
+      className="flex max-w-[min(34rem,calc(100%-22rem))] items-center gap-2.5 py-2.5 pr-5 pl-4"
+    >
+      <Spinner className="shrink-0 text-muted-foreground" />
+      <span className="truncate">Opening {name}</span>
+    </Floating>
+  )
+}
+
+/**
  * How much of bringing files in is making the model of them: the rest is the model being
  * loaded into the view, which is the quicker of the two.
  */
@@ -614,10 +635,13 @@ function useLoadedModel(
     done: 0,
     total: 0,
   })
+  // the revision the model on screen was loaded at, or failed to be: -1 before any was
+  const [at, setAt] = React.useState(-1)
 
   React.useEffect(() => {
     let cancelled = false
     const taken = loading()
+    const revision = project.revision
     const run = async () => {
       if (!blank) setState({ status: "loading", done: 0, total: 0 })
       if (blank) {
@@ -627,6 +651,7 @@ function useLoadedModel(
         if (cube) taken(cube)
         setLoaded(cube)
         setState({ status: "ready" })
+        setAt(revision)
         return
       }
       const source = await window.cad.model.read(project.id)
@@ -644,13 +669,15 @@ function useLoadedModel(
       taken(next)
       setLoaded(next)
       setState({ status: "ready" })
+      setAt(revision)
     }
     run().catch((error: unknown) => {
-      if (!cancelled)
-        setState({
-          status: "error",
-          message: error instanceof Error ? error.message : String(error),
-        })
+      if (cancelled) return
+      setState({
+        status: "error",
+        message: error instanceof Error ? error.message : String(error),
+      })
+      setAt(revision)
     })
     return () => {
       cancelled = true
@@ -664,12 +691,30 @@ function useLoadedModel(
     [loaded]
   )
 
-  return { loaded, state }
+  return { loaded, state, at }
+}
+
+/**
+ * Whether the model on screen is about to be another: from when the project's folder
+ * begins to be made another of its versions' until the model that came of that is
+ * loaded. (The folder is told to be the other's first, and the model it then has is
+ * loaded after; so the model on screen is the version's turned from all that while.)
+ */
+function useSwitching(project: Project, at: number): boolean {
+  // the revision the project was at as it was turned, which is the model to wait for
+  const [until, setUntil] = React.useState<number | null>(null)
+  const [was, setWas] = React.useState(project.turning)
+  if (was !== project.turning) {
+    setWas(project.turning)
+    setUntil(project.turning ? null : project.revision)
+  } else if (until !== null && at >= until) setUntil(null)
+  return project.turning || (until !== null && at < until)
 }
 
 function Model({ project }: { project: Project }) {
   const arrivals = useArrivals(project)
-  const { loaded: base, state } = useLoadedModel(project, arrivals.loading)
+  const { loaded: base, state, at } = useLoadedModel(project, arrivals.loading)
+  const switching = useSwitching(project, at)
   // a model made of a mesh is offered to be built again as code, beside the conversation
   const setMeshes = useStore((s) => s.setMeshes)
   React.useEffect(() => {
@@ -2031,6 +2076,7 @@ function Model({ project }: { project: Project }) {
         <TrustSettings project={project} />
         {loaded ? (
           <>
+            {switching && <Switching project={project} />}
             {lookingOver && (
               <AtWork project={project} meanwhile="Understanding the model" />
             )}
