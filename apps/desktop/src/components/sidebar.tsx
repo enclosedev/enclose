@@ -583,7 +583,11 @@ function ProjectCard({ project, now }: { project: Project; now: number }) {
                 <Written conversation={conversation}>
                   <span className="flex items-baseline justify-between gap-2">
                     <span className="flex min-w-0 items-center gap-1">
-                      <span className={NAME}>{conversation.title}</span>
+                      {/* named as the panel's heading names it: what it was called,
+                          or else which version of the project it is */}
+                      <span className={NAME}>
+                        {conversation.name ?? `Version ${conversation.version}`}
+                      </span>
                       {conversation.main && <MainMark />}
                     </span>
                     <When conversation={conversation} now={now} />
