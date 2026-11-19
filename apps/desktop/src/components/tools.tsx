@@ -402,7 +402,7 @@ function Downloads({
       </DropdownMenu>
       <span
         aria-hidden
-        className="text-[8px] leading-none font-medium tracking-wide text-muted-foreground uppercase select-none"
+        className="text-[8px] leading-none font-medium tracking-wide text-muted-foreground uppercase transition-opacity duration-200 select-none group-data-[away]/tools:opacity-0"
       >
         {kind}
       </span>
